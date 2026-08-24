@@ -1,0 +1,5 @@
+{
+  "sulfurCube.title": "Sulfur cube launch mechanics",
+  "sulfurCube.scope": "Java Edition 26.2 · Bouncy archetype · one ordinary direct non-projectile knockback call · cube initially at rest",
+  "sulfurCube.stage1": "This interactive visualization is under construction. Its calculations and controls will be added on top of a tested, source-audited model."
+}
