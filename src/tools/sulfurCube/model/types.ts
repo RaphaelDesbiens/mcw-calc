@@ -151,3 +151,10 @@ export interface TrajectoryResult {
   readonly resultingPosition: Vec3
   readonly resultingVelocity: Vec3
 }
+
+export interface LaunchSummary {
+  readonly horizontalSpeed: number
+  readonly totalSpeed: number
+  readonly elevationAngle: number
+  readonly horizontalDirection: Vec2
+}
