@@ -1,6 +1,6 @@
 import type { KnockbackCallResult, LaunchSummary, TrajectoryResult, Vec3 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
-import { je26_2KnockbackMechanics } from '../data/je26_2'
+import { je26_2Constants, je26_2KnockbackMechanics } from '../data/je26_2'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
 import { simulateFreeFlightTrajectory } from '../model/trajectory'
@@ -36,6 +36,27 @@ const sharedEyes = { x: 0, y: 1.62, z: 1.5 } as const
 const sharedAim = { x: 0, y: 0.49, z: 0.48 } as const
 const sharedCubeFeet = { x: 0, y: 0, z: 0 } as const
 const standardDefaultTrajectoryTicks = 15
+
+export function createMilestone1DefaultInputs(): DiagnosticInputs {
+  const attackerFeetPosition = { x: 0, y: -0.3, z: 2.6 } as const
+  const inputs: DiagnosticInputs = {
+    cubeFeetPosition: { x: 0, y: 0, z: 0 },
+    attackerFeetPosition,
+    attackerEyePosition: {
+      x: attackerFeetPosition.x,
+      y: attackerFeetPosition.y + je26_2Constants.standingPlayerEyeHeight.value,
+      z: attackerFeetPosition.z,
+    },
+    aimPoint: { x: 0, y: 0.4, z: -1.7 },
+    damageArgument: 1,
+    trajectoryTicks: 0,
+  }
+
+  return {
+    ...inputs,
+    trajectoryTicks: findDefaultTrajectoryTicks(inputs),
+  }
+}
 
 // Source: minecraft-je-research/notes/in-game-data/sulfur_cube_launch_direction/
 // sulfur_cube_launch_direction_results.csv, direct-melee runs M1-M9.

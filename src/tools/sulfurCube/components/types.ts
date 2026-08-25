@@ -1,7 +1,4 @@
-import type { DiagnosticPresetId } from '../presets/diagnostic'
-
 export type NumericFormValue = string | number
-export type DiagnosticPresetSelection = DiagnosticPresetId | 'custom'
 
 export interface DiagnosticFormState {
   readonly cubeFeetX: NumericFormValue

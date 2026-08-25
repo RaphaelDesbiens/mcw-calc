@@ -8,8 +8,8 @@ export function createRadialProjection(
   attackerFeetPosition: Vec3,
   minimumHorizontalLength = 1e-9,
 ): RadialProjection {
-  const horizontalX = attackerFeetPosition.x - cubeFeetPosition.x
-  const horizontalZ = attackerFeetPosition.z - cubeFeetPosition.z
+  const horizontalX = cubeFeetPosition.x - attackerFeetPosition.x
+  const horizontalZ = cubeFeetPosition.z - attackerFeetPosition.z
   const horizontalLength = Math.hypot(horizontalX, horizontalZ)
   const horizontalAxis =
     horizontalLength < minimumHorizontalLength

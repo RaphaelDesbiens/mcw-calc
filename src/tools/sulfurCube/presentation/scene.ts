@@ -154,8 +154,8 @@ function createCubeAnchoredBounds(
   const halfWidth = cubeWidth / 2
 
   return {
-    minX: cubeFeet.x - Math.max(radialSceneCamera.horizontalBlocksBehindCube, halfWidth + 0.5),
-    maxX: cubeFeet.x + Math.max(radialSceneCamera.horizontalBlocksPastAttacker, halfWidth + 0.5),
+    minX: cubeFeet.x - Math.max(radialSceneCamera.horizontalBlocksPastAttacker, halfWidth + 0.5),
+    maxX: cubeFeet.x + Math.max(radialSceneCamera.horizontalBlocksBehindCube, halfWidth + 0.5),
     minY: cubeFeet.y - radialSceneCamera.verticalBlocksBelowCubeFeet,
     maxY: cubeFeet.y + Math.max(radialSceneCamera.verticalBlocksAboveCubeFeet, cubeHeight + 0.5),
   }

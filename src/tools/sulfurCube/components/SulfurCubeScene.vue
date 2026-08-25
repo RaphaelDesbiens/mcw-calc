@@ -41,7 +41,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  objectDragActive: [active: boolean]
   translateAttacker: [delta: Vec3]
   translateCube: [delta: Vec3]
   'update:sceneSize': [size: SceneSize]
@@ -316,10 +315,6 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
     projection: currentView.scene.projection,
     transform: currentView.transform,
   }
-
-  if (kind !== 'camera') {
-    emit('objectDragActive', true)
-  }
 }
 
 function continueDrag(event: PointerEvent): void {
@@ -392,19 +387,11 @@ function endDrag(event: PointerEvent): void {
 
   if (drag?.pointerId === event.pointerId) {
     dragState.value = null
-
-    if (drag.kind !== 'camera') {
-      emit('objectDragActive', false)
-    }
   }
 }
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', clearHandleFocus)
-
-  if (dragState.value !== null && dragState.value.kind !== 'camera') {
-    emit('objectDragActive', false)
-  }
 })
 
 function clearHandleFocus(event: PointerEvent): void {

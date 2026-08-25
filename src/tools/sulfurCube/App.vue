@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { DiagnosticFormState, DiagnosticPresetSelection } from './components/types'
+import type { DiagnosticFormState } from './components/types'
 import type { Vec3 } from './model/types'
-import type { DiagnosticEvaluation, DiagnosticPresetId } from './presets/diagnostic'
+import type { DiagnosticEvaluation } from './presets/diagnostic'
 import { CdxAccordion, CdxMessage } from '@wikimedia/codex'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -11,6 +11,7 @@ import {
   createDiagnosticFormState,
   parseDiagnosticFormState,
   resetAttackerEyeToStandingPresetInFormState,
+  translateAttackerForFeetFormEdit,
   translateAttackerInFormState,
   translateCubeInFormState,
   updateAimPointInFormState,
@@ -19,21 +20,16 @@ import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
 import {
+  createMilestone1DefaultInputs,
   evaluateDiagnosticInputs,
   findDefaultTrajectoryTicks,
-  getDiagnosticPreset,
 } from './presets/diagnostic'
 
-const defaultPresetId: DiagnosticPresetId = 'M1'
+const defaultInputs = createMilestone1DefaultInputs()
 
 const { t } = useI18n()
-const selectedPreset = ref<DiagnosticPresetSelection>(defaultPresetId)
 const sceneSize = ref<'regular' | 'compact'>('regular')
-const sceneObjectDragActive = ref(false)
-const sceneChangedDuringDrag = ref(false)
-const formState = ref<DiagnosticFormState>(
-  createDiagnosticFormState(getDiagnosticPreset(defaultPresetId).inputs),
-)
+const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
 
 const evaluation = computed<DiagnosticEvaluation | null>(() => {
   try {
@@ -43,25 +39,16 @@ const evaluation = computed<DiagnosticEvaluation | null>(() => {
   }
 })
 
-function applyPreset(selection: DiagnosticPresetSelection): void {
-  sceneObjectDragActive.value = false
-  sceneChangedDuringDrag.value = false
-  selectedPreset.value = selection
-
-  if (selection === 'custom') {
-    return
-  }
-
-  formState.value = createDiagnosticFormState(getDiagnosticPreset(selection).inputs)
-}
-
 function updateFormState(value: DiagnosticFormState): void {
   formState.value = value
-  selectedPreset.value = 'custom'
+}
+
+function updateFormStateFromControls(value: DiagnosticFormState): void {
+  formState.value = translateAttackerForFeetFormEdit(formState.value, value)
 }
 
 function reset(): void {
-  applyPreset(defaultPresetId)
+  formState.value = createDiagnosticFormState(defaultInputs)
 }
 
 function resetTrajectoryTicksDefault(): void {
@@ -88,34 +75,15 @@ function resetAttackerEyeStanding(): void {
 }
 
 function updateAimPoint(point: Vec3): void {
-  updateFormStateFromScene(updateAimPointInFormState(formState.value, point))
+  updateFormState(updateAimPointInFormState(formState.value, point))
 }
 
 function translateAttacker(delta: Vec3): void {
-  updateFormStateFromScene(translateAttackerInFormState(formState.value, delta))
+  updateFormState(translateAttackerInFormState(formState.value, delta))
 }
 
 function translateCube(delta: Vec3): void {
-  updateFormStateFromScene(translateCubeInFormState(formState.value, delta))
-}
-
-function updateFormStateFromScene(value: DiagnosticFormState): void {
-  formState.value = value
-
-  if (sceneObjectDragActive.value) {
-    sceneChangedDuringDrag.value = true
-  } else {
-    selectedPreset.value = 'custom'
-  }
-}
-
-function setSceneObjectDragActive(active: boolean): void {
-  sceneObjectDragActive.value = active
-
-  if (!active && sceneChangedDuringDrag.value) {
-    selectedPreset.value = 'custom'
-    sceneChangedDuringDrag.value = false
-  }
+  updateFormState(translateCubeInFormState(formState.value, delta))
 }
 </script>
 
@@ -134,9 +102,7 @@ function setSceneObjectDragActive(active: boolean): void {
         <ControlsPanel
           class="interaction-grid__controls"
           :model-value="formState"
-          :selected-preset="selectedPreset"
-          @update:model-value="updateFormState"
-          @select-preset="applyPreset"
+          @update:model-value="updateFormStateFromControls"
           @reset-attacker-eye-standing="resetAttackerEyeStanding"
           @reset-trajectory-ticks-default="resetTrajectoryTicksDefault"
           @reset="reset"
@@ -147,7 +113,6 @@ function setSceneObjectDragActive(active: boolean): void {
           v-model:scene-size="sceneSize"
           class="interaction-grid__scene"
           :evaluation="evaluation"
-          @object-drag-active="setSceneObjectDragActive"
           @update-aim-point="updateAimPoint"
           @translate-attacker="translateAttacker"
           @translate-cube="translateCube"
@@ -200,7 +165,14 @@ function setSceneObjectDragActive(active: boolean): void {
 .sulfur-cube-tool {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 0.75rem;
+}
+
+:global(html.sulfur-cube-embedded),
+:global(html.sulfur-cube-embedded body) {
+  overflow: hidden;
 }
 
 .assumptions p {
@@ -216,6 +188,12 @@ function setSceneObjectDragActive(active: boolean): void {
   display: grid;
   gap: 1.5rem;
   align-items: start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.interaction-grid > * {
+  min-width: 0;
 }
 
 .interaction-grid--regular {

@@ -3,6 +3,7 @@ import {
   createDiagnosticFormState,
   parseDiagnosticFormState,
   resetAttackerEyeToStandingPresetInFormState,
+  translateAttackerForFeetFormEdit,
   translateAttackerInFormState,
   translateCubeInFormState,
   updateAimPointInFormState,
@@ -39,14 +40,14 @@ import {
 } from '../presets/diagnostic'
 
 describe('radial-plane presentation', () => {
-  it('projects the cube-to-attacker direction onto positive horizontal screen distance', () => {
+  it('projects the attacker to the left of the cube in the radial view', () => {
     const projection = createRadialProjection({ x: 2, y: 4, z: -3 }, { x: 5, y: 5, z: 1 })
 
-    expect(projection.horizontalAxis.x).toBeCloseTo(0.6, 12)
-    expect(projection.horizontalAxis.y).toBeCloseTo(0.8, 12)
-    expect(projectPointToRadialPlane({ x: 5, y: 5, z: 1 }, projection)).toEqual({ x: 5, y: 1 })
+    expect(projection.horizontalAxis.x).toBeCloseTo(-0.6, 12)
+    expect(projection.horizontalAxis.y).toBeCloseTo(-0.8, 12)
+    expect(projectPointToRadialPlane({ x: 5, y: 5, z: 1 }, projection)).toEqual({ x: -5, y: 1 })
     expect(projectVectorToRadialPlane({ x: -0.6, y: 2, z: -0.8 }, projection)).toEqual({
-      x: -1,
+      x: 1,
       y: 2,
     })
   })
@@ -159,15 +160,15 @@ describe('radial scene presentation', () => {
     expect(scene.cube.feet).toEqual({ x: 0, y: 0 })
     expect(scene.cube.width).toBeCloseTo(0.98, 12)
     expect(scene.cube.height).toBeCloseTo(0.98, 12)
-    expect(scene.attackerFeet).toEqual({ x: 1.5, y: 0 })
-    expect(scene.attackerEyes).toEqual({ x: 1.5, y: 1.62 })
+    expect(scene.attackerFeet).toEqual({ x: -1.5, y: 0 })
+    expect(scene.attackerEyes).toEqual({ x: -1.5, y: 1.62 })
     expect(scene.attackerHitbox).toEqual({
-      bottomLeft: { x: 1.2, y: 0 },
-      topRight: { x: 1.8, y: 1.8 },
+      bottomLeft: { x: -1.8, y: 0 },
+      topRight: { x: -1.2, y: 1.8 },
       width: 0.6,
       height: 1.8,
     })
-    expect(scene.aimPoint).toEqual({ x: 0.48, y: 0.49 })
+    expect(scene.aimPoint).toEqual({ x: -0.48, y: 0.49 })
     expect(
       Math.hypot(
         scene.aimArrowEnd.x - scene.attackerEyes.x,
@@ -175,7 +176,7 @@ describe('radial scene presentation', () => {
       ),
     ).toBeCloseTo(aimArrowLength, 12)
     expect(scene.aimArrowEnd).not.toEqual(scene.aimPoint)
-    expect(scene.launchEnd.x).toBeCloseTo(-0.165 * launchVectorDisplayScale, 12)
+    expect(scene.launchEnd.x).toBeCloseTo(0.165 * launchVectorDisplayScale, 12)
     expect(scene.launchEnd.y).toBeCloseTo(0.378 * launchVectorDisplayScale, 12)
     expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
     expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
@@ -207,7 +208,7 @@ describe('radial scene presentation', () => {
       ).toBeCloseTo(thetaArcRadius, 12)
     }
 
-    expect(scene.thetaLabelPoint.x).toBeLessThan(scene.attackerFeet.x)
+    expect(scene.thetaLabelPoint.x).toBeGreaterThan(scene.attackerFeet.x)
     expect(scene.thetaLabelPoint.y).toBeLessThan(scene.attackerFeet.y)
     expect(thetaLabelHorizontalOffset).toBeLessThan(0)
     expect(thetaLabelVerticalOffset).toBeLessThan(0)
@@ -241,8 +242,8 @@ describe('radial scene presentation', () => {
     const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M2').inputs)
     const scene = createRadialScenePresentation(evaluation)
 
-    expect(scene.aimPoint).toEqual({ x: 0.48, y: 0.49 })
-    expect(scene.aimLateralOffset).toBeCloseTo(0.4, 12)
+    expect(scene.aimPoint).toEqual({ x: -0.48, y: 0.49 })
+    expect(scene.aimLateralOffset).toBeCloseTo(-0.4, 12)
   })
 
   it('limits drawing work without changing the requested model horizon', () => {
@@ -290,7 +291,7 @@ describe('radial scene presentation', () => {
 
     expect(movedAttackerTransform.toSvg(movedAttackerScene.cube.feet)).toEqual(baseCubeFeet)
     expect(movedAimTransform.toSvg(movedAimScene.cube.feet)).toEqual(baseCubeFeet)
-    expect(movedAttackerTransform.toSvg(movedAttackerScene.attackerFeet).x).toBeGreaterThan(
+    expect(movedAttackerTransform.toSvg(movedAttackerScene.attackerFeet).x).toBeLessThan(
       baseAttackerFeet.x,
     )
     expect(movedAimTransform.toSvg(movedAimScene.aimPoint).y).toBeLessThan(baseAimPoint.y)
@@ -311,6 +312,23 @@ describe('scene interaction form updates', () => {
     expect(translated.attackerFeetPosition).toEqual({ x: 0.25, y: -0.5, z: 2.5 })
     expect(translated.attackerEyePosition).toEqual({ x: 0.25, y: 1.12, z: 2.5 })
     expect(translated.aimPoint).toEqual({ x: 0.25, y: -0.01, z: 1.48 })
+  })
+
+  it('applies an exact feet-coordinate edit as the same attacker translation', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const current = createDiagnosticFormState(inputs)
+    const updated = parseDiagnosticFormState(
+      translateAttackerForFeetFormEdit(current, {
+        ...current,
+        attackerFeetX: 0.25,
+        attackerFeetY: -0.5,
+        attackerFeetZ: 2.5,
+      }),
+    )
+
+    expect(updated.attackerFeetPosition).toEqual({ x: 0.25, y: -0.5, z: 2.5 })
+    expect(updated.attackerEyePosition).toEqual({ x: 0.25, y: 1.12, z: 2.5 })
+    expect(updated.aimPoint).toEqual({ x: 0.25, y: -0.01, z: 1.48 })
   })
 
   it('changes only the aim coordinates when the aim handle moves', () => {

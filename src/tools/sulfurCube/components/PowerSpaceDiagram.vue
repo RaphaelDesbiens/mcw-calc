@@ -43,6 +43,41 @@ function formatNumber(value: number): string {
   return numberFormatter.value.format(Object.is(value, -0) ? 0 : value)
 }
 
+function countFractionDigits(value: number): number {
+  const [coefficient, exponentText] = Math.abs(value).toString().toLowerCase().split('e')
+  const fractionLength = coefficient?.split('.')[1]?.length ?? 0
+  const exponent = Number(exponentText ?? 0)
+
+  return Math.max(0, fractionLength - exponent)
+}
+
+const powerCoordinateFormatters = computed(() => {
+  const { h0, v0 } = props.evaluation.callResult.diagnostics
+
+  return {
+    horizontal: new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: countFractionDigits(h0),
+      maximumFractionDigits: countFractionDigits(h0),
+      useGrouping: false,
+    }),
+    vertical: new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: countFractionDigits(v0),
+      maximumFractionDigits: countFractionDigits(v0),
+      useGrouping: false,
+    }),
+  }
+})
+
+function formatPowerCoordinate(value: number, axis: 'horizontal' | 'vertical'): string {
+  const normalized = Object.is(value, -0) ? 0 : value
+
+  return powerCoordinateFormatters.value[axis].format(normalized)
+}
+
+function formatPowerPair(horizontal: number, vertical: number): string {
+  return `(${formatPowerCoordinate(horizontal, 'horizontal')}, ${formatPowerCoordinate(vertical, 'vertical')})`
+}
+
 function stageLabelX(stage: SvgPowerStage): number {
   switch (stage.id) {
     case 'base':
@@ -284,7 +319,7 @@ const view = computed(() => {
           <strong>{{ t(`sulfurCube.power.stages.${stage.id}`) }}</strong>
           <small>{{ t(`sulfurCube.power.stages.${stage.id}Help`) }}</small>
         </span>
-        <code>({{ formatNumber(stage.point.x) }}, {{ formatNumber(stage.point.y) }})</code>
+        <code>{{ formatPowerPair(stage.point.x, stage.point.y) }}</code>
       </li>
     </ol>
 
@@ -504,8 +539,10 @@ figcaption {
 }
 
 .power-stages code {
+  width: 18ch;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 figcaption {

@@ -125,6 +125,44 @@ export function translateAttackerInFormState(
   })
 }
 
+export function translateAttackerForFeetFormEdit(
+  currentState: DiagnosticFormState,
+  nextState: DiagnosticFormState,
+): DiagnosticFormState {
+  const feetFields = ['attackerFeetX', 'attackerFeetY', 'attackerFeetZ'] as const
+
+  if (feetFields.every((field) => currentState[field] === nextState[field])) {
+    return nextState
+  }
+
+  try {
+    const delta = {
+      x:
+        parseNumber(nextState.attackerFeetX, 'attackerFeetX') -
+        parseNumber(currentState.attackerFeetX, 'attackerFeetX'),
+      y:
+        parseNumber(nextState.attackerFeetY, 'attackerFeetY') -
+        parseNumber(currentState.attackerFeetY, 'attackerFeetY'),
+      z:
+        parseNumber(nextState.attackerFeetZ, 'attackerFeetZ') -
+        parseNumber(currentState.attackerFeetZ, 'attackerFeetZ'),
+    }
+    const translatedState = translateAttackerInFormState(currentState, delta)
+
+    return {
+      ...nextState,
+      attackerEyeX: translatedState.attackerEyeX,
+      attackerEyeY: translatedState.attackerEyeY,
+      attackerEyeZ: translatedState.attackerEyeZ,
+      aimX: translatedState.aimX,
+      aimY: translatedState.aimY,
+      aimZ: translatedState.aimZ,
+    }
+  } catch {
+    return nextState
+  }
+}
+
 export function translateCubeInFormState(
   state: DiagnosticFormState,
   delta: Vec3,

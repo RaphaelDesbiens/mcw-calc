@@ -1,19 +1,14 @@
 <script setup lang="ts">
-import type { MenuItemData, MenuItemValue } from '@wikimedia/codex'
-import type { DiagnosticFormState, DiagnosticPresetSelection, NumericFormValue } from './types'
-import { CdxAccordion, CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
-import { computed } from 'vue'
+import type { DiagnosticFormState, NumericFormValue } from './types'
+import { CdxAccordion, CdxButton, CdxField, CdxTextInput } from '@wikimedia/codex'
 import { useI18n } from 'vue-i18n'
-import { diagnosticPresets } from '../presets/diagnostic'
 
 const props = defineProps<{
   modelValue: DiagnosticFormState
-  selectedPreset: DiagnosticPresetSelection
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
-  selectPreset: [value: DiagnosticPresetSelection]
   reset: []
   resetAttackerEyeStanding: []
   resetTrajectoryTicksDefault: []
@@ -21,44 +16,17 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const presetItems = computed<MenuItemData[]>(() => [
-  ...diagnosticPresets.map((preset) => ({
-    value: preset.id,
-    label: t(`sulfurCube.presets.${preset.id}`),
-  })),
-  {
-    value: 'custom',
-    label: t('sulfurCube.presets.custom'),
-  },
-])
-
 function updateField(field: keyof DiagnosticFormState, value: NumericFormValue): void {
   emit('update:modelValue', { ...props.modelValue, [field]: value })
-}
-
-function selectPreset(value: MenuItemValue | null): void {
-  if (typeof value === 'string') {
-    emit('selectPreset', value as DiagnosticPresetSelection)
-  }
 }
 </script>
 
 <template>
   <section class="controls-panel" aria-labelledby="sulfur-cube-controls-title">
-    <h3 id="sulfur-cube-controls-title" class="controls-panel__title">
-      {{ t('sulfurCube.controls.title') }}
-    </h3>
-
-    <div class="controls-panel__preset-row">
-      <CdxField class="controls-panel__preset">
-        <template #label>{{ t('sulfurCube.controls.preset') }}</template>
-        <template #description>{{ t('sulfurCube.controls.presetHelp') }}</template>
-        <CdxSelect
-          :selected="selectedPreset"
-          :menu-items="presetItems"
-          @update:selected="selectPreset"
-        />
-      </CdxField>
+    <div class="controls-panel__heading">
+      <h3 id="sulfur-cube-controls-title" class="controls-panel__title">
+        {{ t('sulfurCube.controls.title') }}
+      </h3>
       <CdxButton @click="emit('reset')">
         {{ t('sulfurCube.controls.reset') }}
       </CdxButton>
@@ -259,15 +227,11 @@ function selectPreset(value: MenuItemValue | null): void {
   margin: 0;
 }
 
-.controls-panel__preset-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+.controls-panel__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
-}
-
-.controls-panel__preset {
-  min-width: 0;
 }
 
 .controls-panel :deep(.cdx-text-input) {
@@ -289,19 +253,21 @@ function selectPreset(value: MenuItemValue | null): void {
 
 .coordinate-grid {
   display: grid;
-  grid-template-columns: repeat(3, var(--numeric-input-width));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
+  width: min(100%, calc(17.5rem + 3cm));
+  max-width: 100%;
 }
 
 .coordinate-grid > * {
-  width: var(--numeric-input-width);
+  width: 100%;
   min-width: 0;
 }
 
 .coordinate-grid :deep(.cdx-text-input) {
-  min-width: var(--numeric-input-width);
-  width: var(--numeric-input-width);
-  max-width: var(--numeric-input-width);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .coordinate-grid :deep(label) {
@@ -318,12 +284,10 @@ function selectPreset(value: MenuItemValue | null): void {
 }
 
 @media (max-width: 32rem) {
-  .controls-panel__preset-row,
   .trajectory-row {
     grid-template-columns: 1fr;
   }
 
-  .controls-panel__preset-row > :last-child,
   .trajectory-row > :last-child {
     justify-self: start;
   }

@@ -2,6 +2,7 @@ import type { Vec3 } from '../model/types'
 import { describe, expect, it } from 'vitest'
 import { createDiagnosticFormState, parseDiagnosticFormState } from '../components/formState'
 import {
+  createMilestone1DefaultInputs,
   diagnosticPresets,
   evaluateDiagnosticInputs,
   findDefaultTrajectoryTicks,
@@ -18,6 +19,25 @@ function expectVec3Within(actual: Vec3, expected: Vec3, tolerance: number): void
 }
 
 describe('stage 3 diagnostic orchestration', () => {
+  it('creates the reader default with standing eyes and the first two-block-drop horizon', () => {
+    const inputs = createMilestone1DefaultInputs()
+    const previous = evaluateDiagnosticInputs({
+      ...inputs,
+      trajectoryTicks: inputs.trajectoryTicks - 1,
+    })
+    const current = evaluateDiagnosticInputs(inputs)
+    const targetY = inputs.cubeFeetPosition.y - 2
+
+    expect(inputs.cubeFeetPosition).toEqual({ x: 0, y: 0, z: 0 })
+    expect(inputs.attackerFeetPosition).toEqual({ x: 0, y: -0.3, z: 2.6 })
+    expect(inputs.attackerEyePosition.x).toBe(0)
+    expect(inputs.attackerEyePosition.y).toBeCloseTo(1.32, 12)
+    expect(inputs.attackerEyePosition.z).toBe(2.6)
+    expect(inputs.aimPoint).toEqual({ x: 0, y: 0.4, z: -1.7 })
+    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(targetY)
+    expect(current.trajectory.resultingPosition.y).toBeLessThanOrEqual(targetY)
+  })
+
   it.each(diagnosticPresets)('reproduces the $id direct-melee fixture', (preset) => {
     const fixture = directMeleeFixtures.find((candidate) => candidate.id.startsWith(preset.id))
     const evaluation = evaluateDiagnosticInputs({ ...preset.inputs, trajectoryTicks: 10 })
