@@ -161,16 +161,18 @@ describe('radial scene presentation', () => {
     expect(scene.launchEnd.x).toBeCloseTo(-0.165 * launchVectorDisplayScale, 12)
     expect(scene.launchEnd.y).toBeCloseTo(0.49 + 0.378 * launchVectorDisplayScale, 12)
     expect(scene.trajectory[0].point).toEqual(scene.cube.center)
-    expect(scene.trajectory).toHaveLength(15)
-    expect(scene.trajectory[14].tick).toBe(14)
+    expect(scene.trajectory).toHaveLength(16)
+    expect(scene.trajectory[15].tick).toBe(15)
     const trajectoryEnd = scene.trajectoryEndMarker!
-    const finalTick = scene.trajectory[14].point
+    const finalTick = scene.trajectory[15].point
+    const previousTick = scene.trajectory[14].point
 
     expect(Math.hypot(trajectoryEnd.x - finalTick.x, trajectoryEnd.y - finalTick.y)).toBeCloseTo(
       trajectoryEndExtension,
       12,
     )
-    expect(scene.cube.center.y - finalTick.y).toBeCloseTo(1.986, 3)
+    expect(scene.cube.center.y - previousTick.y).toBeLessThan(2)
+    expect(scene.cube.center.y - finalTick.y).toBeGreaterThanOrEqual(2)
   })
 
   it('anchors the theta arc and label to the attacker-feet angle corner', () => {
@@ -206,7 +208,7 @@ describe('radial scene presentation', () => {
     })
     const scene = createRadialScenePresentation(evaluation)
 
-    expect(scene.renderedTrajectoryTicks).toBe(20)
+    expect(scene.renderedTrajectoryTicks).toBe(200)
     expect(scene.requestedTrajectoryTicks).toBe(200)
     expect(evaluation.trajectory.ticks).toHaveLength(200)
   })

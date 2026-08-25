@@ -35,7 +35,7 @@ const sharedFeet = { x: 0, y: 0, z: 1.5 } as const
 const sharedEyes = { x: 0, y: 1.62, z: 1.5 } as const
 const sharedAim = { x: 0, y: 0.49, z: 0.48 } as const
 const sharedCubeFeet = { x: 0, y: 0, z: 0 } as const
-const defaultTrajectoryTicks = 14
+const standardDefaultTrajectoryTicks = 15
 
 // Source: minecraft-je-research/notes/in-game-data/sulfur_cube_launch_direction/
 // sulfur_cube_launch_direction_results.csv, direct-melee runs M1-M9.
@@ -48,7 +48,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: sharedAim,
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: standardDefaultTrajectoryTicks,
     },
   },
   {
@@ -59,7 +59,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: { x: -0.4, y: 0.49, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: standardDefaultTrajectoryTicks,
     },
   },
   {
@@ -70,7 +70,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: { x: 0.4, y: 0.49, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: standardDefaultTrajectoryTicks,
     },
   },
   {
@@ -81,7 +81,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: { x: 0, y: 0.88, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: standardDefaultTrajectoryTicks,
     },
   },
   {
@@ -92,7 +92,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: { x: 0, y: 0.1, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: standardDefaultTrajectoryTicks,
     },
   },
   {
@@ -103,7 +103,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: { x: 0, y: 2.62, z: 1.5 },
       aimPoint: sharedAim,
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: 11,
     },
   },
   {
@@ -114,7 +114,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: { x: 0, y: 0.62, z: 1.5 },
       aimPoint: sharedAim,
       damageArgument: 1,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: standardDefaultTrajectoryTicks,
     },
   },
   {
@@ -125,7 +125,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: sharedAim,
       damageArgument: 4,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: 23,
     },
   },
   {
@@ -136,7 +136,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       attackerEyePosition: sharedEyes,
       aimPoint: sharedAim,
       damageArgument: 9,
-      trajectoryTicks: defaultTrajectoryTicks,
+      trajectoryTicks: 31,
     },
   },
 ]
@@ -235,4 +235,22 @@ export function evaluateDiagnosticInputs(
       numerics,
     ),
   }
+}
+
+export function findDefaultTrajectoryTicks(
+  inputs: DiagnosticInputs,
+  numerics: NumericBackend = standardNumerics,
+): number {
+  const maximumTicks = 200
+  const targetDrop = 2
+  const evaluation = evaluateDiagnosticInputs(
+    { ...inputs, trajectoryTicks: maximumTicks },
+    numerics,
+  )
+  const targetY = evaluation.trajectory.initialPosition.y - targetDrop
+  const firstTickAtOrBelowTarget = evaluation.trajectory.ticks.find(
+    (tick) => tick.resultingPosition.y <= targetY,
+  )
+
+  return firstTickAtOrBelowTarget?.tick ?? maximumTicks
 }

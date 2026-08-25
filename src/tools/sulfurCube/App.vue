@@ -17,7 +17,11 @@ import {
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
-import { evaluateDiagnosticInputs, getDiagnosticPreset } from './presets/diagnostic'
+import {
+  evaluateDiagnosticInputs,
+  findDefaultTrajectoryTicks,
+  getDiagnosticPreset,
+} from './presets/diagnostic'
 
 const defaultPresetId: DiagnosticPresetId = 'M1'
 
@@ -57,6 +61,21 @@ function updateFormState(value: DiagnosticFormState): void {
 
 function reset(): void {
   applyPreset(defaultPresetId)
+}
+
+function resetTrajectoryTicksDefault(): void {
+  let trajectoryTicks: number
+
+  try {
+    trajectoryTicks = findDefaultTrajectoryTicks(parseDiagnosticFormState(formState.value))
+  } catch {
+    return
+  }
+
+  updateFormState({
+    ...formState.value,
+    trajectoryTicks,
+  })
 }
 
 function updateAimPoint(point: Vec3): void {
@@ -109,6 +128,7 @@ function setSceneObjectDragActive(active: boolean): void {
           :selected-preset="selectedPreset"
           @update:model-value="updateFormState"
           @select-preset="applyPreset"
+          @reset-trajectory-ticks-default="resetTrajectoryTicksDefault"
           @reset="reset"
         />
 
@@ -132,9 +152,14 @@ function setSceneObjectDragActive(active: boolean): void {
           class="interaction-grid__power"
           :evaluation="evaluation"
         />
-      </div>
 
-      <MechanicsReadout v-if="evaluation" :evaluation="evaluation" />
+        <MechanicsReadout
+          v-if="evaluation"
+          class="interaction-grid__readout"
+          :evaluation="evaluation"
+          :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
+        />
+      </div>
 
       <CdxAccordion class="assumptions-disclosure" separation="outline">
         <template #title>{{ t('sulfurCube.assumptions.title') }}</template>
@@ -178,14 +203,15 @@ function setSceneObjectDragActive(active: boolean): void {
 .interaction-grid--regular {
   grid-template-areas:
     'scene scene'
-    'controls power';
+    'controls power'
+    'readout readout';
   grid-template-columns: minmax(18rem, 0.8fr) minmax(22rem, 1.2fr);
 }
 
 .interaction-grid--compact {
   grid-template-areas:
-    'controls scene'
-    'power power';
+    'power scene'
+    'controls readout';
   grid-template-columns: minmax(18rem, 0.85fr) minmax(22rem, 1.15fr);
 }
 
@@ -201,14 +227,19 @@ function setSceneObjectDragActive(active: boolean): void {
   grid-area: power;
 }
 
+.interaction-grid__readout {
+  grid-area: readout;
+}
+
 @media (max-width: 52rem) {
   .interaction-grid,
   .interaction-grid--regular,
   .interaction-grid--compact {
     grid-template-areas:
       'scene'
+      'power'
       'controls'
-      'power';
+      'readout';
     grid-template-columns: minmax(0, 1fr);
   }
 }

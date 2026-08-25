@@ -104,12 +104,13 @@ const view = computed(() => {
     scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
   const zoomFactor = transform.scale / initialTransformScale
   const visual = {
-    aimPointRadius: 8 * zoomFactor,
+    handleRadius: 6 * zoomFactor,
+    aimPointRadius: 6 * zoomFactor,
     cubeCornerRadius: 4 * zoomFactor,
-    cubeCenterRadius: 8 * zoomFactor,
+    cubeCenterRadius: 6 * zoomFactor,
     cubeEndpointRadius: 3 * zoomFactor,
-    eyePointRadius: 7 * zoomFactor,
-    feetPointRadius: 7 * zoomFactor,
+    eyePointRadius: 2.5 * zoomFactor,
+    feetPointRadius: 6 * zoomFactor,
     hitAreaRadius: Math.max(18, 18 * zoomFactor),
     labelOffset: 10 * zoomFactor,
     aimLabelOffsetX: 10 * zoomFactor,
@@ -226,7 +227,7 @@ function zoomWithWheel(event: WheelEvent): void {
   const deltaUnit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : viewport.height
   const deltaPixels =
     event.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? event.deltaY : event.deltaY * deltaUnit
-  const exponent = Math.min(0.35, Math.max(-0.35, deltaPixels * 0.0015))
+  const exponent = Math.min(0.35, Math.max(-0.35, deltaPixels * 0.0012))
 
   zoomAtSvgPoint(pointer, Math.exp(exponent))
 }
@@ -428,6 +429,8 @@ function formatCoordinate(value: number): string {
     <div class="scene-frame">
       <div class="scene-frame__overlay scene-frame__overlay--left">
         <h3 id="sulfur-cube-scene-heading">{{ t('sulfurCube.scene.radialView') }}</h3>
+      </div>
+      <div class="scene-frame__overlay scene-frame__overlay--right">
         <CdxButton
           size="small"
           weight="quiet"
@@ -437,14 +440,12 @@ function formatCoordinate(value: number): string {
         >
           {{ sceneSizeButtonLabel }}
         </CdxButton>
-      </div>
-      <div class="scene-frame__overlay scene-frame__overlay--right">
         <CdxButton
           size="small"
           weight="quiet"
           :aria-label="t('sulfurCube.scene.zoomOut')"
           :title="t('sulfurCube.scene.zoomOut')"
-          @click="zoomCamera(1.25)"
+          @click="zoomCamera(1.35)"
         >
           −
         </CdxButton>
@@ -453,7 +454,7 @@ function formatCoordinate(value: number): string {
           weight="quiet"
           :aria-label="t('sulfurCube.scene.zoomIn')"
           :title="t('sulfurCube.scene.zoomIn')"
-          @click="zoomCamera(0.8)"
+          @click="zoomCamera(0.74)"
         >
           +
         </CdxButton>
@@ -625,17 +626,11 @@ function formatCoordinate(value: number): string {
             :height="view.attackerRect.height"
           />
           <circle
+            class="eye-dot"
             :cx="view.attackerEyes.x"
             :cy="view.attackerEyes.y"
             :r="view.visual.eyePointRadius"
           />
-          <text
-            :x="view.attackerEyes.x"
-            :y="view.attackerEyes.y - view.visual.eyesLabelOffset"
-            text-anchor="middle"
-          >
-            {{ t('sulfurCube.scene.eyes') }}
-          </text>
           <text
             :x="view.attackerFeet.x"
             :y="view.attackerFeet.y + view.visual.feetLabelOffset"
@@ -677,6 +672,7 @@ function formatCoordinate(value: number): string {
             :r="view.visual.hitAreaRadius"
           />
           <circle
+            class="handle-marker"
             :cx="view.cubeCenter.x"
             :cy="view.cubeCenter.y"
             :r="view.visual.cubeCenterRadius"
@@ -704,8 +700,11 @@ function formatCoordinate(value: number): string {
             :cy="view.aimPoint.y"
             :r="view.visual.hitAreaRadius"
           />
-          <path
-            :d="`M ${view.aimPoint.x} ${view.aimPoint.y - view.visual.aimPointRadius} L ${view.aimPoint.x + view.visual.aimPointRadius} ${view.aimPoint.y} L ${view.aimPoint.x} ${view.aimPoint.y + view.visual.aimPointRadius} L ${view.aimPoint.x - view.visual.aimPointRadius} ${view.aimPoint.y} z`"
+          <circle
+            class="handle-marker"
+            :cx="view.aimPoint.x"
+            :cy="view.aimPoint.y"
+            :r="view.visual.aimPointRadius"
           />
           <text
             :x="view.aimPoint.x + view.visual.aimLabelOffsetX"
@@ -731,6 +730,7 @@ function formatCoordinate(value: number): string {
             :r="view.visual.hitAreaRadius"
           />
           <circle
+            class="handle-marker"
             :cx="view.attackerFeet.x"
             :cy="view.attackerFeet.y"
             :r="view.visual.feetPointRadius"
@@ -802,10 +802,9 @@ figcaption {
 .scene-frame__overlay {
   position: absolute;
   z-index: 1;
-  top: 0.5rem;
+  top: 0.25rem;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
   padding: 0.2rem;
   border: 1px solid color-mix(in srgb, var(--scene-border) 65%, transparent);
   border-radius: 4px;
@@ -814,11 +813,11 @@ figcaption {
 }
 
 .scene-frame__overlay--left {
-  left: 0.5rem;
+  left: 0.25rem;
 }
 
 .scene-frame__overlay--right {
-  right: 0.5rem;
+  right: 0.25rem;
 }
 
 .scene-frame__overlay h3 {
@@ -834,10 +833,21 @@ figcaption {
   font-size: 0.875rem;
 }
 
+.scene-frame__overlay--right :deep(.cdx-button:not(:first-child)) {
+  border-left-color: color-mix(in srgb, var(--scene-border) 70%, transparent);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.scene-frame__overlay--right :deep(.cdx-button:not(:last-child)) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .scene-frame {
   position: relative;
-  width: 94%;
-  width: min(94%, calc(150svh - 9rem));
+  width: 97.6%;
+  width: min(97.6%, calc(150svh - 9rem));
   margin-inline: auto;
   overflow: hidden;
   border: 1px solid var(--scene-border);
@@ -964,9 +974,8 @@ figcaption {
 }
 
 .attacker-shape circle {
-  fill: var(--scene-background);
-  stroke: var(--scene-attacker);
-  stroke-width: var(--scene-stroke-regular);
+  fill: var(--scene-attacker);
+  stroke: none;
 }
 
 .attacker-shape text {
@@ -1035,10 +1044,13 @@ figcaption {
   stroke: transparent;
 }
 
-.aim-handle path {
-  fill: var(--scene-background);
+.handle-marker {
+  fill: var(--background-color-base, #fff);
+  stroke-width: var(--scene-stroke-medium);
+}
+
+.aim-handle .handle-marker {
   stroke: var(--scene-aim);
-  stroke-width: var(--scene-stroke-bold);
 }
 
 .aim-handle text {
@@ -1047,16 +1059,12 @@ figcaption {
   pointer-events: none;
 }
 
-.attacker-handle > circle:last-child {
-  fill: var(--scene-attacker);
-  stroke: var(--scene-background);
-  stroke-width: var(--scene-stroke-regular);
+.attacker-handle .handle-marker {
+  stroke: var(--scene-attacker);
 }
 
-.cube-handle > circle:last-child {
-  fill: var(--scene-cube-dark);
-  stroke: var(--scene-background);
-  stroke-width: var(--scene-stroke-regular);
+.cube-handle .handle-marker {
+  stroke: var(--scene-cube-dark);
 }
 
 .scene-legend {

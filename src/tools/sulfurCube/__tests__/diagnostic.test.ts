@@ -4,6 +4,7 @@ import { createDiagnosticFormState, parseDiagnosticFormState } from '../componen
 import {
   diagnosticPresets,
   evaluateDiagnosticInputs,
+  findDefaultTrajectoryTicks,
   getDiagnosticPreset,
 } from '../presets/diagnostic'
 import { directMeleeFixtures } from './experimentFixtures'
@@ -42,6 +43,19 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(evaluation.trajectory.resultingPosition).toEqual(
       evaluation.trajectory.ticks[9].resultingPosition,
     )
+  })
+
+  it('finds the first default horizon tick at least two blocks below the starting cube height', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const tickCount = findDefaultTrajectoryTicks(inputs)
+    const previous = evaluateDiagnosticInputs({ ...inputs, trajectoryTicks: tickCount - 1 })
+    const current = evaluateDiagnosticInputs({ ...inputs, trajectoryTicks: tickCount })
+    const targetY = current.trajectory.initialPosition.y - 2
+
+    expect(tickCount).toBe(15)
+    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(targetY)
+    expect(current.trajectory.resultingPosition.y).toBeLessThanOrEqual(targetY)
+    expect(findDefaultTrajectoryTicks(getDiagnosticPreset('M8').inputs)).toBeGreaterThan(tickCount)
   })
 
   it('keeps feet and eye positions independently supplied', () => {

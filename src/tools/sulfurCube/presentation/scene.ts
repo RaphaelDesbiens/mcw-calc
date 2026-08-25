@@ -8,7 +8,7 @@ import {
   radialLateralOffset,
 } from './radialPlane'
 
-export const maximumRenderedTrajectoryTicks = 20
+export const maximumRenderedTrajectoryTicks = 200
 export const launchVectorDisplayScale = 4
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.42
@@ -18,7 +18,7 @@ export const trajectoryEndExtension = 0.18
 export const radialSceneCamera = {
   horizontalBlocksBehindCube: 3.25,
   horizontalBlocksPastAttacker: 4.25,
-  verticalBlocksBelowCubeFeet: 1,
+  verticalBlocksBelowCubeFeet: 2.6,
   verticalBlocksAboveCubeFeet: 4.75,
 } as const
 

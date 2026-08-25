@@ -239,18 +239,7 @@ const elevationArcPath = computed(() =>
           :key="stage.id"
           :class="`power-stage power-stage--${stage.id}`"
         >
-          <circle v-if="stage.id === 'base'" :cx="stage.svg.x" :cy="stage.svg.y" r="5" />
-          <rect
-            v-else-if="stage.id === 'aim'"
-            :x="stage.svg.x - 5"
-            :y="stage.svg.y - 5"
-            width="10"
-            height="10"
-          />
-          <path
-            v-else-if="stage.id === 'elevation'"
-            :d="`M ${stage.svg.x} ${stage.svg.y - 6} L ${stage.svg.x + 6} ${stage.svg.y} L ${stage.svg.x} ${stage.svg.y + 6} L ${stage.svg.x - 6} ${stage.svg.y} z`"
-          />
+          <circle v-if="stage.id !== 'capped'" :cx="stage.svg.x" :cy="stage.svg.y" r="3.5" />
           <template v-else />
           <text :x="stage.svg.x + 12" :y="stage.svg.y - 11">{{ stage.number }}</text>
         </g>
@@ -332,31 +321,32 @@ figcaption {
 }
 
 .limit-rectangle {
-  fill: color-mix(in srgb, var(--power-cap) 8%, transparent);
-  stroke: var(--power-cap);
-  stroke-dasharray: 7 5;
-  stroke-width: 2;
+  fill: color-mix(in srgb, var(--power-muted) 8%, transparent);
+  stroke: var(--power-muted);
+  stroke-dasharray: 4 4;
+  stroke-width: 0.8;
 }
 
 .limit-label {
-  fill: var(--power-cap);
+  fill: var(--power-muted);
   font-size: 12px;
   font-weight: 700;
 }
 
 .power-axes line {
-  stroke: var(--power-muted);
+  stroke: var(--power-ink);
   stroke-width: 1.5;
 }
 
 .power-axes text {
-  fill: var(--power-muted);
+  fill: var(--power-ink);
   font-weight: 700;
 }
 
 .aim-range-line {
   stroke: var(--power-ink);
   stroke-width: 1.25;
+  opacity: 0.45;
 }
 
 .stage-segment {
@@ -401,22 +391,20 @@ figcaption {
   font-weight: 700;
 }
 
+.power-stage circle {
+  stroke: none;
+}
+
 .power-stage--base circle {
-  fill: var(--power-background);
-  stroke: var(--power-base);
-  stroke-width: 3;
+  fill: var(--power-base);
 }
 
-.power-stage--aim rect {
-  fill: var(--power-background);
-  stroke: var(--power-aim);
-  stroke-width: 3;
+.power-stage--aim circle {
+  fill: var(--power-aim);
 }
 
-.power-stage--elevation path {
-  fill: var(--power-background);
-  stroke: var(--power-elevation);
-  stroke-width: 3;
+.power-stage--elevation circle {
+  fill: var(--power-elevation);
 }
 
 .power-stages {
@@ -436,31 +424,30 @@ figcaption {
 
 .stage-key {
   display: inline-grid;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1rem;
+  height: 1rem;
   place-items: center;
-  border: 2px solid;
-  color: var(--power-ink);
+  border: 0;
+  border-radius: 50%;
+  color: var(--background-color-base, #fff);
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
 .stage-key--base {
-  border-color: var(--power-base);
-  border-radius: 50%;
+  background: var(--power-base);
 }
 
 .stage-key--aim {
-  border-color: var(--power-aim);
+  background: var(--power-aim);
 }
 
 .stage-key--elevation {
-  border-color: var(--power-elevation);
-  border-style: double;
+  background: var(--power-elevation);
 }
 
 .stage-key--capped {
-  border-color: var(--power-cap);
-  border-radius: 50%;
+  background: var(--power-cap);
 }
 
 .stage-description {

@@ -12,6 +12,7 @@ interface ReadoutRow {
 
 const props = defineProps<{
   evaluation: DiagnosticEvaluation
+  summaryLayout?: 'grid' | 'single'
 }>()
 
 const { locale, t } = useI18n()
@@ -270,7 +271,7 @@ const readoutSections = computed(() => [
       {{ t('sulfurCube.readout.title') }}
     </h3>
 
-    <dl class="summary-grid">
+    <dl class="summary-grid" :class="{ 'summary-grid--single': props.summaryLayout === 'single' }">
       <div v-for="row in summaryRows" :key="row.label" class="summary-grid__item">
         <dt>{{ row.label }}</dt>
         <dd>{{ row.value }}</dd>
@@ -327,6 +328,10 @@ const readoutSections = computed(() => [
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
   margin: 0 0 1rem;
+}
+
+.summary-grid--single {
+  grid-template-columns: 1fr;
 }
 
 .summary-grid__item {

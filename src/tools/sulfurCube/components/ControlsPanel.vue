@@ -15,6 +15,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
   selectPreset: [value: DiagnosticPresetSelection]
   reset: []
+  resetTrajectoryTicksDefault: []
 }>()
 
 const { t } = useI18n()
@@ -217,18 +218,23 @@ function selectPreset(value: MenuItemValue | null): void {
       </div>
     </CdxAccordion>
 
-    <CdxField>
-      <template #label>{{ t('sulfurCube.controls.trajectoryTicks') }}</template>
-      <template #description>{{ t('sulfurCube.controls.trajectoryTicksHelp') }}</template>
-      <CdxTextInput
-        :model-value="modelValue.trajectoryTicks"
-        input-type="number"
-        min="0"
-        max="200"
-        step="1"
-        @update:model-value="updateField('trajectoryTicks', $event)"
-      />
-    </CdxField>
+    <div class="trajectory-row">
+      <CdxField class="trajectory-row__input">
+        <template #label>{{ t('sulfurCube.controls.trajectoryTicks') }}</template>
+        <template #description>{{ t('sulfurCube.controls.trajectoryTicksHelp') }}</template>
+        <CdxTextInput
+          :model-value="modelValue.trajectoryTicks"
+          input-type="number"
+          min="0"
+          max="200"
+          step="1"
+          @update:model-value="updateField('trajectoryTicks', $event)"
+        />
+      </CdxField>
+      <CdxButton @click="emit('resetTrajectoryTicksDefault')">
+        {{ t('sulfurCube.controls.trajectoryTicksDefault') }}
+      </CdxButton>
+    </div>
   </section>
 </template>
 
@@ -255,6 +261,17 @@ function selectPreset(value: MenuItemValue | null): void {
   min-width: 0;
 }
 
+.trajectory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.trajectory-row__input {
+  min-width: 0;
+}
+
 .coordinate-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
@@ -267,11 +284,13 @@ function selectPreset(value: MenuItemValue | null): void {
 }
 
 @media (max-width: 32rem) {
-  .controls-panel__preset-row {
+  .controls-panel__preset-row,
+  .trajectory-row {
     grid-template-columns: 1fr;
   }
 
-  .controls-panel__preset-row > :last-child {
+  .controls-panel__preset-row > :last-child,
+  .trajectory-row > :last-child {
     justify-self: start;
   }
 }
