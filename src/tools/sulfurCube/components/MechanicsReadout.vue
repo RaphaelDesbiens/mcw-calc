@@ -10,16 +10,25 @@ interface ReadoutRow {
   readonly value: string
 }
 
-const props = defineProps<{
-  evaluation: DiagnosticEvaluation
-  summaryLayout?: 'grid' | 'single'
-}>()
+const props = withDefaults(
+  defineProps<{
+    evaluation: DiagnosticEvaluation
+    showDetails?: boolean
+    showSummary?: boolean
+    summaryLayout?: 'grid' | 'single'
+  }>(),
+  {
+    showDetails: true,
+    showSummary: true,
+    summaryLayout: 'grid',
+  },
+)
 
-const { locale, t } = useI18n()
+const { t } = useI18n()
 
 const numberFormatter = computed(
   () =>
-    new Intl.NumberFormat(locale.value, {
+    new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 6,
       minimumFractionDigits: 0,
       useGrouping: false,
@@ -266,19 +275,27 @@ const readoutSections = computed(() => [
 </script>
 
 <template>
-  <section class="mechanics-readout" aria-labelledby="sulfur-cube-results-title">
-    <h3 id="sulfur-cube-results-title" class="mechanics-readout__title">
+  <section
+    class="mechanics-readout"
+    :aria-labelledby="props.showSummary ? 'sulfur-cube-results-title' : undefined"
+    :aria-label="!props.showSummary ? t('sulfurCube.readout.details') : undefined"
+  >
+    <h3 v-if="props.showSummary" id="sulfur-cube-results-title" class="mechanics-readout__title">
       {{ t('sulfurCube.readout.title') }}
     </h3>
 
-    <dl class="summary-grid" :class="{ 'summary-grid--single': props.summaryLayout === 'single' }">
+    <dl
+      v-if="props.showSummary"
+      class="summary-grid"
+      :class="{ 'summary-grid--single': props.summaryLayout === 'single' }"
+    >
       <div v-for="row in summaryRows" :key="row.label" class="summary-grid__item">
         <dt>{{ row.label }}</dt>
         <dd>{{ row.value }}</dd>
       </div>
     </dl>
 
-    <CdxAccordion heading-level="h4" separation="outline">
+    <CdxAccordion v-if="props.showDetails" heading-level="h4" separation="outline">
       <template #title>{{ t('sulfurCube.readout.details') }}</template>
 
       <div class="readout-sections">

@@ -15,6 +15,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
   selectPreset: [value: DiagnosticPresetSelection]
   reset: []
+  resetAttackerEyeStanding: []
   resetTrajectoryTicksDefault: []
 }>()
 
@@ -148,9 +149,15 @@ function selectPreset(value: MenuItemValue | null): void {
           </div>
         </CdxField>
 
-        <CdxField is-fieldset>
-          <template #label>{{ t('sulfurCube.controls.attackerEyes') }}</template>
+        <CdxAccordion heading-level="h5" separation="outline">
+          <template #title>{{ t('sulfurCube.controls.attackerEyes') }}</template>
           <template #description>{{ t('sulfurCube.controls.attackerEyesHelp') }}</template>
+
+          <div class="eye-preset-row">
+            <CdxButton @click="emit('resetAttackerEyeStanding')">
+              {{ t('sulfurCube.controls.attackerEyesStandingDefault') }}
+            </CdxButton>
+          </div>
           <div class="coordinate-grid">
             <CdxField>
               <template #label>X</template>
@@ -180,7 +187,7 @@ function selectPreset(value: MenuItemValue | null): void {
               />
             </CdxField>
           </div>
-        </CdxField>
+        </CdxAccordion>
 
         <CdxField is-fieldset>
           <template #label>{{ t('sulfurCube.controls.aimPoint') }}</template>
@@ -240,6 +247,8 @@ function selectPreset(value: MenuItemValue | null): void {
 
 <style scoped>
 .controls-panel {
+  --numeric-input-width: calc(5.5rem + 1cm);
+
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -261,6 +270,12 @@ function selectPreset(value: MenuItemValue | null): void {
   min-width: 0;
 }
 
+.controls-panel :deep(.cdx-text-input) {
+  min-width: var(--numeric-input-width);
+  width: var(--numeric-input-width);
+  max-width: var(--numeric-input-width);
+}
+
 .trajectory-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -274,13 +289,32 @@ function selectPreset(value: MenuItemValue | null): void {
 
 .coordinate-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
+  grid-template-columns: repeat(3, var(--numeric-input-width));
   gap: 0.5rem;
+}
+
+.coordinate-grid > * {
+  width: var(--numeric-input-width);
+  min-width: 0;
+}
+
+.coordinate-grid :deep(.cdx-text-input) {
+  min-width: var(--numeric-input-width);
+  width: var(--numeric-input-width);
+  max-width: var(--numeric-input-width);
+}
+
+.coordinate-grid :deep(label) {
+  padding-left: 0.25rem;
 }
 
 .coordinate-sections {
   display: grid;
   gap: 1rem;
+}
+
+.eye-preset-row {
+  margin-bottom: 0.75rem;
 }
 
 @media (max-width: 32rem) {

@@ -16,9 +16,53 @@ export interface PowerSpacePresentation {
     readonly start: PlanePoint
     readonly end: PlanePoint
   }
+  readonly elevationArc: readonly PlanePoint[]
+  readonly aimArrowEnd: PlanePoint
+  readonly elevationArrowStart: PlanePoint
+  readonly elevationArrowEnd: PlanePoint
   readonly stages: readonly PowerStagePresentation[]
   readonly capApplied: boolean
   readonly capFactor: number
+}
+
+function createStageArrowEnd(from: PlanePoint, to: PlanePoint, offset: number): PlanePoint {
+  const deltaX = to.x - from.x
+  const deltaY = to.y - from.y
+  const length = Math.hypot(deltaX, deltaY)
+
+  if (length === 0) {
+    return to
+  }
+
+  const appliedOffset = Math.min(offset, length * 0.5)
+
+  return {
+    x: to.x - (appliedOffset * deltaX) / length,
+    y: to.y - (appliedOffset * deltaY) / length,
+  }
+}
+
+function createElevationArc(
+  from: PlanePoint,
+  to: PlanePoint,
+  signedAngle: number,
+): readonly PlanePoint[] {
+  const startAngle = Math.atan2(from.y, from.x)
+  const radius = Math.hypot(from.x, from.y)
+  const sampleCount = 18
+
+  if (radius === 0 || signedAngle === 0) {
+    return [from, to]
+  }
+
+  return Array.from({ length: sampleCount + 1 }, (_, index) => {
+    const angle = startAngle + (signedAngle * index) / sampleCount
+
+    return {
+      x: radius * Math.cos(angle),
+      y: radius * Math.sin(angle),
+    }
+  })
 }
 
 export function createPowerSpacePresentation(
@@ -48,6 +92,25 @@ export function createPowerSpacePresentation(
       y: values.v0 * (1 + aimTransferScale),
     },
   }
+  const elevationArc = createElevationArc(
+    { x: values.h1, y: values.v1 },
+    { x: values.h2, y: values.v2 },
+    values.powerRotationAngle,
+  )
+  const aimArrowEnd = createStageArrowEnd(
+    { x: values.h0, y: values.v0 },
+    { x: values.h1, y: values.v1 },
+    values.h0 * 0.035,
+  )
+  const elevationArrowStart = elevationArc[Math.max(0, elevationArc.length - 2)] ?? {
+    x: values.h1,
+    y: values.v1,
+  }
+  const elevationArrowEnd = createStageArrowEnd(
+    elevationArrowStart,
+    { x: values.h2, y: values.v2 },
+    values.h0 * 0.035,
+  )
   const minimumWidth = Math.max(values.h0 * 2.8, 0.5)
   const minimumHeight = Math.max(values.v0 * 4, 0.25)
   const margin = Math.max(values.h0 * 0.12, values.v0 * 0.3, 0.025)
@@ -58,6 +121,7 @@ export function createPowerSpacePresentation(
       { x: 0, y: 0 },
       aimRange.start,
       aimRange.end,
+      ...elevationArc,
       ...stages.map((stage) => stage.point),
     ],
     minimumWidth,
@@ -69,6 +133,10 @@ export function createPowerSpacePresentation(
     bounds,
     limitBounds,
     aimRange,
+    elevationArc,
+    aimArrowEnd,
+    elevationArrowStart,
+    elevationArrowEnd,
     stages,
     capApplied: values.capFactor < 1,
     capFactor: values.capFactor,

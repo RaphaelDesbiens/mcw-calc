@@ -11,9 +11,11 @@ import {
 export const maximumRenderedTrajectoryTicks = 200
 export const launchVectorDisplayScale = 4
 export const aimArrowLength = 3
-export const thetaArcRadius = 0.42
-export const thetaLabelVerticalOffset = -0.12
+export const thetaArcRadius = 0.78
+export const thetaLabelHorizontalOffset = -0.08
+export const thetaLabelVerticalOffset = -0.02
 export const trajectoryEndExtension = 0.18
+export const cubeFeetLineHalfLength = 3
 
 export const radialSceneCamera = {
   horizontalBlocksBehindCube: 3.25,
@@ -52,6 +54,8 @@ export interface RadialScenePresentation {
   readonly horizontalFeetReference: PlanePoint
   readonly thetaArc: readonly PlanePoint[]
   readonly thetaLabelPoint: PlanePoint
+  readonly cubeFeetLineStart: PlanePoint
+  readonly cubeFeetLineEnd: PlanePoint
   readonly launchEnd: PlanePoint
   readonly trajectory: readonly SceneTrajectoryPoint[]
   readonly trajectoryEndMarker: PlanePoint | null
@@ -116,7 +120,7 @@ function createThetaPresentation(
   return {
     arc,
     label: {
-      x: attackerFeet.x + labelRadius * Math.cos(labelAngle),
+      x: attackerFeet.x + labelRadius * Math.cos(labelAngle) + thetaLabelHorizontalOffset,
       y: attackerFeet.y + labelRadius * Math.sin(labelAngle) + thetaLabelVerticalOffset,
     },
   }
@@ -144,16 +148,6 @@ function extendTrajectoryEnd(
     x: last.x + (trajectoryEndExtension * deltaX) / length,
     y: last.y + (trajectoryEndExtension * deltaY) / length,
   }
-}
-
-function projectCubeCenterPosition(
-  feetPosition: DiagnosticEvaluation['trajectory']['initialPosition'],
-  projection: RadialProjection,
-  cubeHeight: number,
-): PlanePoint {
-  const projectedFeet = projectPointToRadialPlane(feetPosition, projection)
-
-  return { x: projectedFeet.x, y: projectedFeet.y + cubeHeight / 2 }
 }
 
 function createCubeAnchoredBounds(
@@ -215,23 +209,15 @@ export function createRadialScenePresentation(
     context.mechanics.vectorNormalizationThreshold,
   )
   const launchVector = projectVectorToRadialPlane(callResult.addedVelocity, projection)
-  const launchEnd = addScaledVector(cubeCenter, launchVector, launchVectorDisplayScale)
+  const launchEnd = addScaledVector(cubeFeet, launchVector, launchVectorDisplayScale)
   const trajectoryPoints = [
     {
       tick: 0,
-      point: projectCubeCenterPosition(
-        trajectory.initialPosition,
-        projection,
-        context.cube.dimensions.height,
-      ),
+      point: projectPointToRadialPlane(trajectory.initialPosition, projection),
     },
     ...trajectory.ticks.slice(0, maximumRenderedTrajectoryTicks).map((tick) => ({
       tick: tick.tick,
-      point: projectCubeCenterPosition(
-        tick.resultingPosition,
-        projection,
-        context.cube.dimensions.height,
-      ),
+      point: projectPointToRadialPlane(tick.resultingPosition, projection),
     })),
   ]
   const horizontalFeetReference = { x: cubeFeet.x, y: attackerFeet.y }
@@ -266,6 +252,8 @@ export function createRadialScenePresentation(
     horizontalFeetReference,
     thetaArc: thetaPresentation.arc,
     thetaLabelPoint: thetaPresentation.label,
+    cubeFeetLineStart: { x: cubeFeet.x - cubeFeetLineHalfLength, y: cubeFeet.y },
+    cubeFeetLineEnd: { x: cubeFeet.x + cubeFeetLineHalfLength, y: cubeFeet.y },
     launchEnd,
     trajectory: trajectoryPoints,
     trajectoryEndMarker: extendTrajectoryEnd(

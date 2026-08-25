@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createDiagnosticFormState,
   parseDiagnosticFormState,
+  resetAttackerEyeToStandingPresetInFormState,
   translateAttackerInFormState,
   translateCubeInFormState,
   updateAimPointInFormState,
@@ -19,10 +20,13 @@ import {
   createRadialScenePresentation,
   launchVectorDisplayScale,
   thetaArcRadius,
+  thetaLabelHorizontalOffset,
   thetaLabelVerticalOffset,
   trajectoryEndExtension,
 } from '../presentation/scene'
 import {
+  clampPointToBoundsFromOrigin,
+  createViewportWorldBounds,
   createWorldBounds,
   createWorldToSvgTransform,
   scaleWorldBoundsAroundPoint,
@@ -126,6 +130,19 @@ describe('world-to-SVG presentation', () => {
     )
     expect(() => scaleWorldBoundsAroundPoint(bounds, anchor, 0)).toThrow(/positive/)
   })
+
+  it('maps the SVG wall to world bounds and clamps a point along its source ray', () => {
+    const transform = createWorldToSvgTransform({ minX: -2, maxX: 6, minY: -3, maxY: 5 }, viewport)
+    const wallBounds = createViewportWorldBounds(transform, 5)
+    const origin = transform.toWorld({ x: 360, y: 210 })
+    const outside = transform.toWorld({ x: 900, y: 300 })
+    const clamped = clampPointToBoundsFromOrigin(origin, outside, wallBounds)
+    const clampedSvg = transform.toSvg(clamped)
+
+    expect(clampedSvg.x).toBeCloseTo(viewport.width - 5, 12)
+    expect(clampedSvg.y).toBeGreaterThan(5)
+    expect(clampedSvg.y).toBeLessThan(viewport.height - 5)
+  })
 })
 
 describe('radial scene presentation', () => {
@@ -159,8 +176,10 @@ describe('radial scene presentation', () => {
     ).toBeCloseTo(aimArrowLength, 12)
     expect(scene.aimArrowEnd).not.toEqual(scene.aimPoint)
     expect(scene.launchEnd.x).toBeCloseTo(-0.165 * launchVectorDisplayScale, 12)
-    expect(scene.launchEnd.y).toBeCloseTo(0.49 + 0.378 * launchVectorDisplayScale, 12)
-    expect(scene.trajectory[0].point).toEqual(scene.cube.center)
+    expect(scene.launchEnd.y).toBeCloseTo(0.378 * launchVectorDisplayScale, 12)
+    expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
+    expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
+    expect(scene.cubeFeetLineEnd).toEqual({ x: 3, y: 0 })
     expect(scene.trajectory).toHaveLength(16)
     expect(scene.trajectory[15].tick).toBe(15)
     const trajectoryEnd = scene.trajectoryEndMarker!
@@ -171,8 +190,8 @@ describe('radial scene presentation', () => {
       trajectoryEndExtension,
       12,
     )
-    expect(scene.cube.center.y - previousTick.y).toBeLessThan(2)
-    expect(scene.cube.center.y - finalTick.y).toBeGreaterThanOrEqual(2)
+    expect(scene.cube.feet.y - previousTick.y).toBeLessThan(2)
+    expect(scene.cube.feet.y - finalTick.y).toBeGreaterThanOrEqual(2)
   })
 
   it('anchors the theta arc and label to the attacker-feet angle corner', () => {
@@ -190,6 +209,7 @@ describe('radial scene presentation', () => {
 
     expect(scene.thetaLabelPoint.x).toBeLessThan(scene.attackerFeet.x)
     expect(scene.thetaLabelPoint.y).toBeLessThan(scene.attackerFeet.y)
+    expect(thetaLabelHorizontalOffset).toBeLessThan(0)
     expect(thetaLabelVerticalOffset).toBeLessThan(0)
   })
 
@@ -295,6 +315,21 @@ describe('scene interaction form updates', () => {
       cubeFeetPosition: { x: -0.25, y: 0.5, z: 1 },
     })
   })
+
+  it('restores standing-preset eyes from the current attacker feet', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const form = createDiagnosticFormState({
+      ...inputs,
+      attackerFeetPosition: { x: 1, y: 2, z: 3 },
+      attackerEyePosition: { x: 99, y: 99, z: 99 },
+    })
+
+    expect(parseDiagnosticFormState(resetAttackerEyeToStandingPresetInFormState(form))).toEqual({
+      ...inputs,
+      attackerFeetPosition: { x: 1, y: 2, z: 3 },
+      attackerEyePosition: { x: 1, y: 3.62, z: 3 },
+    })
+  })
 })
 
 describe('power-space presentation', () => {
@@ -325,6 +360,15 @@ describe('power-space presentation', () => {
         y: values.v0 * (1 + evaluation.callResult.input.context.mechanics.verticalHitAngleScale),
       },
     })
+    expect(powerSpace.aimArrowEnd).not.toEqual({ x: values.h1, y: values.v1 })
+    expect(
+      Math.hypot(powerSpace.aimArrowEnd.x - values.h1, powerSpace.aimArrowEnd.y - values.v1),
+    ).toBeLessThan(0.03)
+    expect(powerSpace.elevationArc[0]).toEqual({ x: values.h1, y: values.v1 })
+    const finalElevationArcPoint = powerSpace.elevationArc[powerSpace.elevationArc.length - 1]!
+
+    expect(finalElevationArcPoint.x).toBeCloseTo(values.h2, 12)
+    expect(finalElevationArcPoint.y).toBeCloseTo(values.v2, 12)
     expect(powerSpace.capApplied).toBe(true)
     expect(powerSpace.capFactor).toBe(values.capFactor)
   })
@@ -340,6 +384,43 @@ describe('power-space presentation', () => {
       expect(stage.point.y).toBeGreaterThanOrEqual(powerSpace.bounds.minY)
       expect(stage.point.y).toBeLessThanOrEqual(powerSpace.bounds.maxY)
     }
+  })
+
+  it('shortens the elevation arrow before the point when elevation rotation occurs', () => {
+    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M6').inputs)
+    const values = evaluation.callResult.diagnostics
+    const powerSpace = createPowerSpacePresentation(evaluation.callResult)
+
+    expect(values.powerRotationAngle).not.toBe(0)
+    expect(powerSpace.elevationArrowEnd).not.toEqual({ x: values.h2, y: values.v2 })
+    expect(
+      Math.hypot(
+        powerSpace.elevationArrowEnd.x - values.h2,
+        powerSpace.elevationArrowEnd.y - values.v2,
+      ),
+    ).toBeLessThan(0.03)
+  })
+
+  it('keeps the elevation arrow pointing toward its stage for very small rotations', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const evaluation = evaluateDiagnosticInputs({
+      ...inputs,
+      attackerFeetPosition: { ...inputs.attackerFeetPosition, y: 0.001 },
+      attackerEyePosition: { ...inputs.attackerEyePosition, y: 1.621 },
+    })
+    const powerSpace = createPowerSpacePresentation(evaluation.callResult)
+    const target = powerSpace.stages.find((stage) => stage.id === 'elevation')!.point
+    const toArrowEnd = {
+      x: powerSpace.elevationArrowEnd.x - powerSpace.elevationArrowStart.x,
+      y: powerSpace.elevationArrowEnd.y - powerSpace.elevationArrowStart.y,
+    }
+    const toTarget = {
+      x: target.x - powerSpace.elevationArrowStart.x,
+      y: target.y - powerSpace.elevationArrowStart.y,
+    }
+
+    expect(evaluation.callResult.diagnostics.powerRotationAngle).not.toBe(0)
+    expect(toArrowEnd.x * toTarget.x + toArrowEnd.y * toTarget.y).toBeGreaterThan(0)
   })
 
   it.each(diagnosticPresets)('keeps the $id scene and power SVG mappings finite', (preset) => {

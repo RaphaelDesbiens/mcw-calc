@@ -92,6 +92,82 @@ export function translateWorldBounds(bounds: WorldBounds, delta: PlanePoint): Wo
   }
 }
 
+export function clampPointToBoundsFromOrigin(
+  origin: PlanePoint,
+  point: PlanePoint,
+  bounds: WorldBounds,
+): PlanePoint {
+  if (
+    point.x >= bounds.minX &&
+    point.x <= bounds.maxX &&
+    point.y >= bounds.minY &&
+    point.y <= bounds.maxY
+  ) {
+    return point
+  }
+
+  const deltaX = point.x - origin.x
+  const deltaY = point.y - origin.y
+  const candidates: number[] = []
+
+  if (deltaX !== 0) {
+    candidates.push((bounds.minX - origin.x) / deltaX)
+    candidates.push((bounds.maxX - origin.x) / deltaX)
+  }
+
+  if (deltaY !== 0) {
+    candidates.push((bounds.minY - origin.y) / deltaY)
+    candidates.push((bounds.maxY - origin.y) / deltaY)
+  }
+
+  const intersection = candidates
+    .filter((candidate) => candidate >= 0 && candidate <= 1)
+    .map((candidate) => ({
+      t: candidate,
+      point: {
+        x: origin.x + deltaX * candidate,
+        y: origin.y + deltaY * candidate,
+      },
+    }))
+    .filter(
+      (candidate) =>
+        candidate.point.x >= bounds.minX - Number.EPSILON &&
+        candidate.point.x <= bounds.maxX + Number.EPSILON &&
+        candidate.point.y >= bounds.minY - Number.EPSILON &&
+        candidate.point.y <= bounds.maxY + Number.EPSILON,
+    )
+    .sort((a, b) => a.t - b.t)[0]
+
+  return (
+    intersection?.point ?? {
+      x: Math.min(bounds.maxX, Math.max(bounds.minX, point.x)),
+      y: Math.min(bounds.maxY, Math.max(bounds.minY, point.y)),
+    }
+  )
+}
+
+export function createViewportWorldBounds(transform: WorldToSvgTransform, inset = 0): WorldBounds {
+  if (!Number.isFinite(inset) || inset < 0) {
+    throw new RangeError('viewport inset must be finite and nonnegative')
+  }
+
+  const { width, height } = transform.viewport
+
+  if (inset * 2 >= width || inset * 2 >= height) {
+    throw new RangeError('viewport inset must leave a positive viewport area')
+  }
+
+  const topLeft = transform.toWorld({ x: inset, y: inset })
+  const bottomRight = transform.toWorld({ x: width - inset, y: height - inset })
+
+  return {
+    minX: topLeft.x,
+    maxX: bottomRight.x,
+    minY: bottomRight.y,
+    maxY: topLeft.y,
+  }
+}
+
 export function scaleWorldBoundsAroundPoint(
   bounds: WorldBounds,
   anchor: PlanePoint,

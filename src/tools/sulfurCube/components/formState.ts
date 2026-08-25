@@ -1,6 +1,7 @@
 import type { Vec3 } from '../model/types'
 import type { DiagnosticInputs } from '../presets/diagnostic'
 import type { DiagnosticFormState, NumericFormValue } from './types'
+import { je26_2Constants } from '../data/je26_2'
 
 function stringifyNumber(value: number): string {
   return String(value)
@@ -81,6 +82,20 @@ export function updateAimPointInFormState(
     aimX: interactionNumber(aimPoint.x),
     aimY: interactionNumber(aimPoint.y),
     aimZ: interactionNumber(aimPoint.z),
+  }
+}
+
+export function resetAttackerEyeToStandingPresetInFormState(
+  state: DiagnosticFormState,
+): DiagnosticFormState {
+  const inputs = parseDiagnosticFormState(state)
+  const eyeHeight = je26_2Constants.standingPlayerEyeHeight.value
+
+  return {
+    ...state,
+    attackerEyeX: interactionNumber(inputs.attackerFeetPosition.x),
+    attackerEyeY: interactionNumber(inputs.attackerFeetPosition.y + eyeHeight),
+    attackerEyeZ: interactionNumber(inputs.attackerFeetPosition.z),
   }
 }
 

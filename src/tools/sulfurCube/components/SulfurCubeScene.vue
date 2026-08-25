@@ -8,11 +8,13 @@ import type {
 } from '../presentation/types'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import { CdxButton } from '@wikimedia/codex'
-import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { unprojectPointFromRadialPlane } from '../presentation/radialPlane'
 import { createRadialScenePresentation } from '../presentation/scene'
 import {
+  clampPointToBoundsFromOrigin,
+  createViewportWorldBounds,
   createWorldToSvgTransform,
   scaleWorldBoundsAroundPoint,
   translateWorldBounds,
@@ -50,7 +52,7 @@ const { t } = useI18n()
 const svgElement = ref<SVGSVGElement | null>(null)
 const dragState = ref<DragState | null>(null)
 const viewport = {
-  width: 720,
+  width: 960,
   height: 480,
   padding: { top: 36, right: 44, bottom: 46, left: 48 },
 } as const
@@ -78,11 +80,11 @@ const view = computed(() => {
     x: scene.attackerHitbox.bottomLeft.x,
     y: scene.attackerHitbox.topRight.y,
   })
-  const launchStart = toSvg(scene.cube.center)
+  const launchStart = toSvg(scene.cube.feet)
   const launchEnd = toSvg(scene.launchEnd)
   const attackerFeet = toSvg(scene.attackerFeet)
   const attackerEyes = toSvg(scene.attackerEyes)
-  const aimPoint = toSvg(scene.aimPoint)
+  const unclampedAimPoint = toSvg(scene.aimPoint)
   const aimArrowEnd = toSvg(scene.aimArrowEnd)
   const cubeFeet = toSvg(scene.cube.feet)
   const cubeCenter = toSvg(scene.cube.center)
@@ -93,38 +95,70 @@ const view = computed(() => {
     tick: sample.tick,
     point: toSvg(sample.point),
   }))
-  const trajectoryTicks = trajectory.filter((sample) => sample.tick > 0)
+  const finalTrajectoryTick = trajectory.length === 0 ? 0 : trajectory[trajectory.length - 1]!.tick
+  const trajectoryTicks = trajectory.filter(
+    (sample) => sample.tick > 0 && sample.tick !== finalTrajectoryTick,
+  )
   const thetaLabel = toSvg(scene.thetaLabelPoint)
   const thetaArcPoints = scene.thetaArc.map((point) => toSvg(point))
-  const aimQLabel = toSvg({
+  const aimQAnchor = toSvg({
     x: (scene.attackerEyes.x + scene.aimArrowEnd.x) / 2,
-    y: (scene.attackerEyes.y + scene.aimArrowEnd.y) / 2 + 0.18,
+    y: (scene.attackerEyes.y + scene.aimArrowEnd.y) / 2,
   })
   const trajectoryEndMarker =
     scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
   const zoomFactor = transform.scale / initialTransformScale
   const visual = {
-    handleRadius: 6 * zoomFactor,
-    aimPointRadius: 6 * zoomFactor,
-    cubeCornerRadius: 4 * zoomFactor,
-    cubeCenterRadius: 6 * zoomFactor,
-    cubeEndpointRadius: 3 * zoomFactor,
+    handleRadius: 3 * zoomFactor,
+    aimPointRadius: 3 * zoomFactor,
+    cubeCornerRadius: 0,
+    cubeCenterRadius: 3 * zoomFactor,
+    cubeEndpointRadius: 1.6 * zoomFactor,
     eyePointRadius: 2.5 * zoomFactor,
-    feetPointRadius: 6 * zoomFactor,
+    feetPointRadius: 3 * zoomFactor,
     hitAreaRadius: Math.max(18, 18 * zoomFactor),
     labelOffset: 10 * zoomFactor,
     aimLabelOffsetX: 10 * zoomFactor,
-    aimLabelOffsetY: 16 * zoomFactor,
-    eyesLabelOffset: 15 * zoomFactor,
-    feetLabelOffset: 24 * zoomFactor,
-    launchLabelOffset: 12 * zoomFactor,
+    aimLabelOffsetY: 12 * zoomFactor,
+    eyesLabelOffset: 11 * zoomFactor,
+    feetLabelOffset: 18 * zoomFactor,
+    launchLabelOffset: 18 * zoomFactor,
     trajectoryPointRadius: 2.25 * zoomFactor,
     trajectoryEndArm: 5 * zoomFactor,
+    thetaSquareSize: 10 * zoomFactor,
   }
+  const aimPoint = clampPointToBoundsFromOrigin(attackerEyes, unclampedAimPoint, {
+    minX: visual.aimPointRadius,
+    maxX: viewport.width - visual.aimPointRadius,
+    minY: visual.aimPointRadius,
+    maxY: viewport.height - visual.aimPointRadius,
+  })
+  const aimAngle = Math.atan2(aimArrowEnd.y - attackerEyes.y, aimArrowEnd.x - attackerEyes.x)
+  const qLabelAngle = Math.abs(aimAngle) > Math.PI / 2 ? aimAngle + Math.PI : aimAngle
+  const qLabelOffset = 12 * zoomFactor
+  const aimQLabel = {
+    x: aimQAnchor.x + Math.sin(aimAngle) * qLabelOffset,
+    y: aimQAnchor.y - Math.cos(aimAngle) * qLabelOffset,
+    rotation: (qLabelAngle * 180) / Math.PI,
+  }
+  const launchLabel = {
+    x: launchEnd.x + (launchEnd.x >= launchStart.x ? 18 : -18) * zoomFactor,
+    y: launchEnd.y - visual.launchLabelOffset,
+  }
+  const thetaSquareHorizontalSign = Math.sign(attackerFeet.x - horizontalFeetReference.x) || -1
+  const thetaSquareVerticalSign = Math.sign(cubeFeet.y - horizontalFeetReference.y) || -1
+  const thetaSquareCorner = {
+    x: horizontalFeetReference.x + thetaSquareHorizontalSign * visual.thetaSquareSize,
+    y: horizontalFeetReference.y,
+  }
+  const thetaSquarePath = `M ${thetaSquareCorner.x} ${thetaSquareCorner.y} V ${
+    horizontalFeetReference.y + thetaSquareVerticalSign * visual.thetaSquareSize
+  } H ${horizontalFeetReference.x}`
   const visualStyle = {
     '--scene-font-size': `${14 * zoomFactor}px`,
     '--scene-mobile-font-size': `${16 * zoomFactor}px`,
     '--scene-minor-font-size': `${12 * zoomFactor}px`,
+    '--scene-small-label-font-size': `${10 * zoomFactor}px`,
     '--scene-stroke-thinnest': `${1.25 * zoomFactor}px`,
     '--scene-stroke-thin': `${1.5 * zoomFactor}px`,
     '--scene-stroke-regular': `${2 * zoomFactor}px`,
@@ -162,12 +196,12 @@ const view = computed(() => {
     horizontalFeetReference,
     launchStart,
     launchEnd,
+    launchLabel,
     thetaLabel,
+    thetaSquarePath,
     thetaArcPoints: thetaArcPoints.map((point) => `${point.x},${point.y}`).join(' '),
-    groundStart: toSvg({ x: cameraBounds.value.minX, y: scene.cube.feet.y }),
-    groundEnd: toSvg({ x: cameraBounds.value.maxX, y: scene.cube.feet.y }),
-    verticalAxisStart: toSvg({ x: scene.cube.feet.x, y: cameraBounds.value.minY }),
-    verticalAxisEnd: toSvg({ x: scene.cube.feet.x, y: cameraBounds.value.maxY }),
+    groundStart: toSvg(scene.cubeFeetLineStart),
+    groundEnd: toSvg(scene.cubeFeetLineEnd),
     trajectory,
     trajectoryTicks,
     trajectoryEndMarker,
@@ -252,7 +286,7 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
 
   switch (kind) {
     case 'aim':
-      target = currentView.scene.aimPoint
+      target = currentView.transform.toWorld(currentView.aimPoint)
       break
     case 'attacker':
       target = currentView.scene.attackerFeet
@@ -266,6 +300,10 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
   }
 
   const targetElement = event.currentTarget as SVGGraphicsElement
+
+  if (kind !== 'camera') {
+    targetElement.focus()
+  }
 
   targetElement.setPointerCapture(event.pointerId)
   dragState.value = {
@@ -309,7 +347,11 @@ function continueDrag(event: PointerEvent): void {
       emit(
         'updateAimPoint',
         unprojectPointFromRadialPlane(
-          { x: drag.startTarget.x + deltaX, y: drag.startTarget.y + deltaY },
+          clampPointToBoundsFromOrigin(
+            view.value.scene.attackerEyes,
+            { x: drag.startTarget.x + deltaX, y: drag.startTarget.y + deltaY },
+            createViewportWorldBounds(drag.transform, view.value.visual.aimPointRadius),
+          ),
           drag.projection,
           drag.aimLateralOffset,
         ),
@@ -358,13 +400,36 @@ function endDrag(event: PointerEvent): void {
 }
 
 onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', clearHandleFocus)
+
   if (dragState.value !== null && dragState.value.kind !== 'camera') {
     emit('objectDragActive', false)
   }
 })
 
+function clearHandleFocus(event: PointerEvent): void {
+  const target = event.target
+
+  if (target instanceof Element && target.closest('.interactive-handle') !== null) {
+    return
+  }
+
+  const activeElement = document.activeElement
+
+  if (
+    activeElement instanceof SVGElement &&
+    activeElement.classList.contains('interactive-handle')
+  ) {
+    activeElement.blur()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', clearHandleFocus)
+})
+
 function keyboardDelta(event: KeyboardEvent): { x: number; y: number } | null {
-  const step = event.shiftKey ? 0.25 : 0.05
+  const step = event.shiftKey ? 0.05 : 0.25
 
   switch (event.key) {
     case 'ArrowLeft':
@@ -390,13 +455,16 @@ function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
   const scene = view.value.scene
 
   if (kind === 'aim') {
+    const visibleAimPoint = view.value.transform.toWorld(view.value.aimPoint)
+    const target = clampPointToBoundsFromOrigin(
+      scene.attackerEyes,
+      { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
+      createViewportWorldBounds(view.value.transform, view.value.visual.aimPointRadius),
+    )
+
     emit(
       'updateAimPoint',
-      unprojectPointFromRadialPlane(
-        { x: scene.aimPoint.x + delta.x, y: scene.aimPoint.y + delta.y },
-        scene.projection,
-        scene.aimLateralOffset,
-      ),
+      unprojectPointFromRadialPlane(target, scene.projection, scene.aimLateralOffset),
     )
   } else {
     const translation = {
@@ -518,12 +586,6 @@ function formatCoordinate(value: number): string {
 
         <g class="reference-geometry">
           <line
-            :x1="view.verticalAxisStart.x"
-            :y1="view.verticalAxisStart.y"
-            :x2="view.verticalAxisEnd.x"
-            :y2="view.verticalAxisEnd.y"
-          />
-          <line
             class="ground-line"
             :x1="view.groundStart.x"
             :y1="view.groundStart.y"
@@ -532,11 +594,6 @@ function formatCoordinate(value: number): string {
           />
         </g>
 
-        <polyline
-          v-if="view.trajectory.length > 1"
-          class="trajectory-line"
-          :points="view.trajectoryPoints"
-        />
         <circle
           v-for="sample in view.trajectoryTicks"
           :key="sample.tick"
@@ -564,6 +621,13 @@ function formatCoordinate(value: number): string {
             :x2="view.cubeFeet.x"
             :y2="view.cubeFeet.y"
           />
+          <line
+            :x1="view.horizontalFeetReference.x"
+            :y1="view.horizontalFeetReference.y"
+            :x2="view.cubeFeet.x"
+            :y2="view.cubeFeet.y"
+          />
+          <path class="theta-square" :d="view.thetaSquarePath" />
           <polyline v-if="view.thetaArcPoints" class="theta-arc" :points="view.thetaArcPoints" />
           <text :x="view.thetaLabel.x" :y="view.thetaLabel.y">θ</text>
         </g>
@@ -591,7 +655,13 @@ function formatCoordinate(value: number): string {
           :y2="view.aimArrowEnd.y"
           marker-end="url(#sulfur-cube-look-arrow)"
         />
-        <text class="aim-q-label" :x="view.aimQLabel.x" :y="view.aimQLabel.y" text-anchor="middle">
+        <text
+          class="aim-q-label"
+          :x="view.aimQLabel.x"
+          :y="view.aimQLabel.y"
+          text-anchor="middle"
+          :transform="`rotate(${view.aimQLabel.rotation} ${view.aimQLabel.x} ${view.aimQLabel.y})`"
+        >
           q={{ evaluation.callResult.diagnostics.q.toFixed(2) }}
         </text>
 
@@ -609,13 +679,6 @@ function formatCoordinate(value: number): string {
             :cy="view.cubeBottom.y"
             :r="view.visual.cubeEndpointRadius"
           />
-          <text
-            :x="view.cubeCenter.x"
-            :y="view.cubeRect.y - view.visual.labelOffset"
-            text-anchor="middle"
-          >
-            {{ t('sulfurCube.scene.cube') }}
-          </text>
         </g>
 
         <g class="attacker-shape">
@@ -632,6 +695,15 @@ function formatCoordinate(value: number): string {
             :r="view.visual.eyePointRadius"
           />
           <text
+            class="eyes-label"
+            :x="view.attackerEyes.x"
+            :y="view.attackerEyes.y + view.visual.eyesLabelOffset"
+            text-anchor="middle"
+          >
+            {{ t('sulfurCube.scene.eyes') }}
+          </text>
+          <text
+            class="feet-label"
             :x="view.attackerFeet.x"
             :y="view.attackerFeet.y + view.visual.feetLabelOffset"
             text-anchor="middle"
@@ -650,8 +722,9 @@ function formatCoordinate(value: number): string {
         />
         <text
           class="launch-label"
-          :x="view.launchEnd.x"
-          :y="view.launchEnd.y - view.visual.launchLabelOffset"
+          :x="view.launchLabel.x"
+          :y="view.launchLabel.y"
+          text-anchor="middle"
         >
           {{ t('sulfurCube.scene.launchVector') }}
         </text>
@@ -707,8 +780,9 @@ function formatCoordinate(value: number): string {
             :r="view.visual.aimPointRadius"
           />
           <text
-            :x="view.aimPoint.x + view.visual.aimLabelOffsetX"
-            :y="view.aimPoint.y + view.visual.aimLabelOffsetY"
+            :x="view.aimPoint.x"
+            :y="view.aimPoint.y - view.visual.aimLabelOffsetY"
+            text-anchor="middle"
           >
             {{ t('sulfurCube.scene.aim') }}
           </text>
@@ -741,16 +815,24 @@ function formatCoordinate(value: number): string {
 
     <div class="scene-legend" aria-hidden="true">
       <span>
+        <i class="legend-swatch legend-swatch--cube" />
+        <span>{{ t('sulfurCube.scene.legendSulfurCube') }}</span>
+      </span>
+      <span>
         <i class="legend-swatch legend-swatch--aim" />
         <span>{{ t('sulfurCube.scene.aim') }}</span>
+      </span>
+      <span>
+        <i class="legend-swatch legend-swatch--theta" />
+        <span>{{ t('sulfurCube.scene.legendTheta') }}</span>
       </span>
       <span>
         <i class="legend-swatch legend-swatch--launch" />
         <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
       </span>
       <span>
-        <i class="legend-swatch legend-swatch--trajectory" />
-        <span>{{ t('sulfurCube.scene.trajectoryLegend') }}</span>
+        <i class="legend-swatch legend-swatch--player" />
+        <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
       </span>
     </div>
 
@@ -776,17 +858,22 @@ function formatCoordinate(value: number): string {
   --scene-border: var(--border-color-subtle, #c8ccd1);
   --scene-background: color-mix(
     in srgb,
-    var(--color-base, #202122) 4%,
+    var(--color-base, #202122) 7%,
     var(--background-color-base, #fff)
   );
-  --scene-cube: #d5a500;
-  --scene-cube-dark: #8a6400;
+  --scene-cube: #f2a900;
+  --scene-cube-dark: #202122;
   --scene-attacker: var(--color-base, #202122);
-  --scene-aim: #a2a9b1;
-  --scene-aim-label: var(--color-subtle, #54595d);
-  --scene-limit: #c8ccd1;
+  --scene-aim: #00a3d7;
+  --scene-aim-dark: #007aa3;
+  --scene-aim-label: #202122;
+  --scene-limit: #8bd5ea;
+  --scene-theta: #d33682;
+  --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #00a000;
   --scene-trajectory: #00a000;
+  --scene-move-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
+    12 12;
   margin: 0;
 }
 
@@ -822,7 +909,7 @@ figcaption {
 
 .scene-frame__overlay h3 {
   flex: none;
-  color: var(--scene-ink);
+  color: var(--scene-muted);
   font-size: 0.875rem;
   font-weight: 700;
 }
@@ -846,8 +933,7 @@ figcaption {
 
 .scene-frame {
   position: relative;
-  width: 97.6%;
-  width: min(97.6%, calc(150svh - 9rem));
+  width: calc(100% - 4cm);
   margin-inline: auto;
   overflow: hidden;
   border: 1px solid var(--scene-border);
@@ -855,7 +941,9 @@ figcaption {
   background: var(--scene-background);
 }
 
-.scene-figure--compact .scene-frame {
+.scene-figure--compact .scene-frame,
+.scene-figure--compact .scene-legend,
+.scene-figure--compact figcaption {
   width: 100%;
 }
 
@@ -866,25 +954,31 @@ figcaption {
   color: var(--scene-ink);
   font-family: sans-serif;
   font-size: var(--scene-font-size);
-  cursor: grab;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
+      8 7,
+    grab;
   touch-action: none;
   user-select: none;
 }
 
 .scene-background {
   fill: var(--scene-background);
-  cursor: grab;
+  cursor: inherit;
   touch-action: none;
 }
 
 .scene-svg--panning,
 .scene-svg--panning * {
-  cursor: grabbing !important;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M7.5 10.5V7a1.5 1.5 0 0 1 3 0V9 5.5a1.5 1.5 0 0 1 3 0V9 6.5a1.5 1.5 0 0 1 3 0V10 8a1.5 1.5 0 0 1 3 0v5c0 4.2-2.6 7-6.5 7h-1c-2.4 0-4.3-1.4-5.4-3.4l-2-3.4a1.5 1.5 0 0 1 2.5-1.7z'/%3E%3C/svg%3E")
+      8 7,
+    grabbing !important;
 }
 
 .scene-svg--dragging-object,
 .scene-svg--dragging-object * {
-  cursor: move !important;
+  cursor: var(--scene-move-cursor), move !important;
 }
 
 .reference-geometry,
@@ -914,20 +1008,27 @@ figcaption {
 
 .theta-geometry line {
   fill: none;
-  stroke: var(--scene-attacker);
+  stroke: var(--scene-theta-muted);
   stroke-dasharray: var(--scene-dash-theta);
-  stroke-width: var(--scene-stroke-thin);
+  stroke-width: var(--scene-stroke-thinnest);
 }
 
 .theta-geometry .theta-arc {
   fill: none;
-  stroke: var(--scene-attacker);
+  stroke: var(--scene-theta);
   stroke-dasharray: none;
   stroke-width: var(--scene-stroke-regular);
 }
 
+.theta-geometry .theta-square {
+  fill: none;
+  stroke: var(--scene-theta);
+  stroke-dasharray: none;
+  stroke-width: var(--scene-stroke-thinnest);
+}
+
 .theta-geometry text {
-  fill: var(--scene-attacker);
+  fill: var(--scene-theta);
   font-weight: 700;
 }
 
@@ -939,7 +1040,7 @@ figcaption {
 
 .look-line {
   stroke: var(--scene-aim);
-  stroke-width: var(--scene-stroke-medium);
+  stroke-width: var(--scene-stroke-regular);
 }
 
 .look-arrow {
@@ -947,19 +1048,20 @@ figcaption {
 }
 
 .aim-q-label {
-  fill: var(--scene-aim-label);
+  fill: var(--scene-aim-dark);
+  font-size: var(--scene-minor-font-size);
   font-weight: 700;
   pointer-events: none;
 }
 
 .cube-shape rect {
-  fill: color-mix(in srgb, var(--scene-cube) 38%, transparent);
+  fill: color-mix(in srgb, var(--scene-cube) 72%, transparent);
   stroke: var(--scene-cube-dark);
-  stroke-width: var(--scene-stroke-medium);
+  stroke-width: var(--scene-stroke-thinnest);
 }
 
 .cube-shape circle {
-  fill: var(--scene-cube-dark);
+  fill: #202122;
 }
 
 .cube-shape text {
@@ -983,6 +1085,11 @@ figcaption {
   font-weight: 700;
 }
 
+.attacker-shape .eyes-label,
+.attacker-shape .feet-label {
+  font-size: var(--scene-small-label-font-size);
+}
+
 .launch-vector {
   stroke: var(--scene-launch);
   stroke-linecap: round;
@@ -998,19 +1105,9 @@ figcaption {
   font-weight: 700;
 }
 
-.trajectory-line {
-  fill: none;
-  stroke: var(--scene-trajectory);
-  stroke-dasharray: var(--scene-dash-trajectory);
-  stroke-linejoin: round;
-  stroke-width: var(--scene-stroke-medium);
-  opacity: 0.42;
-}
-
 .trajectory-tick {
-  fill: var(--scene-background);
-  stroke: var(--scene-trajectory);
-  stroke-width: var(--scene-stroke-thinnest);
+  fill: var(--scene-trajectory);
+  stroke: none;
   opacity: 0.62;
 }
 
@@ -1029,14 +1126,12 @@ figcaption {
 
 .interactive-handle {
   outline: none;
-  cursor: move;
+  cursor: var(--scene-move-cursor), move;
   touch-action: none;
 }
 
-.interactive-handle:focus-visible .handle-hit-area {
-  fill: none;
-  stroke: var(--color-progressive, #36c);
-  stroke-width: var(--scene-stroke-bold);
+.interactive-handle:focus .handle-marker {
+  fill: var(--background-color-error, #d33);
 }
 
 .handle-hit-area {
@@ -1046,7 +1141,7 @@ figcaption {
 
 .handle-marker {
   fill: var(--background-color-base, #fff);
-  stroke-width: var(--scene-stroke-medium);
+  stroke-width: var(--scene-stroke-regular);
 }
 
 .aim-handle .handle-marker {
@@ -1054,7 +1149,7 @@ figcaption {
 }
 
 .aim-handle text {
-  fill: var(--scene-aim);
+  fill: var(--scene-aim-dark);
   font-weight: 700;
   pointer-events: none;
 }
@@ -1071,7 +1166,9 @@ figcaption {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
+  width: calc(100% - 4cm);
   margin-top: 0.5rem;
+  margin-inline: auto;
   color: var(--scene-muted);
   font-size: 0.875em;
 }
@@ -1084,38 +1181,52 @@ figcaption {
 
 :global(.dark) .scene-figure {
   --scene-cube: #ffd84d;
-  --scene-cube-dark: #e1b82f;
+  --scene-cube-dark: #000;
   --scene-attacker: var(--color-base, #eaecf0);
-  --scene-aim: #72777d;
+  --scene-aim: #62d6ff;
+  --scene-aim-dark: #9be6ff;
   --scene-aim-label: var(--color-base, #eaecf0);
-  --scene-limit: #54595d;
+  --scene-limit: #398aa3;
+  --scene-theta: #ff6bb3;
+  --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #33d13f;
   --scene-trajectory: #33d13f;
 }
 
 .legend-swatch {
   display: inline-block;
-  width: 1.25rem;
-  border-top: 3px solid;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.legend-swatch--cube {
+  color: var(--scene-cube);
 }
 
 .legend-swatch--aim {
-  border-color: var(--scene-aim);
+  color: var(--scene-aim);
+}
+
+.legend-swatch--theta {
+  color: var(--scene-theta);
 }
 
 .legend-swatch--launch {
-  border-color: var(--scene-launch);
+  color: var(--scene-launch);
 }
 
-.legend-swatch--trajectory {
-  border-color: var(--scene-trajectory);
-  border-top-style: dashed;
+.legend-swatch--player {
+  color: var(--scene-attacker);
 }
 
 figcaption {
   display: grid;
   gap: 0.25rem;
+  width: calc(100% - 4cm);
   margin-top: 0.5rem;
+  margin-inline: auto;
   font-size: 0.875em;
 }
 
@@ -1129,6 +1240,8 @@ figcaption {
   }
 
   .scene-frame,
+  .scene-legend,
+  figcaption,
   .scene-figure--compact .scene-frame {
     width: 92%;
     width: min(92%, calc(150svh - 7.5rem));

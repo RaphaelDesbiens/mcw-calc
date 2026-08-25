@@ -10,7 +10,7 @@ const props = defineProps<{
   evaluation: DiagnosticEvaluation
 }>()
 
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const viewport = {
   width: 560,
   height: 340,
@@ -32,7 +32,7 @@ interface SvgPowerStage {
 
 const numberFormatter = computed(
   () =>
-    new Intl.NumberFormat(locale.value, {
+    new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 5,
       minimumFractionDigits: 0,
       useGrouping: false,
@@ -43,15 +43,40 @@ function formatNumber(value: number): string {
   return numberFormatter.value.format(Object.is(value, -0) ? 0 : value)
 }
 
-function createSvgArcPath(
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  origin: { x: number; y: number },
-): string {
-  const radius = Math.hypot(from.x - origin.x, from.y - origin.y)
-
-  return `M ${from.x} ${from.y} A ${radius} ${radius} 0 0 0 ${to.x} ${to.y}`
+function stageLabelX(stage: SvgPowerStage): number {
+  switch (stage.id) {
+    case 'base':
+      return stage.svg.x + 6
+    case 'elevation':
+      return stage.svg.x + 7
+    case 'capped':
+      return stage.svg.x - 14
+    default:
+      return stage.svg.x + 12
+  }
 }
+
+function stageLabelY(stage: SvgPowerStage): number {
+  return stage.id === 'base' ? stage.svg.y + 14 : stage.svg.y - 11
+}
+
+const aimTransferDescription = computed(() => {
+  const ratio = props.evaluation.callResult.diagnostics.transferredPowerRatio
+
+  return t('sulfurCube.power.aimTransferExplanation', {
+    percentage: formatNumber(ratio * 100),
+    horizontalFactor: formatNumber(1 - ratio),
+    verticalFactor: formatNumber(1 + ratio),
+  })
+})
+
+const rotationDescription = computed(() => {
+  const angle = props.evaluation.callResult.diagnostics.powerRotationAngle
+
+  return t('sulfurCube.power.rotationExplanation', {
+    degrees: formatNumber((angle * 180) / Math.PI),
+  })
+})
 
 const view = computed(() => {
   const presentation = createPowerSpacePresentation(props.evaluation.callResult)
@@ -84,6 +109,13 @@ const view = computed(() => {
       start: transform.toSvg(presentation.aimRange.start),
       end: transform.toSvg(presentation.aimRange.end),
     },
+    aimArrowEnd: transform.toSvg(presentation.aimArrowEnd),
+    elevationArcPoints: presentation.elevationArc
+      .map((point) => transform.toSvg(point))
+      .map((point) => `${point.x},${point.y}`)
+      .join(' '),
+    elevationArrowStart: transform.toSvg(presentation.elevationArrowStart),
+    elevationArrowEnd: transform.toSvg(presentation.elevationArrowEnd),
     horizontalAxisStart: transform.toSvg({ x: presentation.bounds.minX, y: 0 }),
     horizontalAxisEnd: transform.toSvg({ x: presentation.bounds.maxX, y: 0 }),
     verticalAxisStart: transform.toSvg({ x: 0, y: presentation.bounds.minY }),
@@ -96,14 +128,6 @@ const view = computed(() => {
     },
   }
 })
-
-const elevationArcPath = computed(() =>
-  createSvgArcPath(
-    view.value.stageById.aim.svg,
-    view.value.stageById.elevation.svg,
-    view.value.origin,
-  ),
-)
 </script>
 
 <template>
@@ -209,13 +233,20 @@ const elevationArcPath = computed(() =>
           class="stage-segment stage-segment--aim"
           :x1="view.stageById.base.svg.x"
           :y1="view.stageById.base.svg.y"
-          :x2="view.stageById.aim.svg.x"
-          :y2="view.stageById.aim.svg.y"
+          :x2="view.aimArrowEnd.x"
+          :y2="view.aimArrowEnd.y"
           marker-end="url(#sulfur-cube-power-aim-arrow)"
         />
-        <path
+        <polyline
           class="stage-segment stage-segment--elevation"
-          :d="elevationArcPath"
+          :points="view.elevationArcPoints"
+        />
+        <line
+          class="stage-segment stage-segment--elevation-arrow-tip"
+          :x1="view.elevationArrowStart.x"
+          :y1="view.elevationArrowStart.y"
+          :x2="view.elevationArrowEnd.x"
+          :y2="view.elevationArrowEnd.y"
           marker-end="url(#sulfur-cube-power-elevation-arrow)"
         />
         <line
@@ -241,7 +272,7 @@ const elevationArcPath = computed(() =>
         >
           <circle v-if="stage.id !== 'capped'" :cx="stage.svg.x" :cy="stage.svg.y" r="3.5" />
           <template v-else />
-          <text :x="stage.svg.x + 12" :y="stage.svg.y - 11">{{ stage.number }}</text>
+          <text :x="stageLabelX(stage)" :y="stageLabelY(stage)">{{ stage.number }}</text>
         </g>
       </svg>
     </div>
@@ -258,6 +289,8 @@ const elevationArcPath = computed(() =>
     </ol>
 
     <figcaption>
+      <p>{{ aimTransferDescription }}</p>
+      <p>{{ rotationDescription }}</p>
       <p v-if="view.presentation.capApplied">
         {{
           t('sulfurCube.power.capApplied', {
@@ -266,7 +299,6 @@ const elevationArcPath = computed(() =>
         }}
       </p>
       <p v-else>{{ t('sulfurCube.power.capNotApplied') }}</p>
-      <p>{{ t('sulfurCube.power.capExplanation') }}</p>
     </figcaption>
   </figure>
 </template>
@@ -277,9 +309,9 @@ const elevationArcPath = computed(() =>
   --power-muted: var(--color-subtle, #54595d);
   --power-border: var(--border-color-subtle, #c8ccd1);
   --power-background: var(--background-color-neutral-subtle, #f8f9fa);
-  --power-base: #3366cc;
-  --power-aim: #6b4ba1;
-  --power-elevation: #d65a00;
+  --power-base: #f2a900;
+  --power-aim: #00a3d7;
+  --power-elevation: #d33682;
   --power-cap: #00a000;
   margin: 0;
   min-width: 0;
@@ -321,14 +353,14 @@ figcaption {
 }
 
 .limit-rectangle {
-  fill: color-mix(in srgb, var(--power-muted) 8%, transparent);
-  stroke: var(--power-muted);
-  stroke-dasharray: 4 4;
+  fill: color-mix(in srgb, var(--power-base) 7%, transparent);
+  stroke: var(--power-base);
+  stroke-dasharray: 10 7;
   stroke-width: 0.8;
 }
 
 .limit-label {
-  fill: var(--power-muted);
+  fill: var(--power-base);
   font-size: 12px;
   font-weight: 700;
 }
@@ -346,6 +378,8 @@ figcaption {
 .aim-range-line {
   stroke: var(--power-ink);
   stroke-width: 1.25;
+  stroke-dasharray: 1 5;
+  stroke-linecap: round;
   opacity: 0.45;
 }
 
@@ -358,7 +392,8 @@ figcaption {
   stroke: var(--power-aim);
 }
 
-.stage-segment--elevation {
+.stage-segment--elevation,
+.stage-segment--elevation-arrow-tip {
   stroke: var(--power-elevation);
 }
 
@@ -366,6 +401,7 @@ figcaption {
   stroke: var(--power-cap);
   stroke-dasharray: 5 4;
   stroke-linecap: round;
+  stroke-width: 1.1;
 }
 
 .cap-vector {
@@ -424,14 +460,15 @@ figcaption {
 
 .stage-key {
   display: inline-grid;
-  width: 1rem;
-  height: 1rem;
+  width: 1.35rem;
+  height: 1.35rem;
   place-items: center;
   border: 0;
   border-radius: 50%;
   color: var(--background-color-base, #fff);
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   font-weight: 700;
+  line-height: 1;
 }
 
 .stage-key--base {
@@ -460,9 +497,9 @@ figcaption {
 }
 
 :global(.dark) .power-space {
-  --power-base: #78a9ff;
-  --power-aim: #c5a3f2;
-  --power-elevation: #ff9c5a;
+  --power-base: #ffd84d;
+  --power-aim: #62d6ff;
+  --power-elevation: #ff6bb3;
   --power-cap: #33d13f;
 }
 

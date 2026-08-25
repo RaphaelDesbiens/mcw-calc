@@ -10,6 +10,7 @@ import ControlsPanel from './components/ControlsPanel.vue'
 import {
   createDiagnosticFormState,
   parseDiagnosticFormState,
+  resetAttackerEyeToStandingPresetInFormState,
   translateAttackerInFormState,
   translateCubeInFormState,
   updateAimPointInFormState,
@@ -78,6 +79,14 @@ function resetTrajectoryTicksDefault(): void {
   })
 }
 
+function resetAttackerEyeStanding(): void {
+  try {
+    updateFormState(resetAttackerEyeToStandingPresetInFormState(formState.value))
+  } catch {
+    // Ignore until numeric fields are valid enough to derive the preset eye position.
+  }
+}
+
 function updateAimPoint(point: Vec3): void {
   updateFormStateFromScene(updateAimPointInFormState(formState.value, point))
 }
@@ -116,7 +125,7 @@ function setSceneObjectDragActive(active: boolean): void {
       {{ t('sulfurCube.title') }}
     </template>
 
-    <div class="sulfur-cube-tool">
+    <div class="sulfur-cube-tool" lang="en">
       <CdxMessage type="notice">
         {{ t('sulfurCube.scope') }}
       </CdxMessage>
@@ -128,6 +137,7 @@ function setSceneObjectDragActive(active: boolean): void {
           :selected-preset="selectedPreset"
           @update:model-value="updateFormState"
           @select-preset="applyPreset"
+          @reset-attacker-eye-standing="resetAttackerEyeStanding"
           @reset-trajectory-ticks-default="resetTrajectoryTicksDefault"
           @reset="reset"
         />
@@ -157,7 +167,15 @@ function setSceneObjectDragActive(active: boolean): void {
           v-if="evaluation"
           class="interaction-grid__readout"
           :evaluation="evaluation"
+          :show-details="false"
           :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
+        />
+
+        <MechanicsReadout
+          v-if="evaluation"
+          class="interaction-grid__details"
+          :evaluation="evaluation"
+          :show-summary="false"
         />
       </div>
 
@@ -204,14 +222,16 @@ function setSceneObjectDragActive(active: boolean): void {
   grid-template-areas:
     'scene scene'
     'controls power'
-    'readout readout';
+    'readout readout'
+    'details details';
   grid-template-columns: minmax(18rem, 0.8fr) minmax(22rem, 1.2fr);
 }
 
 .interaction-grid--compact {
   grid-template-areas:
     'power scene'
-    'controls readout';
+    'controls readout'
+    'details details';
   grid-template-columns: minmax(18rem, 0.85fr) minmax(22rem, 1.15fr);
 }
 
@@ -231,6 +251,10 @@ function setSceneObjectDragActive(active: boolean): void {
   grid-area: readout;
 }
 
+.interaction-grid__details {
+  grid-area: details;
+}
+
 @media (max-width: 52rem) {
   .interaction-grid,
   .interaction-grid--regular,
@@ -239,7 +263,8 @@ function setSceneObjectDragActive(active: boolean): void {
       'scene'
       'power'
       'controls'
-      'readout';
+      'readout'
+      'details';
     grid-template-columns: minmax(0, 1fr);
   }
 }
