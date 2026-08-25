@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MenuItemData, MenuItemValue } from '@wikimedia/codex'
 import type { DiagnosticFormState, DiagnosticPresetSelection, NumericFormValue } from './types'
-import { CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
+import { CdxAccordion, CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { diagnosticPresets } from '../presets/diagnostic'
@@ -74,107 +74,148 @@ function selectPreset(value: MenuItemValue | null): void {
       />
     </CdxField>
 
-    <CdxField is-fieldset>
-      <template #label>{{ t('sulfurCube.controls.attackerFeet') }}</template>
-      <template #description>{{ t('sulfurCube.controls.attackerFeetHelp') }}</template>
-      <div class="coordinate-grid">
-        <CdxField>
-          <template #label>X</template>
-          <CdxTextInput
-            :model-value="modelValue.attackerFeetX"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('attackerFeetX', $event)"
-          />
-        </CdxField>
-        <CdxField>
-          <template #label>Y</template>
-          <CdxTextInput
-            :model-value="modelValue.attackerFeetY"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('attackerFeetY', $event)"
-          />
-        </CdxField>
-        <CdxField>
-          <template #label>Z</template>
-          <CdxTextInput
-            :model-value="modelValue.attackerFeetZ"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('attackerFeetZ', $event)"
-          />
-        </CdxField>
-      </div>
-    </CdxField>
+    <CdxAccordion heading-level="h4" separation="outline">
+      <template #title>{{ t('sulfurCube.controls.coordinates') }}</template>
+      <template #description>{{ t('sulfurCube.controls.coordinatesHelp') }}</template>
 
-    <CdxField is-fieldset>
-      <template #label>{{ t('sulfurCube.controls.attackerEyes') }}</template>
-      <template #description>{{ t('sulfurCube.controls.attackerEyesHelp') }}</template>
-      <div class="coordinate-grid">
-        <CdxField>
-          <template #label>X</template>
-          <CdxTextInput
-            :model-value="modelValue.attackerEyeX"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('attackerEyeX', $event)"
-          />
+      <div class="coordinate-sections">
+        <CdxField is-fieldset>
+          <template #label>{{ t('sulfurCube.controls.cubeFeet') }}</template>
+          <template #description>{{ t('sulfurCube.controls.cubeFeetHelp') }}</template>
+          <div class="coordinate-grid">
+            <CdxField>
+              <template #label>X</template>
+              <CdxTextInput
+                :model-value="modelValue.cubeFeetX"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('cubeFeetX', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Y</template>
+              <CdxTextInput
+                :model-value="modelValue.cubeFeetY"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('cubeFeetY', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Z</template>
+              <CdxTextInput
+                :model-value="modelValue.cubeFeetZ"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('cubeFeetZ', $event)"
+              />
+            </CdxField>
+          </div>
         </CdxField>
-        <CdxField>
-          <template #label>Y</template>
-          <CdxTextInput
-            :model-value="modelValue.attackerEyeY"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('attackerEyeY', $event)"
-          />
-        </CdxField>
-        <CdxField>
-          <template #label>Z</template>
-          <CdxTextInput
-            :model-value="modelValue.attackerEyeZ"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('attackerEyeZ', $event)"
-          />
-        </CdxField>
-      </div>
-    </CdxField>
 
-    <CdxField is-fieldset>
-      <template #label>{{ t('sulfurCube.controls.aimPoint') }}</template>
-      <template #description>{{ t('sulfurCube.controls.aimPointHelp') }}</template>
-      <div class="coordinate-grid">
-        <CdxField>
-          <template #label>X</template>
-          <CdxTextInput
-            :model-value="modelValue.aimX"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('aimX', $event)"
-          />
+        <CdxField is-fieldset>
+          <template #label>{{ t('sulfurCube.controls.attackerFeet') }}</template>
+          <template #description>{{ t('sulfurCube.controls.attackerFeetHelp') }}</template>
+          <div class="coordinate-grid">
+            <CdxField>
+              <template #label>X</template>
+              <CdxTextInput
+                :model-value="modelValue.attackerFeetX"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('attackerFeetX', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Y</template>
+              <CdxTextInput
+                :model-value="modelValue.attackerFeetY"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('attackerFeetY', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Z</template>
+              <CdxTextInput
+                :model-value="modelValue.attackerFeetZ"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('attackerFeetZ', $event)"
+              />
+            </CdxField>
+          </div>
         </CdxField>
-        <CdxField>
-          <template #label>Y</template>
-          <CdxTextInput
-            :model-value="modelValue.aimY"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('aimY', $event)"
-          />
+
+        <CdxField is-fieldset>
+          <template #label>{{ t('sulfurCube.controls.attackerEyes') }}</template>
+          <template #description>{{ t('sulfurCube.controls.attackerEyesHelp') }}</template>
+          <div class="coordinate-grid">
+            <CdxField>
+              <template #label>X</template>
+              <CdxTextInput
+                :model-value="modelValue.attackerEyeX"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('attackerEyeX', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Y</template>
+              <CdxTextInput
+                :model-value="modelValue.attackerEyeY"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('attackerEyeY', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Z</template>
+              <CdxTextInput
+                :model-value="modelValue.attackerEyeZ"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('attackerEyeZ', $event)"
+              />
+            </CdxField>
+          </div>
         </CdxField>
-        <CdxField>
-          <template #label>Z</template>
-          <CdxTextInput
-            :model-value="modelValue.aimZ"
-            input-type="number"
-            step="0.1"
-            @update:model-value="updateField('aimZ', $event)"
-          />
+
+        <CdxField is-fieldset>
+          <template #label>{{ t('sulfurCube.controls.aimPoint') }}</template>
+          <template #description>{{ t('sulfurCube.controls.aimPointHelp') }}</template>
+          <div class="coordinate-grid">
+            <CdxField>
+              <template #label>X</template>
+              <CdxTextInput
+                :model-value="modelValue.aimX"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('aimX', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Y</template>
+              <CdxTextInput
+                :model-value="modelValue.aimY"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('aimY', $event)"
+              />
+            </CdxField>
+            <CdxField>
+              <template #label>Z</template>
+              <CdxTextInput
+                :model-value="modelValue.aimZ"
+                input-type="number"
+                step="0.1"
+                @update:model-value="updateField('aimZ', $event)"
+              />
+            </CdxField>
+          </div>
         </CdxField>
       </div>
-    </CdxField>
+    </CdxAccordion>
 
     <CdxField>
       <template #label>{{ t('sulfurCube.controls.trajectoryTicks') }}</template>
@@ -218,6 +259,11 @@ function selectPreset(value: MenuItemValue | null): void {
   display: grid;
   grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
   gap: 0.5rem;
+}
+
+.coordinate-sections {
+  display: grid;
+  gap: 1rem;
 }
 
 @media (max-width: 32rem) {

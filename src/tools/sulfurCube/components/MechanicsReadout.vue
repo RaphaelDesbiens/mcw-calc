@@ -277,7 +277,7 @@ const readoutSections = computed(() => [
       </div>
     </dl>
 
-    <CdxAccordion open>
+    <CdxAccordion heading-level="h4" separation="outline">
       <template #title>{{ t('sulfurCube.readout.details') }}</template>
 
       <div class="readout-sections">

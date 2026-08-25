@@ -17,6 +17,11 @@ export const je26_2Constants = {
   defaultBounciness: sourcedValue(0, ['attributeDefaults']),
   defaultFrictionModifier: sourcedValue(1, ['attributeDefaults']),
   standingPlayerEyeHeight: sourcedValue(1.62, ['standingPlayerEyeHeight']),
+  standingPlayerDimensions: sourcedValue(
+    { width: 0.6, height: 1.8 },
+    ['standingPlayerEyeHeight'],
+    'Standing EntityDimensions width and height.',
+  ),
   sulfurCubeBaseDimensions: sourcedValue({ width: 0.49, height: 0.49 }, ['sulfurCubeDimensions']),
   adultSulfurCubeRuntimeSize: sourcedValue(2, ['sulfurCubeRuntimeSize']),
 } as const

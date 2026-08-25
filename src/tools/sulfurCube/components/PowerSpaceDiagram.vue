@@ -1,0 +1,507 @@
+<script setup lang="ts">
+import type { PowerStageId } from '../presentation/powerSpace'
+import type { DiagnosticEvaluation } from '../presets/diagnostic'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { createPowerSpacePresentation } from '../presentation/powerSpace'
+import { createWorldToSvgTransform } from '../presentation/worldToSvg'
+
+const props = defineProps<{
+  evaluation: DiagnosticEvaluation
+}>()
+
+const { locale, t } = useI18n()
+const viewport = {
+  width: 560,
+  height: 340,
+  padding: { top: 34, right: 42, bottom: 44, left: 46 },
+} as const
+const stageNumbers: Record<PowerStageId, string> = {
+  base: '0',
+  aim: '1',
+  elevation: '2',
+  capped: '3',
+}
+
+interface SvgPowerStage {
+  readonly id: PowerStageId
+  readonly point: { readonly x: number; readonly y: number }
+  readonly number: string
+  readonly svg: { readonly x: number; readonly y: number }
+}
+
+const numberFormatter = computed(
+  () =>
+    new Intl.NumberFormat(locale.value, {
+      maximumFractionDigits: 5,
+      minimumFractionDigits: 0,
+      useGrouping: false,
+    }),
+)
+
+function formatNumber(value: number): string {
+  return numberFormatter.value.format(Object.is(value, -0) ? 0 : value)
+}
+
+function createSvgArcPath(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  origin: { x: number; y: number },
+): string {
+  const radius = Math.hypot(from.x - origin.x, from.y - origin.y)
+
+  return `M ${from.x} ${from.y} A ${radius} ${radius} 0 0 0 ${to.x} ${to.y}`
+}
+
+const view = computed(() => {
+  const presentation = createPowerSpacePresentation(props.evaluation.callResult)
+  const transform = createWorldToSvgTransform(presentation.bounds, viewport)
+  const stages: SvgPowerStage[] = presentation.stages.map((stage) => ({
+    ...stage,
+    number: stageNumbers[stage.id],
+    svg: transform.toSvg(stage.point),
+  }))
+  const stageById = Object.fromEntries(stages.map((stage) => [stage.id, stage])) as Record<
+    PowerStageId,
+    SvgPowerStage
+  >
+  const origin = transform.toSvg({ x: 0, y: 0 })
+  const limitTopLeft = transform.toSvg({
+    x: presentation.limitBounds.minX,
+    y: presentation.limitBounds.maxY,
+  })
+  const limitBottomRight = transform.toSvg({
+    x: presentation.limitBounds.maxX,
+    y: presentation.limitBounds.minY,
+  })
+
+  return {
+    presentation,
+    stages,
+    stageById,
+    origin,
+    aimRange: {
+      start: transform.toSvg(presentation.aimRange.start),
+      end: transform.toSvg(presentation.aimRange.end),
+    },
+    horizontalAxisStart: transform.toSvg({ x: presentation.bounds.minX, y: 0 }),
+    horizontalAxisEnd: transform.toSvg({ x: presentation.bounds.maxX, y: 0 }),
+    verticalAxisStart: transform.toSvg({ x: 0, y: presentation.bounds.minY }),
+    verticalAxisEnd: transform.toSvg({ x: 0, y: presentation.bounds.maxY }),
+    limitRect: {
+      x: limitTopLeft.x,
+      y: limitTopLeft.y,
+      width: limitBottomRight.x - limitTopLeft.x,
+      height: limitBottomRight.y - limitTopLeft.y,
+    },
+  }
+})
+
+const elevationArcPath = computed(() =>
+  createSvgArcPath(
+    view.value.stageById.aim.svg,
+    view.value.stageById.elevation.svg,
+    view.value.origin,
+  ),
+)
+</script>
+
+<template>
+  <figure class="power-space" aria-labelledby="sulfur-cube-power-heading">
+    <div class="power-space__heading">
+      <h3 id="sulfur-cube-power-heading">{{ t('sulfurCube.power.title') }}</h3>
+      <p>{{ t('sulfurCube.power.subtitle') }}</p>
+    </div>
+
+    <div class="power-space__frame">
+      <svg
+        class="power-space__svg"
+        :viewBox="`0 0 ${viewport.width} ${viewport.height}`"
+        role="img"
+      >
+        <title>{{ t('sulfurCube.power.svgTitle') }}</title>
+        <desc>{{ t('sulfurCube.power.svgDescription') }}</desc>
+
+        <defs>
+          <marker
+            id="sulfur-cube-power-aim-arrow"
+            markerWidth="7"
+            markerHeight="6"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="power-arrow power-arrow--aim" d="M 0 0 L 7 3 L 0 6 L 1.4 3 z" />
+          </marker>
+          <marker
+            id="sulfur-cube-power-elevation-arrow"
+            markerWidth="7"
+            markerHeight="6"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="power-arrow power-arrow--elevation" d="M 0 0 L 7 3 L 0 6 L 1.4 3 z" />
+          </marker>
+          <marker
+            id="sulfur-cube-power-cap-arrow"
+            markerWidth="7"
+            markerHeight="6"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="power-arrow power-arrow--cap" d="M 0 0 L 7 3 L 0 6 L 1.4 3 z" />
+          </marker>
+        </defs>
+
+        <rect class="power-background" width="100%" height="100%" rx="8" />
+        <rect
+          class="limit-rectangle"
+          :x="view.limitRect.x"
+          :y="view.limitRect.y"
+          :width="view.limitRect.width"
+          :height="view.limitRect.height"
+        />
+        <text
+          class="limit-label"
+          :x="view.limitRect.x + view.limitRect.width - 6"
+          :y="view.limitRect.y + view.limitRect.height - 8"
+          text-anchor="end"
+        >
+          {{ t('sulfurCube.power.componentLimits') }}
+        </text>
+
+        <g class="power-axes">
+          <line
+            :x1="view.horizontalAxisStart.x"
+            :y1="view.horizontalAxisStart.y"
+            :x2="view.horizontalAxisEnd.x"
+            :y2="view.horizontalAxisEnd.y"
+          />
+          <line
+            :x1="view.verticalAxisStart.x"
+            :y1="view.verticalAxisStart.y"
+            :x2="view.verticalAxisEnd.x"
+            :y2="view.verticalAxisEnd.y"
+          />
+          <text
+            :x="view.horizontalAxisEnd.x - 4"
+            :y="view.horizontalAxisEnd.y - 9"
+            text-anchor="end"
+          >
+            H
+          </text>
+          <text :x="view.verticalAxisEnd.x + 9" :y="view.verticalAxisEnd.y + 17">V</text>
+        </g>
+
+        <line
+          class="aim-range-line"
+          :x1="view.aimRange.start.x"
+          :y1="view.aimRange.start.y"
+          :x2="view.aimRange.end.x"
+          :y2="view.aimRange.end.y"
+        />
+        <line
+          class="stage-segment stage-segment--aim"
+          :x1="view.stageById.base.svg.x"
+          :y1="view.stageById.base.svg.y"
+          :x2="view.stageById.aim.svg.x"
+          :y2="view.stageById.aim.svg.y"
+          marker-end="url(#sulfur-cube-power-aim-arrow)"
+        />
+        <path
+          class="stage-segment stage-segment--elevation"
+          :d="elevationArcPath"
+          marker-end="url(#sulfur-cube-power-elevation-arrow)"
+        />
+        <line
+          class="cap-vector"
+          :x1="view.origin.x"
+          :y1="view.origin.y"
+          :x2="view.stageById.capped.svg.x"
+          :y2="view.stageById.capped.svg.y"
+          marker-end="url(#sulfur-cube-power-cap-arrow)"
+        />
+        <line
+          class="stage-segment stage-segment--capped"
+          :x1="view.stageById.capped.svg.x"
+          :y1="view.stageById.capped.svg.y"
+          :x2="view.stageById.elevation.svg.x"
+          :y2="view.stageById.elevation.svg.y"
+        />
+
+        <g
+          v-for="stage in view.stages"
+          :key="stage.id"
+          :class="`power-stage power-stage--${stage.id}`"
+        >
+          <circle v-if="stage.id === 'base'" :cx="stage.svg.x" :cy="stage.svg.y" r="5" />
+          <rect
+            v-else-if="stage.id === 'aim'"
+            :x="stage.svg.x - 5"
+            :y="stage.svg.y - 5"
+            width="10"
+            height="10"
+          />
+          <path
+            v-else-if="stage.id === 'elevation'"
+            :d="`M ${stage.svg.x} ${stage.svg.y - 6} L ${stage.svg.x + 6} ${stage.svg.y} L ${stage.svg.x} ${stage.svg.y + 6} L ${stage.svg.x - 6} ${stage.svg.y} z`"
+          />
+          <template v-else />
+          <text :x="stage.svg.x + 12" :y="stage.svg.y - 11">{{ stage.number }}</text>
+        </g>
+      </svg>
+    </div>
+
+    <ol class="power-stages">
+      <li v-for="stage in view.presentation.stages" :key="stage.id">
+        <span :class="`stage-key stage-key--${stage.id}`">{{ stageNumbers[stage.id] }}</span>
+        <span class="stage-description">
+          <strong>{{ t(`sulfurCube.power.stages.${stage.id}`) }}</strong>
+          <small>{{ t(`sulfurCube.power.stages.${stage.id}Help`) }}</small>
+        </span>
+        <code>({{ formatNumber(stage.point.x) }}, {{ formatNumber(stage.point.y) }})</code>
+      </li>
+    </ol>
+
+    <figcaption>
+      <p v-if="view.presentation.capApplied">
+        {{
+          t('sulfurCube.power.capApplied', {
+            factor: formatNumber(view.presentation.capFactor),
+          })
+        }}
+      </p>
+      <p v-else>{{ t('sulfurCube.power.capNotApplied') }}</p>
+      <p>{{ t('sulfurCube.power.capExplanation') }}</p>
+    </figcaption>
+  </figure>
+</template>
+
+<style scoped>
+.power-space {
+  --power-ink: var(--color-base, #202122);
+  --power-muted: var(--color-subtle, #54595d);
+  --power-border: var(--border-color-subtle, #c8ccd1);
+  --power-background: var(--background-color-neutral-subtle, #f8f9fa);
+  --power-base: #3366cc;
+  --power-aim: #6b4ba1;
+  --power-elevation: #d65a00;
+  --power-cap: #00a000;
+  margin: 0;
+  min-width: 0;
+}
+
+.power-space__heading {
+  margin-bottom: 0.5rem;
+}
+
+.power-space__heading h3,
+.power-space__heading p,
+figcaption p {
+  margin: 0;
+}
+
+.power-space__heading p,
+figcaption {
+  color: var(--power-muted);
+}
+
+.power-space__frame {
+  overflow: hidden;
+  border: 1px solid var(--power-border);
+  border-radius: 4px;
+  background: var(--power-background);
+}
+
+.power-space__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--power-ink);
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
+.power-background {
+  fill: var(--power-background);
+}
+
+.limit-rectangle {
+  fill: color-mix(in srgb, var(--power-cap) 8%, transparent);
+  stroke: var(--power-cap);
+  stroke-dasharray: 7 5;
+  stroke-width: 2;
+}
+
+.limit-label {
+  fill: var(--power-cap);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.power-axes line {
+  stroke: var(--power-muted);
+  stroke-width: 1.5;
+}
+
+.power-axes text {
+  fill: var(--power-muted);
+  font-weight: 700;
+}
+
+.aim-range-line {
+  stroke: var(--power-ink);
+  stroke-width: 1.25;
+}
+
+.stage-segment {
+  fill: none;
+  stroke-width: 1.75;
+}
+
+.stage-segment--aim {
+  stroke: var(--power-aim);
+}
+
+.stage-segment--elevation {
+  stroke: var(--power-elevation);
+}
+
+.stage-segment--capped {
+  stroke: var(--power-cap);
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+}
+
+.cap-vector {
+  stroke: var(--power-cap);
+  stroke-linecap: round;
+  stroke-width: 2.5;
+}
+
+.power-arrow--aim {
+  fill: var(--power-aim);
+}
+
+.power-arrow--elevation {
+  fill: var(--power-elevation);
+}
+
+.power-arrow--cap {
+  fill: var(--power-cap);
+}
+
+.power-stage text {
+  fill: var(--power-ink);
+  font-weight: 700;
+}
+
+.power-stage--base circle {
+  fill: var(--power-background);
+  stroke: var(--power-base);
+  stroke-width: 3;
+}
+
+.power-stage--aim rect {
+  fill: var(--power-background);
+  stroke: var(--power-aim);
+  stroke-width: 3;
+}
+
+.power-stage--elevation path {
+  fill: var(--power-background);
+  stroke: var(--power-elevation);
+  stroke-width: 3;
+}
+
+.power-stages {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.power-stages li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stage-key {
+  display: inline-grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  place-items: center;
+  border: 2px solid;
+  color: var(--power-ink);
+  font-weight: 700;
+}
+
+.stage-key--base {
+  border-color: var(--power-base);
+  border-radius: 50%;
+}
+
+.stage-key--aim {
+  border-color: var(--power-aim);
+}
+
+.stage-key--elevation {
+  border-color: var(--power-elevation);
+  border-style: double;
+}
+
+.stage-key--capped {
+  border-color: var(--power-cap);
+  border-radius: 50%;
+}
+
+.stage-description {
+  display: grid;
+  min-width: 0;
+}
+
+.stage-description small {
+  color: var(--power-muted);
+}
+
+:global(.dark) .power-space {
+  --power-base: #78a9ff;
+  --power-aim: #c5a3f2;
+  --power-elevation: #ff9c5a;
+  --power-cap: #33d13f;
+}
+
+.power-stages code {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+figcaption {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.875em;
+}
+
+@media (max-width: 32rem) {
+  .power-space__svg {
+    font-size: 16px;
+  }
+
+  .power-stages li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .power-stages code {
+    grid-column: 2;
+  }
+}
+</style>

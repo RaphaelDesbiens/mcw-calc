@@ -83,7 +83,8 @@ export const provenance = {
     version: '26.2',
     sourceKind: 'decompiledBehavior',
     sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/Avatar.java',
-    locator: 'DEFAULT_EYE_HEIGHT and STANDING_DIMENSIONS (local lines 16-23)',
+    locator:
+      'DEFAULT_EYE_HEIGHT and STANDING_DIMENSIONS (local lines 16-23); corroborated by EntityTypes.PLAYER (EntityTypes.java local lines 1136-1146)',
   },
   vectorNormalization: {
     edition: 'Java Edition',

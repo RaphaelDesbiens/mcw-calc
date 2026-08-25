@@ -46,6 +46,7 @@ describe('java Edition 26.2 milestone data', () => {
     expect(je26_2KnockbackMechanics.resultClampMinimum).toBe(-128)
     expect(je26_2KnockbackMechanics.resultClampMaximum).toBe(128)
     expect(je26_2Constants.standingPlayerEyeHeight.value).toBe(1.62)
+    expect(je26_2Constants.standingPlayerDimensions.value).toEqual({ width: 0.6, height: 1.8 })
   })
 
   it('keeps the first milestone to one ordinary call from rest', () => {

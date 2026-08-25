@@ -96,6 +96,12 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(() =>
       evaluateDiagnosticInputs({
         ...preset.inputs,
+        cubeFeetPosition: { ...preset.inputs.cubeFeetPosition, x: Number.NaN },
+      }),
+    ).toThrow(/cubeFeetPosition/)
+    expect(() =>
+      evaluateDiagnosticInputs({
+        ...preset.inputs,
         aimPoint: preset.inputs.attackerEyePosition,
       }),
     ).toThrow(/look direction/)

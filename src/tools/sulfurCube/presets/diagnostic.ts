@@ -11,6 +11,7 @@ import { createBouncyTrajectoryAssumptions, createMilestone1Scenario } from './m
 export type DiagnosticPresetId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'
 
 export interface DiagnosticInputs {
+  readonly cubeFeetPosition: Vec3
   readonly attackerFeetPosition: Vec3
   readonly attackerEyePosition: Vec3
   readonly aimPoint: Vec3
@@ -33,6 +34,8 @@ export interface DiagnosticEvaluation {
 const sharedFeet = { x: 0, y: 0, z: 1.5 } as const
 const sharedEyes = { x: 0, y: 1.62, z: 1.5 } as const
 const sharedAim = { x: 0, y: 0.49, z: 0.48 } as const
+const sharedCubeFeet = { x: 0, y: 0, z: 0 } as const
+const defaultTrajectoryTicks = 14
 
 // Source: minecraft-je-research/notes/in-game-data/sulfur_cube_launch_direction/
 // sulfur_cube_launch_direction_results.csv, direct-melee runs M1-M9.
@@ -40,91 +43,100 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
   {
     id: 'M1',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: sharedAim,
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M2',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: { x: -0.4, y: 0.49, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M3',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: { x: 0.4, y: 0.49, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M4',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: { x: 0, y: 0.88, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M5',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: { x: 0, y: 0.1, z: 0.48 },
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M6',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: { x: 0, y: 1, z: 1.5 },
       attackerEyePosition: { x: 0, y: 2.62, z: 1.5 },
       aimPoint: sharedAim,
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M7',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: { x: 0, y: -1, z: 1.5 },
       attackerEyePosition: { x: 0, y: 0.62, z: 1.5 },
       aimPoint: sharedAim,
       damageArgument: 1,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M8',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: sharedAim,
       damageArgument: 4,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
   {
     id: 'M9',
     inputs: {
+      cubeFeetPosition: sharedCubeFeet,
       attackerFeetPosition: sharedFeet,
       attackerEyePosition: sharedEyes,
       aimPoint: sharedAim,
       damageArgument: 9,
-      trajectoryTicks: 20,
+      trajectoryTicks: defaultTrajectoryTicks,
     },
   },
 ]
@@ -154,6 +166,7 @@ export function evaluateDiagnosticInputs(
   assertFiniteVec3(inputs.attackerFeetPosition, 'attackerFeetPosition')
   assertFiniteVec3(inputs.attackerEyePosition, 'attackerEyePosition')
   assertFiniteVec3(inputs.aimPoint, 'aimPoint')
+  assertFiniteVec3(inputs.cubeFeetPosition, 'cubeFeetPosition')
 
   if (!Number.isFinite(inputs.damageArgument) || inputs.damageArgument < 0) {
     throw new RangeError('damageArgument must be finite and nonnegative')
@@ -184,10 +197,10 @@ export function evaluateDiagnosticInputs(
       eyePosition: inputs.attackerEyePosition,
       lookDirection,
     },
-    { x: 0, y: 0, z: 0 },
+    inputs.cubeFeetPosition,
     {
-      x: inputs.attackerFeetPosition.x,
-      y: inputs.attackerFeetPosition.z,
+      x: inputs.attackerFeetPosition.x - inputs.cubeFeetPosition.x,
+      y: inputs.attackerFeetPosition.z - inputs.cubeFeetPosition.z,
     },
     inputs.damageArgument,
     numerics,
@@ -207,6 +220,7 @@ export function evaluateDiagnosticInputs(
 
   return {
     inputs: {
+      cubeFeetPosition: { ...inputs.cubeFeetPosition },
       attackerFeetPosition: { ...inputs.attackerFeetPosition },
       attackerEyePosition: { ...inputs.attackerEyePosition },
       aimPoint: { ...inputs.aimPoint },

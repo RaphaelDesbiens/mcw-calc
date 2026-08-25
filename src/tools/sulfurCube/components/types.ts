@@ -4,6 +4,9 @@ export type NumericFormValue = string | number
 export type DiagnosticPresetSelection = DiagnosticPresetId | 'custom'
 
 export interface DiagnosticFormState {
+  readonly cubeFeetX: NumericFormValue
+  readonly cubeFeetY: NumericFormValue
+  readonly cubeFeetZ: NumericFormValue
   readonly attackerFeetX: NumericFormValue
   readonly attackerFeetY: NumericFormValue
   readonly attackerFeetZ: NumericFormValue
