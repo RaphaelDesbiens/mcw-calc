@@ -59,8 +59,8 @@ export function clampedMap(
 ): number {
   const factor = (value - fromStart) / (fromEnd - fromStart)
 
-  if (!Number.isFinite(factor)) {
-    throw new RangeError('vertical aim mapping requires two distinct finite limits')
+  if (Number.isNaN(factor)) {
+    throw new RangeError('vertical aim mapping is undefined for coincident limits')
   }
 
   if (factor < 0) {

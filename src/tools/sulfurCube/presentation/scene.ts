@@ -85,13 +85,10 @@ function setPlaneVectorLength(
   return addScaledVector(origin, vector, length / vectorLength)
 }
 
-function normalizeAngleDifference(angle: number): number {
-  return Math.atan2(Math.sin(angle), Math.cos(angle))
-}
-
 function createThetaPresentation(
   attackerFeet: PlanePoint,
   cubeFeet: PlanePoint,
+  theta: number,
   minimumVectorLength: number,
 ): { readonly arc: readonly PlanePoint[]; readonly label: PlanePoint } {
   const deltaX = cubeFeet.x - attackerFeet.x
@@ -103,8 +100,7 @@ function createThetaPresentation(
   }
 
   const startAngle = deltaX <= 0 ? Math.PI : 0
-  const endAngle = Math.atan2(deltaY, deltaX)
-  const angleDifference = normalizeAngleDifference(endAngle - startAngle)
+  const angleDifference = (deltaX <= 0 ? 1 : -1) * theta
   const sampleCount = 16
   const arc = Array.from({ length: sampleCount + 1 }, (_, index) => {
     const angle = startAngle + (angleDifference * index) / sampleCount
@@ -224,6 +220,7 @@ export function createRadialScenePresentation(
   const thetaPresentation = createThetaPresentation(
     attackerFeet,
     cubeFeet,
+    callResult.diagnostics.theta,
     context.mechanics.vectorNormalizationThreshold,
   )
   const bounds = createCubeAnchoredBounds(

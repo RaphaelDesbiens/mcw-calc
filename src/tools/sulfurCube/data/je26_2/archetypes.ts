@@ -63,9 +63,9 @@ export const bouncyArchetype = {
       'Default 0 plus the Bouncy -2 add_value modifier.',
     ),
     explosionKnockbackResistance: sourcedValue(
-      -2,
-      ['attributeDefaults', 'attributeFolding', 'bouncyArchetype'],
-      'Default 0 plus the Bouncy -2 add_value modifier.',
+      0,
+      ['attributeDefaults', 'attributeFolding', 'attributeSanitization', 'bouncyArchetype'],
+      'Default 0 plus the Bouncy -2 add_value modifier, sanitized to the attribute range [0, 1].',
     ),
     bounciness: sourcedValue(
       0.8999999761581421,

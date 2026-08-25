@@ -18,6 +18,7 @@ describe('java Edition 26.2 milestone data', () => {
     expect(bouncyArchetype.knockbackModifiers.horizontalPower.value).toBe(0.4125)
     expect(bouncyArchetype.knockbackModifiers.verticalPower.value).toBe(0.105)
     expect(bouncyArchetype.effectiveProperties.knockbackResistance.value).toBe(-2)
+    expect(bouncyArchetype.effectiveProperties.explosionKnockbackResistance.value).toBe(0)
     expect(bouncyArchetype.effectiveProperties.airDragModifier.value).toBe(0.009999999776482582)
     expect(bouncyArchetype.effectiveProperties.bounciness.value).toBe(0.8999999761581421)
     expect(bouncyArchetype.effectiveProperties.frictionModifier.value).toBeCloseTo(

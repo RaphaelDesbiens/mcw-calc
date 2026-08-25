@@ -118,7 +118,34 @@ describe('sulfur cube geometry', () => {
     expect(lowAttacker.theta).toBeLessThan(0)
   })
 
-  it('rejects a collapsed vertical mapping instead of leaking NaN', () => {
+  it('clamps collapsed limits to finite source endpoints above and below the cube', () => {
+    const cube = createAdultSulfurCubeGeometry({ x: 0, y: 0, z: 0 })
+    const above = deriveKnockbackGeometry(
+      {
+        feetPosition: { x: 0, y: 2, z: 0 },
+        eyePosition: { x: 0, y: 3.62, z: 0 },
+        lookDirection: { x: 1, y: -1, z: 0 },
+      },
+      cube,
+      threshold,
+      standardNumerics,
+    )
+    const below = deriveKnockbackGeometry(
+      {
+        feetPosition: { x: 0, y: -3, z: 0 },
+        eyePosition: { x: 0, y: -1.38, z: 0 },
+        lookDirection: { x: 1, y: 1, z: 0 },
+      },
+      cube,
+      threshold,
+      standardNumerics,
+    )
+
+    expect(above.q).toBe(1)
+    expect(below.q).toBe(-1)
+  })
+
+  it('rejects the indeterminate collapsed-limit mapping instead of leaking NaN', () => {
     const cube = createAdultSulfurCubeGeometry({ x: 0, y: 0, z: 0 })
 
     expect(() =>
@@ -132,6 +159,6 @@ describe('sulfur cube geometry', () => {
         threshold,
         standardNumerics,
       ),
-    ).toThrow(/distinct finite limits/)
+    ).toThrow(/undefined for coincident limits/)
   })
 })

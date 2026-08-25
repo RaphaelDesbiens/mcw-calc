@@ -26,7 +26,7 @@ export const provenance = {
     sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/LivingEntity.java',
     locator: 'dealDefaultKnockback (local lines 1290-1305)',
     notes:
-      'The absorbed immune-damage path forwards its incoming float damage argument at SulfurCube.hurtServer local lines 243-263. The damage passed to knockback is not defined as health lost.',
+      'The absorbed immune-damage path forwards its incoming float damage argument at SulfurCube.hurtServer local lines 243-263. The sulfurCubeBlockImmunity tag includes player_attack. The damage passed to knockback is not defined as health lost.',
   },
   extraKnockbackCall: {
     edition: 'Java Edition',
@@ -44,6 +44,14 @@ export const provenance = {
     sourcePath: 'versions/26.2/extracted/data/minecraft/sulfur_cube_archetype/bouncy.json',
     locator: 'attribute_modifiers, buoyant, items, knockback_modifiers (local lines 2-45)',
   },
+  sulfurCubeBlockImmunity: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'extractedData',
+    sourcePath:
+      'versions/26.2/extracted/data/minecraft/tags/damage_type/sulfur_cube_with_block_immune_to.json',
+    locator: 'values, including minecraft:player_attack (local lines 2-26)',
+  },
   attributeDefaults: {
     edition: 'Java Edition',
     version: '26.2',
@@ -60,6 +68,14 @@ export const provenance = {
     sourcePath:
       'versions/26.2/decompiled/src/net/minecraft/world/entity/ai/attributes/AttributeInstance.java',
     locator: 'calculateValue (local lines 148-165)',
+  },
+  attributeSanitization: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath:
+      'versions/26.2/decompiled/src/net/minecraft/world/entity/ai/attributes/RangedAttribute.java',
+    locator: 'sanitizeValue (local lines 34-37)',
   },
   sulfurCubeDimensions: {
     edition: 'Java Edition',

@@ -213,6 +213,30 @@ describe('radial scene presentation', () => {
     expect(thetaLabelVerticalOffset).toBeLessThan(0)
   })
 
+  it('draws the full 3D mechanics theta when lateral feet offset is hidden by the plane', () => {
+    const baseScene = createRadialScenePresentation(
+      evaluateDiagnosticInputs(getDiagnosticPreset('M1').inputs),
+    )
+    const evaluation = evaluateDiagnosticInputs({
+      ...getDiagnosticPreset('M1').inputs,
+      attackerFeetPosition: { x: 2, y: 1, z: 0 },
+      attackerEyePosition: { x: 2, y: 2.62, z: 0 },
+      aimPoint: { x: 0, y: 0.49, z: 0 },
+    })
+    const scene = createRadialScenePresentation(evaluation, baseScene.projection)
+    const arcStart = scene.thetaArc[0]!
+    const arcEnd = scene.thetaArc[scene.thetaArc.length - 1]!
+    const startX = arcStart.x - scene.attackerFeet.x
+    const startY = arcStart.y - scene.attackerFeet.y
+    const endX = arcEnd.x - scene.attackerFeet.x
+    const endY = arcEnd.y - scene.attackerFeet.y
+    const displayedTheta = Math.atan2(startX * endY - startY * endX, startX * endX + startY * endY)
+
+    expect(scene.attackerFeet.x).toBeCloseTo(scene.cube.feet.x, 12)
+    expect(evaluation.callResult.diagnostics.theta).toBeCloseTo(Math.atan2(1, 2), 12)
+    expect(displayedTheta).toBeCloseTo(evaluation.callResult.diagnostics.theta, 12)
+  })
+
   it('preserves lateral aim information outside the simplified radial view', () => {
     const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M2').inputs)
     const scene = createRadialScenePresentation(evaluation)
