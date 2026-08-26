@@ -30,17 +30,23 @@ interface SvgPowerStage {
   readonly svg: { readonly x: number; readonly y: number }
 }
 
-const numberFormatter = computed(
-  () =>
-    new Intl.NumberFormat('en-US', {
-      maximumFractionDigits: 5,
-      minimumFractionDigits: 0,
-      useGrouping: false,
-    }),
-)
+const fixedNumberFormatters: Record<2 | 4, Intl.NumberFormat> = {
+  2: new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  }),
+  4: new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+    useGrouping: false,
+  }),
+}
 
-function formatNumber(value: number): string {
-  return numberFormatter.value.format(Object.is(value, -0) ? 0 : value)
+function formatFixedNumber(value: number, fractionDigits: 2 | 4): string {
+  const roundsToZero = Math.abs(value) < 0.5 / 10 ** fractionDigits
+
+  return fixedNumberFormatters[fractionDigits].format(roundsToZero ? 0 : value)
 }
 
 function countFractionDigits(value: number): number {
@@ -99,9 +105,9 @@ const aimTransferDescription = computed(() => {
   const ratio = props.evaluation.callResult.diagnostics.transferredPowerRatio
 
   return t('sulfurCube.power.aimTransferExplanation', {
-    percentage: formatNumber(ratio * 100),
-    horizontalFactor: formatNumber(1 - ratio),
-    verticalFactor: formatNumber(1 + ratio),
+    percentage: formatFixedNumber(ratio * 100, 2),
+    horizontalFactor: formatFixedNumber(1 - ratio, 2),
+    verticalFactor: formatFixedNumber(1 + ratio, 2),
   })
 })
 
@@ -109,7 +115,7 @@ const rotationDescription = computed(() => {
   const angle = props.evaluation.callResult.diagnostics.powerRotationAngle
 
   return t('sulfurCube.power.rotationExplanation', {
-    degrees: formatNumber((angle * 180) / Math.PI),
+    degrees: formatFixedNumber((angle * 180) / Math.PI, 2),
   })
 })
 
@@ -326,14 +332,24 @@ const view = computed(() => {
     <figcaption>
       <p>{{ aimTransferDescription }}</p>
       <p>{{ rotationDescription }}</p>
-      <p v-if="view.presentation.capApplied">
-        {{
-          t('sulfurCube.power.capApplied', {
-            factor: formatNumber(view.presentation.capFactor),
-          })
-        }}
-      </p>
-      <p v-else>{{ t('sulfurCube.power.capNotApplied') }}</p>
+      <div class="cap-explanation">
+        <p
+          :class="{ 'cap-explanation__inactive': !view.presentation.capApplied }"
+          :aria-hidden="!view.presentation.capApplied"
+        >
+          {{
+            t('sulfurCube.power.capApplied', {
+              factor: formatFixedNumber(view.presentation.capFactor, 4),
+            })
+          }}
+        </p>
+        <p
+          :class="{ 'cap-explanation__inactive': view.presentation.capApplied }"
+          :aria-hidden="view.presentation.capApplied"
+        >
+          {{ t('sulfurCube.power.capNotApplied') }}
+        </p>
+      </div>
     </figcaption>
   </figure>
 </template>
@@ -550,6 +566,18 @@ figcaption {
   gap: 0.25rem;
   margin-top: 0.75rem;
   font-size: 0.875em;
+}
+
+.cap-explanation {
+  display: grid;
+}
+
+.cap-explanation > * {
+  grid-area: 1 / 1;
+}
+
+.cap-explanation__inactive {
+  visibility: hidden;
 }
 
 @media (max-width: 32rem) {
