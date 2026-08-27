@@ -20,6 +20,10 @@ export type {
   VersionedNumericField,
   VersionedSoundSettings,
 } from './archetypes'
-export { je26_2Constants, je26_2KnockbackMechanics } from './constants'
+export {
+  je26_2Constants,
+  je26_2CubeAttributeDefinitions,
+  je26_2KnockbackMechanics,
+} from './constants'
 export { provenance } from './provenance'
 export type { ProvenanceId, ProvenanceRecord, SourcedValue } from './provenance'

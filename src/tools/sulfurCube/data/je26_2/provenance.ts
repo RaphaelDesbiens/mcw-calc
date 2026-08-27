@@ -64,6 +64,17 @@ export const provenance = {
     notes:
       'MappedRegistry.register appends holders to byId and registry iteration follows byId in MappedRegistry.java local lines 88-120 and 202-204.',
   },
+  sulfurCubeArchetypeApplication: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath:
+      'versions/26.2/decompiled/src/net/minecraft/world/entity/monster/cubemob/SulfurCube.java',
+    locator:
+      'matchingArchetypes and collectEquipmentChanges reset/application fold (local lines 274-282 and 366-419)',
+    notes:
+      'Establishes ordered candidate matching, default special state, OR/append/overwrite behavior, and ignored unavailable attributes.',
+  },
   sulfurCubeBlockImmunity: {
     edition: 'Java Edition',
     version: '26.2',

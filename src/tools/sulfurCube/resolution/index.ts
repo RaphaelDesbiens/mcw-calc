@@ -1,0 +1,30 @@
+export { foldAttributeModifiers, je26_2AttributeDefinitions } from './attributes'
+export {
+  foldMatchingDefinitions,
+  resolveArchetype,
+  toCubeMechanicsProperties,
+  toResolvableCubeDefinition,
+  toTrajectoryAssumptions,
+} from './cubeProperties'
+export type {
+  ActiveModifiersByOperation,
+  AttributeActionGroup,
+  AttributeCandidateInput,
+  AttributeDefinition,
+  AttributeFoldDiagnostic,
+  AttributeFoldResult,
+  AttributeModifierAction,
+  AttributeModifierActionStatus,
+  AttributeResolution,
+  CubePropertyFoldStep,
+  NumericRepresentation,
+  ResolvableAttributeModifier,
+  ResolvableCubeDefinition,
+  ResolvedContactDamage,
+  ResolvedCubeProfile,
+  ResolvedExplosionData,
+  ResolvedKnockbackModifiers,
+  ResolvedNumericSelection,
+  ResolvedSoundSettings,
+  SourcedAttributeModifier,
+} from './types'

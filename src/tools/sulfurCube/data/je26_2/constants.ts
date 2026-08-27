@@ -14,6 +14,7 @@ export const je26_2Constants = {
   defaultGravity: sourcedValue(0.08, ['attributeDefaults']),
   defaultAirDragModifier: sourcedValue(1, ['attributeDefaults']),
   defaultKnockbackResistance: sourcedValue(0, ['attributeDefaults']),
+  defaultExplosionKnockbackResistance: sourcedValue(0, ['attributeDefaults']),
   defaultBounciness: sourcedValue(0, ['attributeDefaults']),
   defaultFrictionModifier: sourcedValue(1, ['attributeDefaults']),
   standingPlayerEyeHeight: sourcedValue(1.62, ['standingPlayerEyeHeight']),
@@ -25,6 +26,34 @@ export const je26_2Constants = {
   sulfurCubeBaseDimensions: sourcedValue({ width: 0.49, height: 0.49 }, ['sulfurCubeDimensions']),
   adultSulfurCubeRuntimeSize: sourcedValue(2, ['sulfurCubeRuntimeSize']),
 } as const
+
+export const je26_2CubeAttributeDefinitions = Object.freeze({
+  'minecraft:knockback_resistance': {
+    defaultValue: je26_2Constants.defaultKnockbackResistance,
+    minimum: sourcedValue(-2, ['attributeDefaults']),
+    maximum: sourcedValue(1, ['attributeDefaults']),
+  },
+  'minecraft:explosion_knockback_resistance': {
+    defaultValue: je26_2Constants.defaultExplosionKnockbackResistance,
+    minimum: sourcedValue(0, ['attributeDefaults']),
+    maximum: sourcedValue(1, ['attributeDefaults']),
+  },
+  'minecraft:bounciness': {
+    defaultValue: je26_2Constants.defaultBounciness,
+    minimum: sourcedValue(0, ['attributeDefaults']),
+    maximum: sourcedValue(1, ['attributeDefaults']),
+  },
+  'minecraft:friction_modifier': {
+    defaultValue: je26_2Constants.defaultFrictionModifier,
+    minimum: sourcedValue(0, ['attributeDefaults']),
+    maximum: sourcedValue(2048, ['attributeDefaults']),
+  },
+  'minecraft:air_drag_modifier': {
+    defaultValue: je26_2Constants.defaultAirDragModifier,
+    minimum: sourcedValue(0, ['attributeDefaults']),
+    maximum: sourcedValue(2048, ['attributeDefaults']),
+  },
+})
 
 export const je26_2KnockbackMechanics = Object.freeze({
   horizontalHitAngleScale: je26_2Constants.horizontalHitAngleScale.value,
