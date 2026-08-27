@@ -44,6 +44,26 @@ export const provenance = {
     sourcePath: 'versions/26.2/extracted/data/minecraft/sulfur_cube_archetype/bouncy.json',
     locator: 'attribute_modifiers, buoyant, items, knockback_modifiers (local lines 2-45)',
   },
+  sulfurCubeArchetypeCodec: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/SulfurCubeArchetype.java',
+    locator:
+      'DIRECT_CODEC and nested AttributeEntry, ContactDamage, ExplosionData, KnockbackModifiers, and SoundSettings codecs (local lines 23-126)',
+    notes:
+      'Defines required fields, optional defaults, Java numeric codec boundaries, and decoded runtime field types.',
+  },
+  sulfurCubeArchetypeRegistryOrder: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath:
+      'versions/26.2/decompiled/src/net/minecraft/resources/ResourceManagerRegistryLoadTask.java',
+    locator: 'load, identifier sort before registry registration (local lines 40-67)',
+    notes:
+      'MappedRegistry.register appends holders to byId and registry iteration follows byId in MappedRegistry.java local lines 88-120 and 202-204.',
+  },
   sulfurCubeBlockImmunity: {
     edition: 'Java Edition',
     version: '26.2',
