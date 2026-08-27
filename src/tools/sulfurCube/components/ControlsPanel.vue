@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import type { CubePropertySelectionResolution, CubePropertySelectionState } from '../resolution'
 import type { DiagnosticFormState, NumericFormValue } from './types'
 import { CdxAccordion, CdxButton, CdxField, CdxTextInput } from '@wikimedia/codex'
 import { useI18n } from 'vue-i18n'
+import CubePropertyControls from './CubePropertyControls.vue'
 
 const props = defineProps<{
   modelValue: DiagnosticFormState
+  propertySelection: CubePropertySelectionState
+  propertyResolution: CubePropertySelectionResolution
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
+  'update:propertySelection': [value: CubePropertySelectionState]
   reset: []
   resetAttackerEyeStanding: []
   resetTrajectoryTicksDefault: []
@@ -31,6 +36,12 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
         {{ t('sulfurCube.controls.reset') }}
       </CdxButton>
     </div>
+
+    <CubePropertyControls
+      :model-value="propertySelection"
+      :resolution="propertyResolution"
+      @update:model-value="emit('update:propertySelection', $event)"
+    />
 
     <CdxField>
       <template #label>{{ t('sulfurCube.controls.damageArgument') }}</template>

@@ -17,6 +17,28 @@ export {
   toResolvableCubeDefinition,
   toTrajectoryAssumptions,
 } from './cubeProperties'
+export {
+  copyCurrentResolvedCubeProperties,
+  createDefaultCubePropertySelectionState,
+  resolveCubePropertySelection,
+  selectCubePropertyArchetype,
+  selectCubePropertyBlock,
+  selectCubePropertyMode,
+  updateCustomCubeProperty,
+} from './propertySelection'
+export type {
+  CubePropertyMode,
+  CubePropertySelectionDiagnostic,
+  CubePropertySelectionResolution,
+  CubePropertySelectionSource,
+  CubePropertySelectionState,
+  CustomCubePropertyFormState,
+  CustomCubePropertyWorkingCopy,
+  CustomPropertyDiagnostic,
+  CustomPropertyField,
+  CustomPropertyInput,
+  LockedCubePropertyMode,
+} from './propertySelection'
 export type {
   ActiveModifiersByOperation,
   AttributeActionGroup,

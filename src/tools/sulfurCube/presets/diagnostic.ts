@@ -1,4 +1,10 @@
-import type { KnockbackCallResult, LaunchSummary, TrajectoryResult, Vec3 } from '../model/types'
+import type {
+  CubeLaunchProperties,
+  KnockbackCallResult,
+  LaunchSummary,
+  TrajectoryResult,
+  Vec3,
+} from '../model/types'
 import type { NumericBackend } from '../numerics/types'
 import { je26_2Constants, je26_2KnockbackMechanics } from '../data/je26_2'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
@@ -6,7 +12,11 @@ import { summarizeLaunchVelocity } from '../model/launchSummary'
 import { simulateFreeFlightTrajectory } from '../model/trajectory'
 import { lengthVec3, normalizeVec3, subtractVec3 } from '../model/vectors'
 import { standardNumerics } from '../numerics/standard'
-import { createBouncyTrajectoryAssumptions, createMilestone1Scenario } from './milestone1'
+import {
+  createBouncyCubeLaunchProperties,
+  createMilestone1Scenario,
+  createTrajectoryAssumptions,
+} from './milestone1'
 
 export type DiagnosticPresetId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'
 
@@ -26,6 +36,7 @@ export interface DiagnosticPreset {
 
 export interface DiagnosticEvaluation {
   readonly inputs: DiagnosticInputs
+  readonly properties: CubeLaunchProperties
   readonly callResult: KnockbackCallResult
   readonly trajectory: TrajectoryResult
   readonly launchSummary: LaunchSummary
@@ -183,6 +194,7 @@ export function getDiagnosticPreset(id: DiagnosticPresetId): DiagnosticPreset {
 export function evaluateDiagnosticInputs(
   inputs: DiagnosticInputs,
   numerics: NumericBackend = standardNumerics,
+  properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): DiagnosticEvaluation {
   assertFiniteVec3(inputs.attackerFeetPosition, 'attackerFeetPosition')
   assertFiniteVec3(inputs.attackerEyePosition, 'attackerEyePosition')
@@ -225,6 +237,7 @@ export function evaluateDiagnosticInputs(
     },
     inputs.damageArgument,
     numerics,
+    properties,
   )
   const callResult = applySulfurCubeKnockbackCall(
     scenario.initialVelocity,
@@ -236,7 +249,7 @@ export function evaluateDiagnosticInputs(
     scenario.context.cube.feetPosition,
     callResult.resultingVelocity,
     inputs.trajectoryTicks,
-    createBouncyTrajectoryAssumptions(numerics),
+    createTrajectoryAssumptions(properties.airDragModifier, numerics),
   )
 
   return {
@@ -248,6 +261,7 @@ export function evaluateDiagnosticInputs(
       damageArgument: inputs.damageArgument,
       trajectoryTicks: inputs.trajectoryTicks,
     },
+    properties: { ...properties },
     callResult,
     trajectory,
     launchSummary: summarizeLaunchVelocity(
@@ -261,12 +275,14 @@ export function evaluateDiagnosticInputs(
 export function findDefaultTrajectoryTicks(
   inputs: DiagnosticInputs,
   numerics: NumericBackend = standardNumerics,
+  properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): number {
   const maximumTicks = 200
   const targetDrop = 2
   const evaluation = evaluateDiagnosticInputs(
     { ...inputs, trajectoryTicks: maximumTicks },
     numerics,
+    properties,
   )
   const targetY = evaluation.trajectory.initialPosition.y - targetDrop
   const firstTickAtOrBelowTarget = evaluation.trajectory.ticks.find(

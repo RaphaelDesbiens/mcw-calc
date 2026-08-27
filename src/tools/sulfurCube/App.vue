@@ -2,6 +2,7 @@
 import type { DiagnosticFormState } from './components/types'
 import type { Vec3 } from './model/types'
 import type { DiagnosticEvaluation } from './presets/diagnostic'
+import type { CubePropertySelectionState } from './resolution'
 import { CdxAccordion, CdxMessage } from '@wikimedia/codex'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,21 +20,35 @@ import {
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
+import { standardNumerics } from './numerics/standard'
 import {
   createMilestone1DefaultInputs,
   evaluateDiagnosticInputs,
   findDefaultTrajectoryTicks,
 } from './presets/diagnostic'
+import { createDefaultCubePropertySelectionState, resolveCubePropertySelection } from './resolution'
 
 const defaultInputs = createMilestone1DefaultInputs()
 
 const { t } = useI18n()
 const sceneSize = ref<'regular' | 'compact'>('regular')
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
+const propertySelection = ref<CubePropertySelectionState>(createDefaultCubePropertySelectionState())
+const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
 
 const evaluation = computed<DiagnosticEvaluation | null>(() => {
+  const properties = propertyResolution.value.values
+
+  if (properties === null) {
+    return null
+  }
+
   try {
-    return evaluateDiagnosticInputs(parseDiagnosticFormState(formState.value))
+    return evaluateDiagnosticInputs(
+      parseDiagnosticFormState(formState.value),
+      standardNumerics,
+      properties,
+    )
   } catch {
     return null
   }
@@ -41,6 +56,10 @@ const evaluation = computed<DiagnosticEvaluation | null>(() => {
 
 function updateFormState(value: DiagnosticFormState): void {
   formState.value = value
+}
+
+function updatePropertySelection(value: CubePropertySelectionState): void {
+  propertySelection.value = value
 }
 
 function updateFormStateFromControls(value: DiagnosticFormState): void {
@@ -52,10 +71,20 @@ function reset(): void {
 }
 
 function resetTrajectoryTicksDefault(): void {
+  const properties = propertyResolution.value.values
+
+  if (properties === null) {
+    return
+  }
+
   let trajectoryTicks: number
 
   try {
-    trajectoryTicks = findDefaultTrajectoryTicks(parseDiagnosticFormState(formState.value))
+    trajectoryTicks = findDefaultTrajectoryTicks(
+      parseDiagnosticFormState(formState.value),
+      standardNumerics,
+      properties,
+    )
   } catch {
     return
   }
@@ -102,7 +131,10 @@ function translateCube(delta: Vec3): void {
         <ControlsPanel
           class="interaction-grid__controls"
           :model-value="formState"
+          :property-selection="propertySelection"
+          :property-resolution="propertyResolution"
           @update:model-value="updateFormStateFromControls"
+          @update:property-selection="updatePropertySelection"
           @reset-attacker-eye-standing="resetAttackerEyeStanding"
           @reset-trajectory-ticks-default="resetTrajectoryTicksDefault"
           @reset="reset"

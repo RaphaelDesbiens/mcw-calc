@@ -1,0 +1,314 @@
+import type { Je26_2ArchetypeId } from '../data/je26_2'
+import type { CubeLaunchProperties } from '../model/types'
+import type { BlockResolutionDiagnostic } from './blockResolution'
+import type { AttributeFoldDiagnostic, ResolvedCubeProfile } from './types'
+import { je26_2ArchetypesById, je26_2BlockMembershipIndex } from '../data/je26_2'
+import { resolveJe26_2Block } from './blockResolution'
+import { resolveArchetype, toCubeMechanicsProperties } from './cubeProperties'
+
+export type CubePropertyMode = 'block' | 'archetype' | 'custom'
+export type LockedCubePropertyMode = Exclude<CubePropertyMode, 'custom'>
+export type CustomPropertyField = keyof CubeLaunchProperties
+export type CustomPropertyInput = string | number
+
+export interface CustomCubePropertyFormState {
+  readonly horizontalPower: CustomPropertyInput
+  readonly verticalPower: CustomPropertyInput
+  readonly knockbackResistance: CustomPropertyInput
+  readonly airDragModifier: CustomPropertyInput
+}
+
+export type CubePropertySelectionSource =
+  | {
+      readonly kind: 'block'
+      readonly itemId: string
+      readonly candidateIds: readonly string[]
+    }
+  | {
+      readonly kind: 'archetype'
+      readonly archetypeId: Je26_2ArchetypeId
+      readonly candidateIds: readonly string[]
+    }
+
+export interface CustomCubePropertyWorkingCopy {
+  readonly formState: CustomCubePropertyFormState
+  readonly baseProfile: ResolvedCubeProfile
+  readonly copiedFrom: CubePropertySelectionSource
+}
+
+export interface CubePropertySelectionState {
+  readonly mode: CubePropertyMode
+  readonly lastLockedMode: LockedCubePropertyMode
+  readonly selectedBlockId: string
+  readonly selectedArchetypeId: Je26_2ArchetypeId
+  readonly customWorkingCopy: CustomCubePropertyWorkingCopy | null
+}
+
+export type CustomPropertyDiagnostic =
+  | {
+      readonly kind: 'invalid_custom_number'
+      readonly field: CustomPropertyField
+      readonly input: CustomPropertyInput
+    }
+  | {
+      readonly kind: 'custom_value_out_of_range'
+      readonly field: 'knockbackResistance' | 'airDragModifier'
+      readonly value: number
+      readonly minimum: number
+      readonly maximum: number
+    }
+
+export type CubePropertySelectionDiagnostic =
+  | AttributeFoldDiagnostic
+  | BlockResolutionDiagnostic
+  | CustomPropertyDiagnostic
+
+export interface CubePropertySelectionResolution {
+  readonly mode: CubePropertyMode
+  readonly editable: boolean
+  readonly profile: ResolvedCubeProfile
+  readonly values: CubeLaunchProperties | null
+  readonly source: CubePropertySelectionSource
+  readonly candidateIds: readonly string[]
+  readonly diagnostics: readonly CubePropertySelectionDiagnostic[]
+  readonly supported: boolean
+}
+
+const defaultBlockId = 'minecraft:oak_planks'
+const defaultArchetypeId = 'minecraft:bouncy'
+
+function toFormState(values: CubeLaunchProperties): CustomCubePropertyFormState {
+  return {
+    horizontalPower: String(values.horizontalPower),
+    verticalPower: String(values.verticalPower),
+    knockbackResistance: String(values.knockbackResistance),
+    airDragModifier: String(values.airDragModifier),
+  }
+}
+
+function valuesFromProfile(profile: ResolvedCubeProfile): CubeLaunchProperties {
+  return {
+    ...toCubeMechanicsProperties(profile),
+    airDragModifier: profile.attributes['minecraft:air_drag_modifier'].effectiveValue,
+  }
+}
+
+function resolveLockedSelection(
+  state: CubePropertySelectionState,
+): CubePropertySelectionResolution {
+  if (state.lastLockedMode === 'block') {
+    const result = resolveJe26_2Block(state.selectedBlockId, 'known_block_item')
+
+    return {
+      mode: 'block',
+      editable: false,
+      profile: result.profile,
+      values: valuesFromProfile(result.profile),
+      source: {
+        kind: 'block',
+        itemId: state.selectedBlockId,
+        candidateIds: [...result.orderedCandidateIds],
+      },
+      candidateIds: [...result.orderedCandidateIds],
+      diagnostics: [...result.diagnostics, ...result.profile.diagnostics],
+      supported: result.supported,
+    }
+  }
+
+  const profile = resolveArchetype(je26_2ArchetypesById[state.selectedArchetypeId])
+
+  return {
+    mode: 'archetype',
+    editable: false,
+    profile,
+    values: valuesFromProfile(profile),
+    source: {
+      kind: 'archetype',
+      archetypeId: state.selectedArchetypeId,
+      candidateIds: [...profile.orderedCandidateIds],
+    },
+    candidateIds: [...profile.orderedCandidateIds],
+    diagnostics: [...profile.diagnostics],
+    supported: profile.supported,
+  }
+}
+
+function copyLockedSelection(state: CubePropertySelectionState): CustomCubePropertyWorkingCopy {
+  const locked = resolveLockedSelection(state)
+
+  if (locked.values === null) {
+    throw new RangeError('locked cube property selection must be valid')
+  }
+
+  return {
+    formState: toFormState(locked.values),
+    baseProfile: locked.profile,
+    copiedFrom: locked.source,
+  }
+}
+
+function parseCustomValues(formState: CustomCubePropertyFormState): {
+  readonly values: CubeLaunchProperties | null
+  readonly diagnostics: readonly CustomPropertyDiagnostic[]
+} {
+  const parsed = {} as Record<CustomPropertyField, number>
+  const diagnostics: CustomPropertyDiagnostic[] = []
+
+  for (const field of Object.keys(formState) as CustomPropertyField[]) {
+    const input = formState[field]
+    const value = typeof input === 'string' && input.trim() === '' ? Number.NaN : Number(input)
+
+    if (!Number.isFinite(value)) {
+      diagnostics.push({ kind: 'invalid_custom_number', field, input })
+    } else {
+      parsed[field] = value
+    }
+  }
+
+  const knockbackResistance = parsed.knockbackResistance
+  if (knockbackResistance !== undefined && (knockbackResistance < -2 || knockbackResistance > 1)) {
+    diagnostics.push({
+      kind: 'custom_value_out_of_range',
+      field: 'knockbackResistance',
+      value: knockbackResistance,
+      minimum: -2,
+      maximum: 1,
+    })
+  }
+
+  const airDragModifier = parsed.airDragModifier
+  if (airDragModifier !== undefined && (airDragModifier < 0 || airDragModifier > 2048)) {
+    diagnostics.push({
+      kind: 'custom_value_out_of_range',
+      field: 'airDragModifier',
+      value: airDragModifier,
+      minimum: 0,
+      maximum: 2048,
+    })
+  }
+
+  return {
+    values:
+      diagnostics.length === 0
+        ? {
+            horizontalPower: parsed.horizontalPower,
+            verticalPower: parsed.verticalPower,
+            knockbackResistance: parsed.knockbackResistance,
+            airDragModifier: parsed.airDragModifier,
+          }
+        : null,
+    diagnostics,
+  }
+}
+
+export function createDefaultCubePropertySelectionState(): CubePropertySelectionState {
+  return {
+    mode: 'block',
+    lastLockedMode: 'block',
+    selectedBlockId: defaultBlockId,
+    selectedArchetypeId: defaultArchetypeId,
+    customWorkingCopy: null,
+  }
+}
+
+export function selectCubePropertyMode(
+  state: CubePropertySelectionState,
+  mode: CubePropertyMode,
+): CubePropertySelectionState {
+  if (mode === 'custom') {
+    return {
+      ...state,
+      mode,
+      customWorkingCopy: state.customWorkingCopy ?? copyLockedSelection(state),
+    }
+  }
+
+  return {
+    ...state,
+    mode,
+    lastLockedMode: mode,
+  }
+}
+
+export function selectCubePropertyBlock(
+  state: CubePropertySelectionState,
+  itemId: string,
+): CubePropertySelectionState {
+  if (je26_2BlockMembershipIndex[itemId] === undefined) {
+    throw new RangeError(`unknown JE 26.2 swallowable block item: ${itemId}`)
+  }
+
+  return {
+    ...state,
+    selectedBlockId: itemId,
+    ...(state.mode === 'block' ? { lastLockedMode: 'block' as const } : {}),
+  }
+}
+
+export function selectCubePropertyArchetype(
+  state: CubePropertySelectionState,
+  archetypeId: Je26_2ArchetypeId,
+): CubePropertySelectionState {
+  if (je26_2ArchetypesById[archetypeId] === undefined) {
+    throw new RangeError(`unknown JE 26.2 sulfur cube archetype: ${archetypeId}`)
+  }
+
+  return {
+    ...state,
+    selectedArchetypeId: archetypeId,
+    ...(state.mode === 'archetype' ? { lastLockedMode: 'archetype' as const } : {}),
+  }
+}
+
+export function updateCustomCubeProperty(
+  state: CubePropertySelectionState,
+  field: CustomPropertyField,
+  input: CustomPropertyInput,
+): CubePropertySelectionState {
+  const customWorkingCopy = state.customWorkingCopy ?? copyLockedSelection(state)
+
+  return {
+    ...state,
+    customWorkingCopy: {
+      ...customWorkingCopy,
+      formState: {
+        ...customWorkingCopy.formState,
+        [field]: input,
+      },
+    },
+  }
+}
+
+export function copyCurrentResolvedCubeProperties(
+  state: CubePropertySelectionState,
+): CubePropertySelectionState {
+  return {
+    ...state,
+    customWorkingCopy: copyLockedSelection(state),
+  }
+}
+
+export function resolveCubePropertySelection(
+  state: CubePropertySelectionState,
+): CubePropertySelectionResolution {
+  if (state.mode !== 'custom') {
+    return resolveLockedSelection({
+      ...state,
+      lastLockedMode: state.mode,
+    })
+  }
+
+  const customWorkingCopy = state.customWorkingCopy ?? copyLockedSelection(state)
+  const parsed = parseCustomValues(customWorkingCopy.formState)
+
+  return {
+    mode: 'custom',
+    editable: true,
+    profile: customWorkingCopy.baseProfile,
+    values: parsed.values,
+    source: customWorkingCopy.copiedFrom,
+    candidateIds: [...customWorkingCopy.copiedFrom.candidateIds],
+    diagnostics: [...customWorkingCopy.baseProfile.diagnostics, ...parsed.diagnostics],
+    supported: customWorkingCopy.baseProfile.supported && parsed.diagnostics.length === 0,
+  }
+}

@@ -37,6 +37,10 @@ export interface CubeMechanicsProperties {
   readonly knockbackResistance: number
 }
 
+export interface CubeLaunchProperties extends CubeMechanicsProperties {
+  readonly airDragModifier: number
+}
+
 export interface SulfurCubeMechanicsParameters {
   readonly horizontalHitAngleScale: number
   readonly verticalHitAngleScale: number
