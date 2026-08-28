@@ -126,6 +126,8 @@ const view = computed(() => {
     trajectoryPointRadius: 2.25 * zoomFactor,
     trajectoryEndArm: 5 * zoomFactor,
     thetaSquareSize: 10 * zoomFactor,
+    launchArrowWidth: Math.max(0.001, scene.launchDisplayLength * transform.scale * 0.18),
+    launchArrowHeight: Math.max(0.001, scene.launchDisplayLength * transform.scale * 0.135),
   }
   const aimPoint = clampPointToBoundsFromOrigin(attackerEyes, unclampedAimPoint, {
     minX: visual.aimPointRadius,
@@ -562,12 +564,14 @@ function formatCoordinate(value: number): string {
           </marker>
           <marker
             id="sulfur-cube-launch-arrow"
-            markerWidth="8"
-            markerHeight="6"
+            :markerWidth="view.visual.launchArrowWidth"
+            :markerHeight="view.visual.launchArrowHeight"
             refX="7"
             refY="3"
             orient="auto"
-            markerUnits="strokeWidth"
+            markerUnits="userSpaceOnUse"
+            viewBox="0 0 8 6"
+            preserveAspectRatio="xMidYMid meet"
           >
             <path class="launch-arrow" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
           </marker>
@@ -1195,11 +1199,12 @@ figcaption {
 
 .open-point-symbol {
   display: inline-block;
-  width: 0.75em;
-  height: 0.75em;
-  border: 0.13em solid var(--scene-aim);
+  box-sizing: border-box;
+  width: 0.62em;
+  height: 0.62em;
+  border: 0.15em solid #202122;
   border-radius: 50%;
-  background: var(--background-color-base, #fff);
+  background: #fff;
 }
 
 :global(.dark) .scene-figure {
@@ -1214,6 +1219,11 @@ figcaption {
   --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #33d13f;
   --scene-trajectory: #33d13f;
+}
+
+:global(.dark) .open-point-symbol {
+  border-color: #fff;
+  background: #202122;
 }
 
 .legend-swatch {

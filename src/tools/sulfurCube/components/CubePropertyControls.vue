@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MenuItemData } from '@wikimedia/codex'
+import type { Je26_2ArchetypeId } from '../data/je26_2'
 import type {
   CubePropertySelectionResolution,
   CubePropertySelectionState,
@@ -8,6 +9,7 @@ import type {
 } from '../resolution'
 import {
   CdxButton,
+  CdxCheckbox,
   CdxField,
   CdxImage,
   CdxMessage,
@@ -49,6 +51,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const blockSearch = ref('')
+const selectedBlockArchetypeIds = ref<Je26_2ArchetypeId[]>([...je26_2ArchetypeRegistryOrder])
 const numberFormatter = new Intl.NumberFormat('en', {
   maximumFractionDigits: 8,
   useGrouping: false,
@@ -59,6 +62,7 @@ interface BlockSelectorItem {
   readonly label: string
   readonly searchText: string
   readonly spriteUrl: string
+  readonly archetypeIds: readonly Je26_2ArchetypeId[]
 }
 
 const allBlockItems: BlockSelectorItem[] = [...je26_2SwallowableItemIds]
@@ -68,19 +72,30 @@ const allBlockItems: BlockSelectorItem[] = [...je26_2SwallowableItemIds]
       label: humanizeIdentifier(itemId),
       searchText: blockSelectorSearchText(itemId),
       spriteUrl: getImageLink(`en:${blockSpriteFileName(itemId)}`),
+      archetypeIds: je26_2BlockMembershipIndex[itemId]!.orderedCandidateIds,
     }),
   )
   .sort((a, b) => a.label.localeCompare(b.label))
 
 const filteredBlockItems = computed<BlockSelectorItem[]>(() => {
   const query = blockSearch.value.trim().toLowerCase()
+  const selectedArchetypes = new Set(selectedBlockArchetypeIds.value)
 
-  if (query === '') {
-    return allBlockItems
-  }
-
-  return allBlockItems.filter(({ searchText }) => searchText.toLowerCase().includes(query))
+  return allBlockItems.filter(
+    ({ archetypeIds, searchText }) =>
+      archetypeIds.some((archetypeId) => selectedArchetypes.has(archetypeId)) &&
+      (query === '' || searchText.toLowerCase().includes(query)),
+  )
 })
+
+const allBlockArchetypesSelected = computed(
+  () => selectedBlockArchetypeIds.value.length === je26_2ArchetypeRegistryOrder.length,
+)
+const someBlockArchetypesSelected = computed(
+  () =>
+    selectedBlockArchetypeIds.value.length > 0 &&
+    selectedBlockArchetypeIds.value.length < je26_2ArchetypeRegistryOrder.length,
+)
 
 const archetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((archetypeId) => ({
   value: archetypeId,
@@ -148,6 +163,22 @@ function updateBlock(value: string): void {
   emit('update:modelValue', selectCubePropertyBlock(props.modelValue, value))
 }
 
+function toggleAllBlockArchetypes(selected: boolean): void {
+  selectedBlockArchetypeIds.value = selected ? [...je26_2ArchetypeRegistryOrder] : []
+}
+
+function toggleBlockArchetype(archetypeId: Je26_2ArchetypeId, selected: boolean): void {
+  const nextIds = new Set(selectedBlockArchetypeIds.value)
+
+  if (selected) {
+    nextIds.add(archetypeId)
+  } else {
+    nextIds.delete(archetypeId)
+  }
+
+  selectedBlockArchetypeIds.value = je26_2ArchetypeRegistryOrder.filter((id) => nextIds.has(id))
+}
+
 function updateArchetype(value: string | number | null): void {
   if (
     typeof value === 'string' &&
@@ -209,13 +240,43 @@ function customFieldHasError(field: CustomPropertyField): boolean {
         </span>
       </template>
       <div class="block-picker">
-        <CdxSearchInput
-          v-model="blockSearch"
-          :use-button="false"
-          clearable
-          :aria-label="t('sulfurCube.properties.blockSearchLabel')"
-          :placeholder="t('sulfurCube.properties.blockSearchPlaceholder')"
-        />
+        <div class="block-picker__controls">
+          <CdxSearchInput
+            v-model="blockSearch"
+            :use-button="false"
+            clearable
+            :aria-label="t('sulfurCube.properties.blockSearchLabel')"
+            :placeholder="t('sulfurCube.properties.blockSearchPlaceholder')"
+          />
+          <details class="block-picker__filter">
+            <summary>
+              {{
+                t('sulfurCube.properties.blockArchetypeFilterSummary', {
+                  selected: selectedBlockArchetypeIds.length,
+                  total: je26_2ArchetypeRegistryOrder.length,
+                })
+              }}
+            </summary>
+            <fieldset>
+              <legend>{{ t('sulfurCube.properties.blockArchetypeFilter') }}</legend>
+              <CdxCheckbox
+                :model-value="allBlockArchetypesSelected"
+                :indeterminate="someBlockArchetypesSelected"
+                @update:model-value="toggleAllBlockArchetypes"
+              >
+                {{ t('sulfurCube.properties.blockArchetypeAll') }}
+              </CdxCheckbox>
+              <CdxCheckbox
+                v-for="item in archetypeItems"
+                :key="item.value"
+                :model-value="selectedBlockArchetypeIds.includes(item.value as Je26_2ArchetypeId)"
+                @update:model-value="toggleBlockArchetype(item.value as Je26_2ArchetypeId, $event)"
+              >
+                {{ item.label }}
+              </CdxCheckbox>
+            </fieldset>
+          </details>
+        </div>
         <div
           class="block-picker__results"
           :aria-label="t('sulfurCube.properties.blockResultsLabel')"
@@ -223,10 +284,11 @@ function customFieldHasError(field: CustomPropertyField): boolean {
           <CdxButton
             v-for="item in filteredBlockItems"
             :key="item.id"
+            v-tooltip:top="item.label"
             class="block-picker__item"
             :class="{ 'block-picker__item--selected': item.id === modelValue.selectedBlockId }"
             :aria-pressed="item.id === modelValue.selectedBlockId"
-            :title="item.label"
+            :aria-label="item.label"
             @click="updateBlock(item.id)"
           >
             <CdxImage
@@ -237,7 +299,6 @@ function customFieldHasError(field: CustomPropertyField): boolean {
               loading-priority="lazy"
               object-fit="contain"
             />
-            <span>{{ item.label }}</span>
           </CdxButton>
           <p v-if="filteredBlockItems.length === 0" class="block-picker__empty">
             {{ t('sulfurCube.properties.blockNoResults') }}
@@ -382,8 +443,9 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 
 .property-controls__values {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(10rem, 15rem) minmax(5rem, auto);
   gap: 0.5rem 0.75rem;
+  width: min(100%, 24rem);
 }
 
 .property-controls__locked-help {
@@ -395,9 +457,86 @@ function customFieldHasError(field: CustomPropertyField): boolean {
   gap: 0.5rem;
 }
 
+.block-picker__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.block-picker__controls :deep(.cdx-search-input) {
+  width: 100%;
+  max-width: none;
+}
+
+.property-controls .block-picker__controls :deep(.cdx-search-input__text-input.cdx-text-input) {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.block-picker__filter {
+  position: relative;
+  min-width: 0;
+}
+
+.block-picker__filter summary {
+  box-sizing: border-box;
+  min-height: 2rem;
+  padding: 0.25rem 2rem 0.25rem 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border-color-interactive, #72777d);
+  border-radius: 2px;
+  background: var(--background-color-interactive-subtle, #f8f9fa);
+  color: var(--color-base, #202122);
+  line-height: 1.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.block-picker__filter summary:hover {
+  border-color: var(--border-color-interactive--hover, #27292d);
+  background: var(--background-color-interactive-subtle--hover, #eaecf0);
+}
+
+.block-picker__filter fieldset {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  max-height: 18rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  overflow-y: auto;
+  border: 1px solid var(--border-color-interactive, #72777d);
+  border-radius: 2px;
+  background: var(--background-color-base, #fff);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+}
+
+.block-picker__filter legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.block-picker__filter :deep(.cdx-checkbox:first-of-type) {
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border-color-subtle, #c8ccd1);
+  font-weight: 600;
+}
+
 .block-picker__results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7.25rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
   gap: 0.4rem;
   max-height: 18rem;
   padding: 0.5rem;
@@ -408,19 +547,18 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 
 .block-picker__item {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.4rem;
+  place-items: center;
+  min-height: 3rem;
   min-width: 0;
-  padding: 0.35rem;
-  text-align: left;
+  padding: 0.4rem;
+  overflow: visible;
+  line-height: 1;
 }
 
-.block-picker__item span {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.8rem;
-  text-overflow: ellipsis;
+.block-picker__item :deep(.cdx-image) {
+  display: block;
+  flex: none;
+  overflow: visible;
 }
 
 .block-picker__item--selected {
@@ -443,27 +581,43 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 
 .property-controls__custom-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 24rem) auto;
   align-items: center;
-  gap: 1rem;
+  justify-content: start;
+  gap: 0.75rem;
 }
 
 .property-controls__custom-grid {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .property-controls__custom-grid :deep(.cdx-field) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(10rem, 15rem) minmax(5rem, 8rem);
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .property-controls__reset-custom {
   display: grid;
+  align-self: center;
   min-width: 8rem;
+  padding-block: 0.25rem;
+  line-height: 1.2;
   text-align: center;
+}
+
+.property-controls__reset-custom span {
+  color: var(--color-subtle, #54595d);
+}
+
+.property-controls__reset-custom strong {
+  color: #202122;
+}
+
+:global(.dark) .property-controls__reset-custom strong {
+  color: #fff;
 }
 
 .property-controls__resolved {
@@ -494,8 +648,14 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 }
 
 @media (max-width: 32rem) {
+  .block-picker__controls,
   .property-controls__custom-editor {
     grid-template-columns: 1fr;
+  }
+
+  .block-picker__filter fieldset {
+    position: static;
+    margin-top: 0.25rem;
   }
 
   .property-controls__reset-custom {

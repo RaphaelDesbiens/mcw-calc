@@ -9,7 +9,8 @@ import {
 } from './radialPlane'
 
 export const maximumRenderedTrajectoryTicks = 200
-export const launchVectorDisplayScale = 4
+export const launchVectorMaximumDisplayLength = 4
+export const launchVectorRootSpeedScale = 1.2
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
 export const thetaLabelHorizontalOffset = -0.08
@@ -57,6 +58,7 @@ export interface RadialScenePresentation {
   readonly cubeFeetLineStart: PlanePoint
   readonly cubeFeetLineEnd: PlanePoint
   readonly launchEnd: PlanePoint
+  readonly launchDisplayLength: number
   readonly trajectory: readonly SceneTrajectoryPoint[]
   readonly trajectoryEndMarker: PlanePoint | null
   readonly renderedTrajectoryTicks: number
@@ -68,6 +70,21 @@ function addScaledVector(origin: PlanePoint, vector: PlanePoint, scale: number):
     x: origin.x + vector.x * scale,
     y: origin.y + vector.y * scale,
   }
+}
+
+/**
+ * Presentation-only scaling for the scene velocity arrow. It expands low speeds
+ * while remaining monotonically increasing and asymptotically bounded at the maximum
+ * display length. Mechanics values and trajectory calculations never use it.
+ */
+export function launchVectorDisplayLength(speed: number): number {
+  if (!Number.isFinite(speed) || speed < 0) {
+    throw new RangeError('Velocity display speed must be a finite nonnegative number')
+  }
+
+  return (
+    -launchVectorMaximumDisplayLength * Math.expm1(-Math.sqrt(speed) / launchVectorRootSpeedScale)
+  )
 }
 
 function setPlaneVectorLength(
@@ -205,7 +222,14 @@ export function createRadialScenePresentation(
     context.mechanics.vectorNormalizationThreshold,
   )
   const launchVector = projectVectorToRadialPlane(callResult.addedVelocity, projection)
-  const launchEnd = addScaledVector(cubeFeet, launchVector, launchVectorDisplayScale)
+  const launchSpeed = Math.hypot(launchVector.x, launchVector.y)
+  const launchDisplayLength = launchVectorDisplayLength(launchSpeed)
+  const launchEnd = setPlaneVectorLength(
+    cubeFeet,
+    launchVector,
+    launchDisplayLength,
+    context.mechanics.vectorNormalizationThreshold,
+  )
   const trajectoryPoints = [
     {
       tick: 0,
@@ -252,6 +276,7 @@ export function createRadialScenePresentation(
     cubeFeetLineStart: { x: cubeFeet.x - cubeFeetLineHalfLength, y: cubeFeet.y },
     cubeFeetLineEnd: { x: cubeFeet.x + cubeFeetLineHalfLength, y: cubeFeet.y },
     launchEnd,
+    launchDisplayLength,
     trajectory: trajectoryPoints,
     trajectoryEndMarker: extendTrajectoryEnd(
       trajectoryPoints,

@@ -19,7 +19,8 @@ import {
 import {
   aimArrowLength,
   createRadialScenePresentation,
-  launchVectorDisplayScale,
+  launchVectorDisplayLength,
+  launchVectorMaximumDisplayLength,
   thetaArcRadius,
   thetaLabelHorizontalOffset,
   thetaLabelVerticalOffset,
@@ -176,8 +177,12 @@ describe('radial scene presentation', () => {
       ),
     ).toBeCloseTo(aimArrowLength, 12)
     expect(scene.aimArrowEnd).not.toEqual(scene.aimPoint)
-    expect(scene.launchEnd.x).toBeCloseTo(0.165 * launchVectorDisplayScale, 12)
-    expect(scene.launchEnd.y).toBeCloseTo(0.378 * launchVectorDisplayScale, 12)
+    const launchSpeed = Math.hypot(0.165, 0.378)
+    const expectedDisplayLength = launchVectorDisplayLength(launchSpeed)
+
+    expect(scene.launchDisplayLength).toBeCloseTo(expectedDisplayLength, 12)
+    expect(Math.hypot(scene.launchEnd.x, scene.launchEnd.y)).toBeCloseTo(expectedDisplayLength, 12)
+    expect(scene.launchEnd.x / scene.launchEnd.y).toBeCloseTo(0.165 / 0.378, 12)
     expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
     expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
     expect(scene.cubeFeetLineEnd).toEqual({ x: 3, y: 0 })
@@ -193,6 +198,19 @@ describe('radial scene presentation', () => {
     )
     expect(scene.cube.feet.y - previousTick.y).toBeLessThan(2)
     expect(scene.cube.feet.y - finalTick.y).toBeGreaterThanOrEqual(2)
+  })
+
+  it('expands low velocity arrows with a monotonic bounded display curve', () => {
+    const speeds = [0, 0.01, 0.05, 0.25, 1, 4, 64]
+    const lengths = speeds.map(launchVectorDisplayLength)
+
+    expect(lengths[0]).toBe(0)
+    for (let index = 1; index < lengths.length; index += 1) {
+      expect(lengths[index]).toBeGreaterThan(lengths[index - 1]!)
+    }
+    expect(lengths[lengths.length - 1]).toBeLessThanOrEqual(launchVectorMaximumDisplayLength)
+    expect(() => launchVectorDisplayLength(-1)).toThrow(/nonnegative/)
+    expect(() => launchVectorDisplayLength(Number.NaN)).toThrow(/finite/)
   })
 
   it('anchors the theta arc and label to the attacker-feet angle corner', () => {
