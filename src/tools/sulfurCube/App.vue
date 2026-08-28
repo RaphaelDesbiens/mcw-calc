@@ -32,6 +32,7 @@ const defaultInputs = createMilestone1DefaultInputs()
 
 const { t } = useI18n()
 const sceneSize = ref<'regular' | 'compact'>('regular')
+const sceneResetVersion = ref(0)
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
 const propertySelection = ref<CubePropertySelectionState>(createDefaultCubePropertySelectionState())
 const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
@@ -68,6 +69,7 @@ function updateFormStateFromControls(value: DiagnosticFormState): void {
 
 function reset(): void {
   formState.value = createDiagnosticFormState(defaultInputs)
+  sceneResetVersion.value += 1
 }
 
 function resetTrajectoryTicksDefault(): void {
@@ -142,6 +144,7 @@ function translateCube(delta: Vec3): void {
 
         <SulfurCubeScene
           v-if="evaluation"
+          :key="sceneResetVersion"
           v-model:scene-size="sceneSize"
           class="interaction-grid__scene"
           :evaluation="evaluation"

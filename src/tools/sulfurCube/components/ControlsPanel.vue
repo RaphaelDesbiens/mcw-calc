@@ -4,6 +4,7 @@ import type { DiagnosticFormState, NumericFormValue } from './types'
 import { CdxAccordion, CdxButton, CdxField, CdxTextInput } from '@wikimedia/codex'
 import { useI18n } from 'vue-i18n'
 import CubePropertyControls from './CubePropertyControls.vue'
+import InfoTooltip from './InfoTooltip.vue'
 
 const props = defineProps<{
   modelValue: DiagnosticFormState
@@ -44,8 +45,15 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
     />
 
     <CdxField>
-      <template #label>{{ t('sulfurCube.controls.damageArgument') }}</template>
-      <template #description>{{ t('sulfurCube.controls.damageArgumentHelp') }}</template>
+      <template #label>
+        <span class="field-label-with-info">
+          {{ t('sulfurCube.controls.damageArgument') }}
+          <InfoTooltip
+            :text="t('sulfurCube.controls.damageArgumentHelp')"
+            :label="t('sulfurCube.controls.damageArgumentHelpLabel')"
+          />
+        </span>
+      </template>
       <CdxTextInput
         :model-value="modelValue.damageArgument"
         input-type="number"
@@ -56,13 +64,27 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
     </CdxField>
 
     <CdxAccordion heading-level="h4" separation="outline">
-      <template #title>{{ t('sulfurCube.controls.coordinates') }}</template>
-      <template #description>{{ t('sulfurCube.controls.coordinatesHelp') }}</template>
+      <template #title>
+        <span class="field-label-with-info">
+          {{ t('sulfurCube.controls.coordinates') }}
+          <InfoTooltip
+            :text="t('sulfurCube.controls.coordinatesHelp')"
+            :label="t('sulfurCube.controls.coordinatesHelpLabel')"
+          />
+        </span>
+      </template>
 
       <div class="coordinate-sections">
         <CdxField is-fieldset>
-          <template #label>{{ t('sulfurCube.controls.cubeFeet') }}</template>
-          <template #description>{{ t('sulfurCube.controls.cubeFeetHelp') }}</template>
+          <template #label>
+            <span class="field-label-with-info">
+              {{ t('sulfurCube.controls.cubeFeet') }}
+              <InfoTooltip
+                :text="t('sulfurCube.controls.cubeFeetHelp')"
+                :label="t('sulfurCube.controls.cubeFeetHelpLabel')"
+              />
+            </span>
+          </template>
           <div class="coordinate-grid">
             <CdxField>
               <template #label>X</template>
@@ -95,8 +117,15 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
         </CdxField>
 
         <CdxField is-fieldset>
-          <template #label>{{ t('sulfurCube.controls.attackerFeet') }}</template>
-          <template #description>{{ t('sulfurCube.controls.attackerFeetHelp') }}</template>
+          <template #label>
+            <span class="field-label-with-info">
+              {{ t('sulfurCube.controls.attackerFeet') }}
+              <InfoTooltip
+                :text="t('sulfurCube.controls.attackerFeetHelp')"
+                :label="t('sulfurCube.controls.attackerFeetHelpLabel')"
+              />
+            </span>
+          </template>
           <div class="coordinate-grid">
             <CdxField>
               <template #label>X</template>
@@ -129,8 +158,15 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
         </CdxField>
 
         <CdxAccordion heading-level="h5" separation="outline">
-          <template #title>{{ t('sulfurCube.controls.attackerEyes') }}</template>
-          <template #description>{{ t('sulfurCube.controls.attackerEyesHelp') }}</template>
+          <template #title>
+            <span class="field-label-with-info">
+              {{ t('sulfurCube.controls.attackerEyes') }}
+              <InfoTooltip
+                :text="t('sulfurCube.controls.attackerEyesHelp')"
+                :label="t('sulfurCube.controls.attackerEyesHelpLabel')"
+              />
+            </span>
+          </template>
 
           <div class="eye-preset-row">
             <CdxButton @click="emit('resetAttackerEyeStanding')">
@@ -169,8 +205,15 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
         </CdxAccordion>
 
         <CdxField is-fieldset>
-          <template #label>{{ t('sulfurCube.controls.aimPoint') }}</template>
-          <template #description>{{ t('sulfurCube.controls.aimPointHelp') }}</template>
+          <template #label>
+            <span class="field-label-with-info">
+              {{ t('sulfurCube.controls.aimPoint') }}
+              <InfoTooltip
+                :text="t('sulfurCube.controls.aimPointHelp')"
+                :label="t('sulfurCube.controls.aimPointHelpLabel')"
+              />
+            </span>
+          </template>
           <div class="coordinate-grid">
             <CdxField>
               <template #label>X</template>
@@ -206,8 +249,15 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
 
     <div class="trajectory-row">
       <CdxField class="trajectory-row__input">
-        <template #label>{{ t('sulfurCube.controls.trajectoryTicks') }}</template>
-        <template #description>{{ t('sulfurCube.controls.trajectoryTicksHelp') }}</template>
+        <template #label>
+          <span class="field-label-with-info">
+            {{ t('sulfurCube.controls.trajectoryTicks') }}
+            <InfoTooltip
+              :text="t('sulfurCube.controls.trajectoryTicksHelp')"
+              :label="t('sulfurCube.controls.trajectoryTicksHelpLabel')"
+            />
+          </span>
+        </template>
         <CdxTextInput
           :model-value="modelValue.trajectoryTicks"
           input-type="number"
@@ -243,6 +293,12 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.field-label-with-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .controls-panel :deep(.cdx-text-input) {

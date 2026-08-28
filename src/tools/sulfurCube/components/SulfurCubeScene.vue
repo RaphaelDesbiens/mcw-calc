@@ -19,6 +19,7 @@ import {
   scaleWorldBoundsAroundPoint,
   translateWorldBounds,
 } from '../presentation/worldToSvg'
+import InfoTooltip from './InfoTooltip.vue'
 
 type ObjectDragKind = 'aim' | 'attacker' | 'cube'
 type DragKind = ObjectDragKind | 'camera'
@@ -481,10 +482,19 @@ function formatCoordinate(value: number): string {
     :class="`scene-figure--${sceneSize}`"
     aria-labelledby="sulfur-cube-scene-heading"
   >
-    <div class="scene-frame">
-      <div class="scene-frame__overlay scene-frame__overlay--left">
-        <h3 id="sulfur-cube-scene-heading">{{ t('sulfurCube.scene.radialView') }}</h3>
+    <div class="scene-heading">
+      <div class="scene-heading__title">
+        <h3 id="sulfur-cube-scene-heading">{{ t('sulfurCube.scene.title') }}</h3>
+        <InfoTooltip
+          :text="t('sulfurCube.scene.projectionHelp')"
+          :label="t('sulfurCube.scene.projectionHelpLabel')"
+          placement="right"
+        />
       </div>
+      <p>{{ t('sulfurCube.scene.subtitle') }}</p>
+    </div>
+
+    <div class="scene-frame">
       <div class="scene-frame__overlay scene-frame__overlay--right">
         <CdxButton
           size="small"
@@ -802,6 +812,10 @@ function formatCoordinate(value: number): string {
 
     <div class="scene-legend" aria-hidden="true">
       <span>
+        <i class="legend-swatch legend-swatch--player" />
+        <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
+      </span>
+      <span>
         <i class="legend-swatch legend-swatch--cube" />
         <span>{{ t('sulfurCube.scene.legendSulfurCube') }}</span>
       </span>
@@ -817,15 +831,15 @@ function formatCoordinate(value: number): string {
         <i class="legend-swatch legend-swatch--launch" />
         <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
       </span>
-      <span>
-        <i class="legend-swatch legend-swatch--player" />
-        <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
-      </span>
     </div>
 
     <figcaption>
-      <p>{{ t('sulfurCube.scene.interactionHelp') }}</p>
-      <p>{{ t('sulfurCube.scene.projectionHelp') }}</p>
+      <p class="scene-interaction-help">
+        <span>{{ t('sulfurCube.scene.openPointsBefore') }}</span>
+        <i class="open-point-symbol" aria-hidden="true" />
+        <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
+      </p>
+      <p>{{ t('sulfurCube.scene.compactHelp') }}</p>
       <p v-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
         {{
           t('sulfurCube.scene.trajectoryTruncated', {
@@ -864,9 +878,25 @@ function formatCoordinate(value: number): string {
   margin: 0;
 }
 
-.scene-frame__overlay h3,
+.scene-heading h3,
+.scene-heading p,
 figcaption p {
   margin: 0;
+}
+
+.scene-heading {
+  width: calc(100% - 4cm);
+  margin: 0 auto 0.5rem;
+}
+
+.scene-heading__title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.scene-heading p {
+  color: var(--scene-muted);
 }
 
 figcaption {
@@ -886,19 +916,8 @@ figcaption {
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 
-.scene-frame__overlay--left {
-  left: 0.25rem;
-}
-
 .scene-frame__overlay--right {
   right: 0.25rem;
-}
-
-.scene-frame__overlay h3 {
-  flex: none;
-  color: var(--scene-muted);
-  font-size: 0.875rem;
-  font-weight: 700;
 }
 
 .scene-frame__overlay :deep(.cdx-button) {
@@ -929,6 +948,7 @@ figcaption {
 }
 
 .scene-figure--compact .scene-frame,
+.scene-figure--compact .scene-heading,
 .scene-figure--compact .scene-legend,
 .scene-figure--compact figcaption {
   width: 100%;
@@ -1166,6 +1186,22 @@ figcaption {
   gap: 0.35rem;
 }
 
+.scene-interaction-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.open-point-symbol {
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  border: 0.13em solid var(--scene-aim);
+  border-radius: 50%;
+  background: var(--background-color-base, #fff);
+}
+
 :global(.dark) .scene-figure {
   --scene-cube: #ffd84d;
   --scene-cube-dark: #000;
@@ -1227,6 +1263,7 @@ figcaption {
   }
 
   .scene-frame,
+  .scene-heading,
   .scene-legend,
   figcaption,
   .scene-figure--compact .scene-frame {

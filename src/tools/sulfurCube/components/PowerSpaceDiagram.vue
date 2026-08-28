@@ -5,6 +5,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPowerSpacePresentation } from '../presentation/powerSpace'
 import { createWorldToSvgTransform } from '../presentation/worldToSvg'
+import InfoTooltip from './InfoTooltip.vue'
 
 const props = defineProps<{
   evaluation: DiagnosticEvaluation
@@ -101,21 +102,22 @@ function stageLabelY(stage: SvgPowerStage): number {
   return stage.id === 'base' ? stage.svg.y + 14 : stage.svg.y - 11
 }
 
-const aimTransferDescription = computed(() => {
+const powerSequenceDescription = computed(() => {
   const ratio = props.evaluation.callResult.diagnostics.transferredPowerRatio
+  const angle = props.evaluation.callResult.diagnostics.powerRotationAngle
+  const presentation = createPowerSpacePresentation(props.evaluation.callResult)
+  const capDescription = presentation.capApplied
+    ? t('sulfurCube.power.sequenceCapApplied', {
+        factor: formatFixedNumber(presentation.capFactor, 4),
+      })
+    : t('sulfurCube.power.sequenceCapNotApplied')
 
-  return t('sulfurCube.power.aimTransferExplanation', {
+  return t('sulfurCube.power.sequenceExplanation', {
     percentage: formatFixedNumber(ratio * 100, 2),
     horizontalFactor: formatFixedNumber(1 - ratio, 2),
     verticalFactor: formatFixedNumber(1 + ratio, 2),
-  })
-})
-
-const rotationDescription = computed(() => {
-  const angle = props.evaluation.callResult.diagnostics.powerRotationAngle
-
-  return t('sulfurCube.power.rotationExplanation', {
     degrees: formatFixedNumber((angle * 180) / Math.PI, 2),
+    capDescription,
   })
 })
 
@@ -174,7 +176,14 @@ const view = computed(() => {
 <template>
   <figure class="power-space" aria-labelledby="sulfur-cube-power-heading">
     <div class="power-space__heading">
-      <h3 id="sulfur-cube-power-heading">{{ t('sulfurCube.power.title') }}</h3>
+      <div class="power-space__title">
+        <h3 id="sulfur-cube-power-heading">{{ t('sulfurCube.power.title') }}</h3>
+        <InfoTooltip
+          :text="t('sulfurCube.power.caveat')"
+          :label="t('sulfurCube.power.caveatLabel')"
+          placement="right"
+        />
+      </div>
       <p>{{ t('sulfurCube.power.subtitle') }}</p>
     </div>
 
@@ -323,33 +332,30 @@ const view = computed(() => {
         <span :class="`stage-key stage-key--${stage.id}`">{{ stageNumbers[stage.id] }}</span>
         <span class="stage-description">
           <strong>{{ t(`sulfurCube.power.stages.${stage.id}`) }}</strong>
-          <small>{{ t(`sulfurCube.power.stages.${stage.id}Help`) }}</small>
+          <small v-if="stage.id === 'base'">
+            {{ t('sulfurCube.power.stages.baseHelp') }}
+          </small>
+          <small v-else-if="stage.id === 'aim'">
+            {{ t('sulfurCube.power.stages.aimHelpBefore') }}<span class="aim-symbol">q</span>.
+          </small>
+          <small v-else-if="stage.id === 'elevation'">
+            {{ t('sulfurCube.power.stages.elevationHelpBefore') }}−0.8<span class="theta">θ</span>.
+          </small>
+          <small v-else>
+            {{ t('sulfurCube.power.stages.cappedHelp') }}
+          </small>
         </span>
         <code>{{ formatPowerPair(stage.point.x, stage.point.y) }}</code>
       </li>
     </ol>
 
-    <figcaption>
-      <p>{{ aimTransferDescription }}</p>
-      <p>{{ rotationDescription }}</p>
-      <div class="cap-explanation">
-        <p
-          :class="{ 'cap-explanation__inactive': !view.presentation.capApplied }"
-          :aria-hidden="!view.presentation.capApplied"
-        >
-          {{
-            t('sulfurCube.power.capApplied', {
-              factor: formatFixedNumber(view.presentation.capFactor, 4),
-            })
-          }}
-        </p>
-        <p
-          :class="{ 'cap-explanation__inactive': view.presentation.capApplied }"
-          :aria-hidden="view.presentation.capApplied"
-        >
-          {{ t('sulfurCube.power.capNotApplied') }}
-        </p>
-      </div>
+    <figcaption class="power-space__details">
+      <span>{{ t('sulfurCube.power.currentValues') }}</span>
+      <InfoTooltip
+        :text="powerSequenceDescription"
+        :label="t('sulfurCube.power.currentValuesLabel')"
+        placement="top"
+      />
     </figcaption>
   </figure>
 </template>
@@ -370,6 +376,12 @@ const view = computed(() => {
 
 .power-space__heading {
   margin-bottom: 0.5rem;
+}
+
+.power-space__title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .power-space__heading h3,
@@ -547,6 +559,16 @@ figcaption {
   color: var(--power-muted);
 }
 
+.aim-symbol {
+  color: var(--power-aim);
+  font-weight: 700;
+}
+
+.theta {
+  color: var(--power-elevation);
+  font-weight: 700;
+}
+
 :global(.dark) .power-space {
   --power-base: #ffd84d;
   --power-aim: #62d6ff;
@@ -555,29 +577,18 @@ figcaption {
 }
 
 .power-stages code {
-  width: 18ch;
+  width: 16ch;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: center;
 }
 
-figcaption {
-  display: grid;
+.power-space__details {
+  display: flex;
+  align-items: center;
   gap: 0.25rem;
   margin-top: 0.75rem;
   font-size: 0.875em;
-}
-
-.cap-explanation {
-  display: grid;
-}
-
-.cap-explanation > * {
-  grid-area: 1 / 1;
-}
-
-.cap-explanation__inactive {
-  visibility: hidden;
 }
 
 @media (max-width: 32rem) {
