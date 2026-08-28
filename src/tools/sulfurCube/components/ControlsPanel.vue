@@ -10,6 +10,7 @@ const props = defineProps<{
   modelValue: DiagnosticFormState
   propertySelection: CubePropertySelectionState
   propertyResolution: CubePropertySelectionResolution
+  trajectoryTicksDefaultActive: boolean
 }>()
 
 const emit = defineEmits<{
@@ -267,7 +268,11 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
           @update:model-value="updateField('trajectoryTicks', $event)"
         />
       </CdxField>
-      <CdxButton @click="emit('resetTrajectoryTicksDefault')">
+      <CdxButton
+        :action="trajectoryTicksDefaultActive ? 'progressive' : 'default'"
+        :aria-pressed="trajectoryTicksDefaultActive"
+        @click="emit('resetTrajectoryTicksDefault')"
+      >
         {{ t('sulfurCube.controls.trajectoryTicksDefault') }}
       </CdxButton>
     </div>

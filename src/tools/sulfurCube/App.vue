@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { MenuItemData } from '@wikimedia/codex'
 import type { DiagnosticFormState } from './components/types'
+import type { Je26_2ArchetypeId } from './data/je26_2'
 import type { Vec3 } from './model/types'
 import type { DiagnosticEvaluation } from './presets/diagnostic'
 import type { CubePropertySelectionState } from './resolution'
-import { CdxAccordion, CdxMessage } from '@wikimedia/codex'
-import { computed, ref } from 'vue'
+import { CdxAccordion, CdxButton, CdxField, CdxMessage, CdxSelect } from '@wikimedia/codex'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalcField from '@/components/CalcField.vue'
 import ControlsPanel from './components/ControlsPanel.vue'
@@ -20,22 +22,42 @@ import {
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
+import { je26_2ArchetypeRegistryOrder } from './data/je26_2'
 import { standardNumerics } from './numerics/standard'
+import { humanizeIdentifier } from './presentation/blockSelector'
+import { createFullSulfurCubeToolUrl, parseSulfurCubeViewMode } from './presentation/viewMode'
 import {
   createMilestone1DefaultInputs,
   evaluateDiagnosticInputs,
   findDefaultTrajectoryTicks,
 } from './presets/diagnostic'
-import { createDefaultCubePropertySelectionState, resolveCubePropertySelection } from './resolution'
+import {
+  createDefaultCubePropertySelectionState,
+  resolveCubePropertySelection,
+  selectCubePropertyArchetype,
+  selectCubePropertyMode,
+} from './resolution'
 
 const defaultInputs = createMilestone1DefaultInputs()
+const viewMode = parseSulfurCubeViewMode(window.location.search)
+const isCompactView = viewMode === 'compact'
+const defaultPropertySelection = createDefaultCubePropertySelectionState()
+const initialPropertySelection = isCompactView
+  ? selectCubePropertyMode(defaultPropertySelection, 'archetype')
+  : defaultPropertySelection
 
 const { t } = useI18n()
-const sceneSize = ref<'regular' | 'compact'>('regular')
+const sceneSize = ref<'regular' | 'compact'>(isCompactView ? 'compact' : 'regular')
 const sceneResetVersion = ref(0)
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
-const propertySelection = ref<CubePropertySelectionState>(createDefaultCubePropertySelectionState())
+const propertySelection = ref<CubePropertySelectionState>(initialPropertySelection)
+const trajectoryTicksDefaultActive = ref(true)
 const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
+const fullToolUrl = createFullSulfurCubeToolUrl(window.location.href)
+const compactArchetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((archetypeId) => ({
+  value: archetypeId,
+  label: humanizeIdentifier(archetypeId),
+}))
 
 const evaluation = computed<DiagnosticEvaluation | null>(() => {
   const properties = propertyResolution.value.values
@@ -64,15 +86,24 @@ function updatePropertySelection(value: CubePropertySelectionState): void {
 }
 
 function updateFormStateFromControls(value: DiagnosticFormState): void {
+  if (String(formState.value.trajectoryTicks) !== String(value.trajectoryTicks)) {
+    trajectoryTicksDefaultActive.value = false
+  }
+
   formState.value = translateAttackerForFeetFormEdit(formState.value, value)
 }
 
 function reset(): void {
+  trajectoryTicksDefaultActive.value = true
   formState.value = createDiagnosticFormState(defaultInputs)
   sceneResetVersion.value += 1
 }
 
-function resetTrajectoryTicksDefault(): void {
+function refreshDefaultTrajectoryTicks(): void {
+  if (!trajectoryTicksDefaultActive.value) {
+    return
+  }
+
   const properties = propertyResolution.value.values
 
   if (properties === null) {
@@ -91,10 +122,17 @@ function resetTrajectoryTicksDefault(): void {
     return
   }
 
-  updateFormState({
-    ...formState.value,
-    trajectoryTicks,
-  })
+  if (Number(formState.value.trajectoryTicks) !== trajectoryTicks) {
+    updateFormState({
+      ...formState.value,
+      trajectoryTicks,
+    })
+  }
+}
+
+function resetTrajectoryTicksDefault(): void {
+  trajectoryTicksDefaultActive.value = true
+  refreshDefaultTrajectoryTicks()
 }
 
 function resetAttackerEyeStanding(): void {
@@ -116,6 +154,25 @@ function translateAttacker(delta: Vec3): void {
 function translateCube(delta: Vec3): void {
   updateFormState(translateCubeInFormState(formState.value, delta))
 }
+
+function updateCompactArchetype(value: string | number | null): void {
+  if (
+    typeof value !== 'string' ||
+    !je26_2ArchetypeRegistryOrder.includes(value as Je26_2ArchetypeId)
+  ) {
+    return
+  }
+
+  propertySelection.value = selectCubePropertyArchetype(
+    selectCubePropertyMode(propertySelection.value, 'archetype'),
+    value as Je26_2ArchetypeId,
+  )
+}
+
+watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
+  deep: true,
+  immediate: true,
+})
 </script>
 
 <template>
@@ -124,7 +181,43 @@ function translateCube(delta: Vec3): void {
       {{ t('sulfurCube.title') }}
     </template>
 
-    <div class="sulfur-cube-tool" lang="en">
+    <div v-if="isCompactView" class="sulfur-cube-compact" lang="en">
+      <div class="compact-toolbar">
+        <CdxField class="compact-toolbar__archetype">
+          <template #label>{{ t('sulfurCube.compact.archetype') }}</template>
+          <CdxSelect
+            :selected="propertySelection.selectedArchetypeId"
+            :menu-items="compactArchetypeItems"
+            @update:selected="updateCompactArchetype"
+          />
+        </CdxField>
+        <CdxButton @click="reset">
+          {{ t('sulfurCube.controls.reset') }}
+        </CdxButton>
+        <a class="compact-toolbar__full-link" :href="fullToolUrl" target="_blank" rel="noopener">
+          {{ t('sulfurCube.compact.openFullTool') }}
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+
+      <SulfurCubeScene
+        v-if="evaluation"
+        :key="sceneResetVersion"
+        v-model:scene-size="sceneSize"
+        :evaluation="evaluation"
+        :show-comparison-help="false"
+        :show-size-control="false"
+        @update-aim-point="updateAimPoint"
+        @translate-attacker="translateAttacker"
+        @translate-cube="translateCube"
+      />
+
+      <CdxMessage v-else type="warning">
+        {{ t('sulfurCube.invalidInputs') }}
+      </CdxMessage>
+    </div>
+
+    <div v-else class="sulfur-cube-tool" lang="en">
       <CdxMessage type="notice">
         {{ t('sulfurCube.scope') }}
       </CdxMessage>
@@ -135,6 +228,7 @@ function translateCube(delta: Vec3): void {
           :model-value="formState"
           :property-selection="propertySelection"
           :property-resolution="propertyResolution"
+          :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
           @update:model-value="updateFormStateFromControls"
           @update:property-selection="updatePropertySelection"
           @reset-attacker-eye-standing="resetAttackerEyeStanding"
@@ -197,6 +291,53 @@ function translateCube(delta: Vec3): void {
 </template>
 
 <style scoped>
+.sulfur-cube-compact {
+  display: grid;
+  gap: 0.75rem;
+  width: min(100%, 64rem);
+  margin: 0.75rem auto 0;
+}
+
+.compact-toolbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.compact-toolbar__archetype :deep(.cdx-select) {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.compact-toolbar__full-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  box-sizing: border-box;
+  min-height: 2rem;
+  border: 1px solid var(--border-color-progressive, #36c);
+  border-radius: 2px;
+  padding: 0.25rem 0.75rem;
+  background: var(--background-color-progressive, #36c);
+  color: var(--color-inverted-fixed, #fff);
+  font-weight: 700;
+  line-height: 1.5rem;
+  text-decoration: none;
+}
+
+.compact-toolbar__full-link:visited {
+  color: var(--color-inverted-fixed, #fff);
+}
+
+.compact-toolbar__full-link:hover {
+  border-color: var(--border-color-progressive--hover, #3056a9);
+  background: var(--background-color-progressive--hover, #3056a9);
+  color: var(--color-inverted-fixed, #fff);
+  text-decoration: none;
+}
+
 .sulfur-cube-tool {
   display: grid;
   gap: 1rem;
@@ -279,6 +420,30 @@ function translateCube(delta: Vec3): void {
       'readout'
       'details';
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .compact-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .compact-toolbar__archetype {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 26rem) {
+  .compact-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-toolbar__archetype {
+    grid-column: auto;
+  }
+
+  .compact-toolbar > * {
+    width: 100%;
   }
 }
 </style>

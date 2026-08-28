@@ -11,14 +11,13 @@ import {
   CdxButton,
   CdxCheckbox,
   CdxField,
-  CdxImage,
   CdxMessage,
   CdxSearchInput,
   CdxSelect,
   CdxTextInput,
   CdxToggleButtonGroup,
 } from '@wikimedia/codex'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getImageLink } from '@/utils/image'
 import {
@@ -52,6 +51,12 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const blockSearch = ref('')
 const selectedBlockArchetypeIds = ref<Je26_2ArchetypeId[]>([...je26_2ArchetypeRegistryOrder])
+const activeBlockTooltip = ref<{
+  readonly label: string
+  readonly left: number
+  readonly top: number
+  readonly below: boolean
+} | null>(null)
 const numberFormatter = new Intl.NumberFormat('en', {
   maximumFractionDigits: 8,
   useGrouping: false,
@@ -76,6 +81,59 @@ const allBlockItems: BlockSelectorItem[] = [...je26_2SwallowableItemIds]
     }),
   )
   .sort((a, b) => a.label.localeCompare(b.label))
+
+let preloadCancelled = false
+let preloadIndex = 0
+let activePreloads = 0
+let preloadStartTimer: number | null = null
+const preloadImages = new Set<HTMLImageElement>()
+
+function preloadBlockSprites(): void {
+  if (preloadCancelled) {
+    return
+  }
+
+  while (activePreloads < 6 && preloadIndex < allBlockItems.length) {
+    const image = new Image()
+    const item = allBlockItems[preloadIndex]!
+
+    preloadIndex += 1
+    activePreloads += 1
+    preloadImages.add(image)
+
+    const finish = (): void => {
+      image.onload = null
+      image.onerror = null
+      preloadImages.delete(image)
+      activePreloads -= 1
+      preloadBlockSprites()
+    }
+
+    image.onload = finish
+    image.onerror = finish
+    image.decoding = 'async'
+    image.src = item.spriteUrl
+  }
+}
+
+onMounted(() => {
+  preloadStartTimer = window.setTimeout(preloadBlockSprites, 250)
+})
+
+onBeforeUnmount(() => {
+  preloadCancelled = true
+
+  if (preloadStartTimer !== null) {
+    window.clearTimeout(preloadStartTimer)
+  }
+
+  for (const image of preloadImages) {
+    image.onload = null
+    image.onerror = null
+  }
+
+  preloadImages.clear()
+})
 
 const filteredBlockItems = computed<BlockSelectorItem[]>(() => {
   const query = blockSearch.value.trim().toLowerCase()
@@ -160,14 +218,17 @@ function updateMode(value: string | number | null | (string | number)[]): void {
 }
 
 function updateBlock(value: string): void {
+  hideBlockTooltip()
   emit('update:modelValue', selectCubePropertyBlock(props.modelValue, value))
 }
 
 function toggleAllBlockArchetypes(selected: boolean): void {
+  hideBlockTooltip()
   selectedBlockArchetypeIds.value = selected ? [...je26_2ArchetypeRegistryOrder] : []
 }
 
 function toggleBlockArchetype(archetypeId: Je26_2ArchetypeId, selected: boolean): void {
+  hideBlockTooltip()
   const nextIds = new Set(selectedBlockArchetypeIds.value)
 
   if (selected) {
@@ -209,6 +270,32 @@ function customFieldHasError(field: CustomPropertyField): boolean {
         diagnostic.kind === 'custom_value_out_of_range') &&
       diagnostic.field === field,
   )
+}
+
+function showBlockTooltip(item: BlockSelectorItem, event: Event): void {
+  const target = event.currentTarget
+
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+
+  const bounds = target.getBoundingClientRect()
+  const below = bounds.top < 80
+  const horizontalMargin = Math.min(128, window.innerWidth / 2)
+
+  activeBlockTooltip.value = {
+    label: item.label,
+    left: Math.min(
+      window.innerWidth - horizontalMargin,
+      Math.max(horizontalMargin, bounds.left + bounds.width / 2),
+    ),
+    top: below ? bounds.bottom + 8 : bounds.top - 8,
+    below,
+  }
+}
+
+function hideBlockTooltip(): void {
+  activeBlockTooltip.value = null
 }
 </script>
 
@@ -280,26 +367,33 @@ function customFieldHasError(field: CustomPropertyField): boolean {
         <div
           class="block-picker__results"
           :aria-label="t('sulfurCube.properties.blockResultsLabel')"
+          @scroll="hideBlockTooltip"
         >
-          <CdxButton
+          <button
             v-for="item in filteredBlockItems"
             :key="item.id"
-            v-tooltip:top="item.label"
             class="block-picker__item"
             :class="{ 'block-picker__item--selected': item.id === modelValue.selectedBlockId }"
+            type="button"
             :aria-pressed="item.id === modelValue.selectedBlockId"
             :aria-label="item.label"
+            @mouseenter="showBlockTooltip(item, $event)"
+            @mouseleave="hideBlockTooltip"
+            @focus="showBlockTooltip(item, $event)"
+            @blur="hideBlockTooltip"
             @click="updateBlock(item.id)"
           >
-            <CdxImage
+            <img
+              class="block-picker__image pixel-image"
               :src="item.spriteUrl"
               alt=""
               width="32"
               height="32"
-              loading-priority="lazy"
-              object-fit="contain"
+              loading="lazy"
+              decoding="async"
+              draggable="false"
             />
-          </CdxButton>
+          </button>
           <p v-if="filteredBlockItems.length === 0" class="block-picker__empty">
             {{ t('sulfurCube.properties.blockNoResults') }}
           </p>
@@ -395,6 +489,21 @@ function customFieldHasError(field: CustomPropertyField): boolean {
       </div>
     </template>
 
+    <Teleport to="body">
+      <div
+        v-if="activeBlockTooltip"
+        class="cdx-tooltip block-picker__tooltip"
+        :class="{ 'block-picker__tooltip--below': activeBlockTooltip.below }"
+        :style="{
+          left: `${activeBlockTooltip.left}px`,
+          top: `${activeBlockTooltip.top}px`,
+        }"
+        role="tooltip"
+      >
+        {{ activeBlockTooltip.label }}
+      </div>
+    </Teleport>
+
     <div v-if="modelValue.mode !== 'custom'" class="property-controls__resolved">
       <p v-if="modelValue.mode === 'block'">
         <strong>{{ t('sulfurCube.properties.matchingDefinitions') }}</strong>
@@ -443,7 +552,7 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 
 .property-controls__values {
   display: grid;
-  grid-template-columns: minmax(10rem, 15rem) minmax(5rem, auto);
+  grid-template-columns: minmax(10rem, 13rem) minmax(5rem, auto);
   gap: 0.5rem 0.75rem;
   width: min(100%, 24rem);
 }
@@ -546,24 +655,58 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 }
 
 .block-picker__item {
+  appearance: none;
   display: grid;
   place-items: center;
+  box-sizing: border-box;
   min-height: 3rem;
   min-width: 0;
+  border: 1px solid var(--border-color-interactive, #72777d);
+  border-radius: 2px;
   padding: 0.4rem;
   overflow: visible;
+  background: var(--background-color-interactive-subtle, #f8f9fa);
+  color: var(--color-base, #202122);
   line-height: 1;
+  cursor: pointer;
+  contain: layout paint;
 }
 
-.block-picker__item :deep(.cdx-image) {
+.block-picker__item:hover {
+  border-color: var(--border-color-interactive--hover, #27292d);
+  background: var(--background-color-interactive-subtle--hover, #eaecf0);
+}
+
+.block-picker__item:focus-visible {
+  border-color: var(--border-color-progressive--focus, #36c);
+  box-shadow: inset 0 0 0 1px var(--box-shadow-color-progressive--focus, #36c);
+  outline: 1px solid transparent;
+}
+
+.block-picker__image {
   display: block;
-  flex: none;
-  overflow: visible;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .block-picker__item--selected {
   border-color: var(--border-color-progressive, #36c);
   background: var(--background-color-progressive-subtle, #eaf3ff);
+}
+
+.block-picker__tooltip {
+  display: block;
+  position: fixed;
+  z-index: 900;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2rem));
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.block-picker__tooltip--below {
+  transform: translate(-50%, 0);
 }
 
 .block-picker__empty {
@@ -581,7 +724,7 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 
 .property-controls__custom-editor {
   display: grid;
-  grid-template-columns: minmax(0, 24rem) auto;
+  grid-template-columns: minmax(0, 22rem) auto;
   align-items: center;
   justify-content: start;
   gap: 0.75rem;
@@ -594,7 +737,7 @@ function customFieldHasError(field: CustomPropertyField): boolean {
 
 .property-controls__custom-grid :deep(.cdx-field) {
   display: grid;
-  grid-template-columns: minmax(10rem, 15rem) minmax(5rem, 8rem);
+  grid-template-columns: minmax(10rem, 13rem) minmax(5rem, 8rem);
   align-items: center;
   gap: 0.5rem;
 }
@@ -603,7 +746,7 @@ function customFieldHasError(field: CustomPropertyField): boolean {
   display: grid;
   align-self: center;
   min-width: 8rem;
-  padding-block: 0.25rem;
+  padding-block: 0.45rem;
   line-height: 1.2;
   text-align: center;
 }

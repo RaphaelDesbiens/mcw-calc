@@ -39,6 +39,8 @@ interface DragState {
 const props = defineProps<{
   evaluation: DiagnosticEvaluation
   sceneSize: SceneSize
+  showComparisonHelp?: boolean
+  showSizeControl?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -499,6 +501,7 @@ function formatCoordinate(value: number): string {
     <div class="scene-frame">
       <div class="scene-frame__overlay scene-frame__overlay--right">
         <CdxButton
+          v-if="showSizeControl !== false"
           size="small"
           weight="quiet"
           :aria-label="sceneSizeButtonLabel"
@@ -566,7 +569,7 @@ function formatCoordinate(value: number): string {
             id="sulfur-cube-launch-arrow"
             :markerWidth="view.visual.launchArrowWidth"
             :markerHeight="view.visual.launchArrowHeight"
-            refX="7"
+            refX="8"
             refY="3"
             orient="auto"
             markerUnits="userSpaceOnUse"
@@ -840,10 +843,10 @@ function formatCoordinate(value: number): string {
     <figcaption>
       <p class="scene-interaction-help">
         <span>{{ t('sulfurCube.scene.openPointsBefore') }}</span>
-        <i class="open-point-symbol" aria-hidden="true" />
+        <span class="open-point-example" aria-hidden="true">(<i class="open-point-symbol" />)</span>
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
-      <p>{{ t('sulfurCube.scene.compactHelp') }}</p>
+      <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>
       <p v-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
         {{
           t('sulfurCube.scene.trajectoryTruncated', {
@@ -1103,7 +1106,7 @@ figcaption {
 
 .launch-vector {
   stroke: var(--scene-launch);
-  stroke-linecap: round;
+  stroke-linecap: butt;
   stroke-width: var(--scene-stroke-bold);
 }
 
@@ -1156,7 +1159,7 @@ figcaption {
 }
 
 .aim-handle .handle-marker {
-  stroke: var(--scene-aim);
+  stroke: var(--scene-ink);
 }
 
 .aim-handle text {
@@ -1191,10 +1194,12 @@ figcaption {
 }
 
 .scene-interaction-help {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.2rem;
+  display: block;
+}
+
+.open-point-example {
+  margin-inline: 0.2rem;
+  white-space: nowrap;
 }
 
 .open-point-symbol {
@@ -1205,6 +1210,7 @@ figcaption {
   border: 0.15em solid #202122;
   border-radius: 50%;
   background: #fff;
+  vertical-align: -0.05em;
 }
 
 :global(.dark) .scene-figure {

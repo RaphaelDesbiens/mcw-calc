@@ -1,0 +1,19 @@
+import { describe, expect, it } from 'vitest'
+import { createFullSulfurCubeToolUrl, parseSulfurCubeViewMode } from '../presentation/viewMode'
+
+describe('sulfur-cube presentation mode', () => {
+  it('keeps the full tool as the default and opts into the compact Wiki scene explicitly', () => {
+    expect(parseSulfurCubeViewMode('')).toBe('full')
+    expect(parseSulfurCubeViewMode('?view=full')).toBe('full')
+    expect(parseSulfurCubeViewMode('?view=unknown')).toBe('full')
+    expect(parseSulfurCubeViewMode('?view=compact')).toBe('compact')
+  })
+
+  it('builds a standalone full-tool link without carrying iframe state', () => {
+    expect(
+      createFullSulfurCubeToolUrl(
+        'https://tools.minecraft.wiki/tools/sulfurCube/?view=compact&preview=1#/en?id=42',
+      ),
+    ).toBe('https://tools.minecraft.wiki/tools/sulfurCube/?preview=1')
+  })
+})
