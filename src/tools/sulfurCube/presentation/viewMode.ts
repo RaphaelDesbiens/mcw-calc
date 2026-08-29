@@ -1,7 +1,7 @@
 export type SulfurCubeViewMode = 'full' | 'compact'
 
-export function parseSulfurCubeViewMode(search: string): SulfurCubeViewMode {
-  return new URLSearchParams(search).get('view') === 'compact' ? 'compact' : 'full'
+export function parseSulfurCubeViewMode(view: unknown): SulfurCubeViewMode {
+  return view === 'compact' ? 'compact' : 'full'
 }
 
 export function createFullSulfurCubeToolUrl(currentUrl: string): string {

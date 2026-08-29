@@ -4,9 +4,10 @@ import { createFullSulfurCubeToolUrl, parseSulfurCubeViewMode } from '../present
 describe('sulfur-cube presentation mode', () => {
   it('keeps the full tool as the default and opts into the compact Wiki scene explicitly', () => {
     expect(parseSulfurCubeViewMode('')).toBe('full')
-    expect(parseSulfurCubeViewMode('?view=full')).toBe('full')
-    expect(parseSulfurCubeViewMode('?view=unknown')).toBe('full')
-    expect(parseSulfurCubeViewMode('?view=compact')).toBe('compact')
+    expect(parseSulfurCubeViewMode('full')).toBe('full')
+    expect(parseSulfurCubeViewMode('unknown')).toBe('full')
+    expect(parseSulfurCubeViewMode('compact')).toBe('compact')
+    expect(parseSulfurCubeViewMode(undefined)).toBe('full')
   })
 
   it('builds a standalone full-tool link without carrying iframe state', () => {

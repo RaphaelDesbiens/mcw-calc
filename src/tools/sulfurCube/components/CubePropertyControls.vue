@@ -50,6 +50,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const blockSearch = ref('')
+const blockFilterElement = ref<HTMLDetailsElement | null>(null)
 const selectedBlockArchetypeIds = ref<Je26_2ArchetypeId[]>([...je26_2ArchetypeRegistryOrder])
 const activeBlockTooltip = ref<{
   readonly label: string
@@ -116,12 +117,29 @@ function preloadBlockSprites(): void {
   }
 }
 
+function closeBlockFilterOnOutsidePointer(event: PointerEvent): void {
+  const filter = blockFilterElement.value
+  const target = event.target
+
+  if (filter?.open && target instanceof Node && !filter.contains(target)) {
+    filter.open = false
+  }
+}
+
+function closeBlockFilter(): void {
+  if (blockFilterElement.value !== null) {
+    blockFilterElement.value.open = false
+  }
+}
+
 onMounted(() => {
   preloadStartTimer = window.setTimeout(preloadBlockSprites, 250)
+  document.addEventListener('pointerdown', closeBlockFilterOnOutsidePointer)
 })
 
 onBeforeUnmount(() => {
   preloadCancelled = true
+  document.removeEventListener('pointerdown', closeBlockFilterOnOutsidePointer)
 
   if (preloadStartTimer !== null) {
     window.clearTimeout(preloadStartTimer)
@@ -335,7 +353,11 @@ function hideBlockTooltip(): void {
             :aria-label="t('sulfurCube.properties.blockSearchLabel')"
             :placeholder="t('sulfurCube.properties.blockSearchPlaceholder')"
           />
-          <details class="block-picker__filter">
+          <details
+            ref="blockFilterElement"
+            class="block-picker__filter"
+            @keydown.esc="closeBlockFilter"
+          >
             <summary>
               {{
                 t('sulfurCube.properties.blockArchetypeFilterSummary', {
@@ -691,7 +713,7 @@ function hideBlockTooltip(): void {
 }
 
 .block-picker__item--selected {
-  border-color: var(--border-color-progressive, #36c);
+  border: 2px solid var(--border-color-progressive, #36c);
   background: var(--background-color-progressive-subtle, #eaf3ff);
 }
 
@@ -724,9 +746,9 @@ function hideBlockTooltip(): void {
 
 .property-controls__custom-editor {
   display: grid;
-  grid-template-columns: minmax(0, 22rem) auto;
+  grid-template-columns: minmax(0, 22rem) minmax(8rem, 1fr);
   align-items: center;
-  justify-content: start;
+  width: 100%;
   gap: 0.75rem;
 }
 
@@ -745,6 +767,7 @@ function hideBlockTooltip(): void {
 .property-controls__reset-custom {
   display: grid;
   align-self: center;
+  justify-self: center;
   min-width: 8rem;
   padding-block: 0.45rem;
   line-height: 1.2;

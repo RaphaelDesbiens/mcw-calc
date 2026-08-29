@@ -18,7 +18,7 @@ const emit = defineEmits<{
   'update:propertySelection': [value: CubePropertySelectionState]
   reset: []
   resetAttackerEyeStanding: []
-  resetTrajectoryTicksDefault: []
+  toggleTrajectoryTicksDefault: []
 }>()
 
 const { t } = useI18n()
@@ -271,7 +271,7 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
       <CdxButton
         :action="trajectoryTicksDefaultActive ? 'progressive' : 'default'"
         :aria-pressed="trajectoryTicksDefaultActive"
-        @click="emit('resetTrajectoryTicksDefault')"
+        @click="emit('toggleTrajectoryTicksDefault')"
       >
         {{ t('sulfurCube.controls.trajectoryTicksDefault') }}
       </CdxButton>

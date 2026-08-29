@@ -61,7 +61,7 @@
   "sulfurCube.controls.aimPointHelp": "Defines look direction from the eye position. It does not represent where the attack collided with the cube.",
   "sulfurCube.controls.aimPointHelpLabel": "About the aim point",
   "sulfurCube.controls.trajectoryTicks": "Free-flight horizon",
-  "sulfurCube.controls.trajectoryTicksHelp": "A whole number from 0 to 200 ticks. While Default is active, this value updates with the scene to choose the first airborne movement update that puts the cube at least two blocks below its starting height. Entering a value turns Default off. This does not simulate collisions or bounces.",
+  "sulfurCube.controls.trajectoryTicksHelp": "A whole number from 0 to 200 ticks. While Default is active, this value updates with the scene to choose the first airborne movement update that puts the cube at least two blocks below its starting height. Entering a value or clicking Default again turns it off. This does not simulate collisions or bounces.",
   "sulfurCube.controls.trajectoryTicksHelpLabel": "About the free-flight horizon",
   "sulfurCube.controls.trajectoryTicksDefault": "Default",
   "sulfurCube.scene.title": "Radial vertical scene",

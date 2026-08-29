@@ -130,6 +130,7 @@ const view = computed(() => {
     thetaSquareSize: 10 * zoomFactor,
     launchArrowWidth: Math.max(0.001, scene.launchDisplayLength * transform.scale * 0.18),
     launchArrowHeight: Math.max(0.001, scene.launchDisplayLength * transform.scale * 0.135),
+    launchStrokeWidth: Math.max(0.001, scene.launchDisplayLength * transform.scale * 0.04),
   }
   const aimPoint = clampPointToBoundsFromOrigin(attackerEyes, unclampedAimPoint, {
     minX: visual.aimPointRadius,
@@ -569,7 +570,7 @@ function formatCoordinate(value: number): string {
             id="sulfur-cube-launch-arrow"
             :markerWidth="view.visual.launchArrowWidth"
             :markerHeight="view.visual.launchArrowHeight"
-            refX="8"
+            refX="7.68"
             refY="3"
             orient="auto"
             markerUnits="userSpaceOnUse"
@@ -722,6 +723,7 @@ function formatCoordinate(value: number): string {
           :y1="view.launchStart.y"
           :x2="view.launchEnd.x"
           :y2="view.launchEnd.y"
+          :stroke-width="view.visual.launchStrokeWidth"
           marker-end="url(#sulfur-cube-launch-arrow)"
         />
         <text
@@ -1107,7 +1109,6 @@ figcaption {
 .launch-vector {
   stroke: var(--scene-launch);
   stroke-linecap: butt;
-  stroke-width: var(--scene-stroke-bold);
 }
 
 .launch-arrow {

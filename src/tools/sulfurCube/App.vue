@@ -3,6 +3,7 @@ import type { MenuItemData } from '@wikimedia/codex'
 import type { DiagnosticFormState } from './components/types'
 import type { Je26_2ArchetypeId } from './data/je26_2'
 import type { Vec3 } from './model/types'
+import type { SulfurCubeViewMode } from './presentation/viewMode'
 import type { DiagnosticEvaluation } from './presets/diagnostic'
 import type { CubePropertySelectionState } from './resolution'
 import { CdxAccordion, CdxButton, CdxField, CdxMessage, CdxSelect } from '@wikimedia/codex'
@@ -25,7 +26,7 @@ import SulfurCubeScene from './components/SulfurCubeScene.vue'
 import { je26_2ArchetypeRegistryOrder } from './data/je26_2'
 import { standardNumerics } from './numerics/standard'
 import { humanizeIdentifier } from './presentation/blockSelector'
-import { createFullSulfurCubeToolUrl, parseSulfurCubeViewMode } from './presentation/viewMode'
+import { createFullSulfurCubeToolUrl } from './presentation/viewMode'
 import {
   createMilestone1DefaultInputs,
   evaluateDiagnosticInputs,
@@ -38,9 +39,12 @@ import {
   selectCubePropertyMode,
 } from './resolution'
 
+const props = defineProps<{
+  viewMode: SulfurCubeViewMode
+}>()
+
 const defaultInputs = createMilestone1DefaultInputs()
-const viewMode = parseSulfurCubeViewMode(window.location.search)
-const isCompactView = viewMode === 'compact'
+const isCompactView = props.viewMode === 'compact'
 const defaultPropertySelection = createDefaultCubePropertySelectionState()
 const initialPropertySelection = isCompactView
   ? selectCubePropertyMode(defaultPropertySelection, 'archetype')
@@ -130,7 +134,12 @@ function refreshDefaultTrajectoryTicks(): void {
   }
 }
 
-function resetTrajectoryTicksDefault(): void {
+function toggleTrajectoryTicksDefault(): void {
+  if (trajectoryTicksDefaultActive.value) {
+    trajectoryTicksDefaultActive.value = false
+    return
+  }
+
   trajectoryTicksDefaultActive.value = true
   refreshDefaultTrajectoryTicks()
 }
@@ -232,7 +241,7 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
           @update:model-value="updateFormStateFromControls"
           @update:property-selection="updatePropertySelection"
           @reset-attacker-eye-standing="resetAttackerEyeStanding"
-          @reset-trajectory-ticks-default="resetTrajectoryTicksDefault"
+          @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
           @reset="reset"
         />
 
