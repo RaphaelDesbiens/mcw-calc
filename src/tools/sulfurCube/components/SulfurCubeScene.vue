@@ -876,6 +876,7 @@ function formatCoordinate(value: number): string {
       <p class="scene-interaction-help">
         <span>{{ t('sulfurCube.scene.openPointsBefore') }}</span>
         <span class="open-point-example" aria-hidden="true">(<i class="open-point-symbol" />)</span>
+        {{ ' ' }}
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
       <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>

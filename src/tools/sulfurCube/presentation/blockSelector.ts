@@ -25,6 +25,42 @@ const blockSpriteAliases: Readonly<Record<string, string>> = {
 const woodIdentifierPattern = /^(stripped_)?(.+)_wood$/
 const stemIdentifierPattern = /^(stripped_)?(crimson|warped)_stem$/
 
+export type BlockGridNavigationKey =
+  | 'ArrowLeft'
+  | 'ArrowRight'
+  | 'ArrowUp'
+  | 'ArrowDown'
+  | 'Home'
+  | 'End'
+
+export function blockGridNavigationTargetIndex(
+  currentIndex: number,
+  itemCount: number,
+  columnCount: number,
+  key: string,
+): number | null {
+  if (currentIndex < 0 || currentIndex >= itemCount || itemCount < 1 || columnCount < 1) {
+    return null
+  }
+
+  switch (key as BlockGridNavigationKey) {
+    case 'ArrowLeft':
+      return Math.max(0, currentIndex - 1)
+    case 'ArrowRight':
+      return Math.min(itemCount - 1, currentIndex + 1)
+    case 'ArrowUp':
+      return Math.max(0, currentIndex - columnCount)
+    case 'ArrowDown':
+      return Math.min(itemCount - 1, currentIndex + columnCount)
+    case 'Home':
+      return 0
+    case 'End':
+      return itemCount - 1
+    default:
+      return null
+  }
+}
+
 export function identifierPath(id: string): string {
   return id.includes(':') ? id.slice(id.indexOf(':') + 1) : id
 }

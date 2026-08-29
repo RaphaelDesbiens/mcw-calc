@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  blockGridNavigationTargetIndex,
   blockSelectorSearchText,
   blockSpriteFileName,
   humanizeIdentifier,
@@ -32,5 +33,17 @@ describe('block selector presentation', () => {
       'BlockSprite_stripped-warped-stem-top.png',
     )
     expect(blockSpriteFileName('minecraft:jack_o_lantern')).toBe("BlockSprite_jack-o'lantern.png")
+  })
+
+  it('maps grid navigation keys without leaving the filtered result bounds', () => {
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'ArrowLeft')).toBe(4)
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'ArrowRight')).toBe(6)
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'ArrowUp')).toBe(1)
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'ArrowDown')).toBe(9)
+    expect(blockGridNavigationTargetIndex(13, 14, 4, 'ArrowDown')).toBe(13)
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'Home')).toBe(0)
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'End')).toBe(13)
+    expect(blockGridNavigationTargetIndex(5, 14, 4, 'Enter')).toBeNull()
+    expect(blockGridNavigationTargetIndex(-1, 14, 4, 'ArrowRight')).toBeNull()
   })
 })

@@ -24,6 +24,7 @@
   "sulfurCube.properties.blockSearchLabel": "Search absorbed blocks",
   "sulfurCube.properties.blockSearchPlaceholder": "Search blocks",
   "sulfurCube.properties.blockResultsLabel": "Absorbed block choices",
+  "sulfurCube.properties.blockResultsKeyboardHelp": "Use the arrow keys to move through the blocks, then press Enter or Space to select one.",
   "sulfurCube.properties.blockNoResults": "No absorbed blocks match this search and archetype filter.",
   "sulfurCube.properties.blockResultCount": "Showing {shown} of {total} blocks",
   "sulfurCube.properties.blockArchetypeFilter": "Filter by archetype",

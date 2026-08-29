@@ -138,7 +138,7 @@ const expectedAttributes = [
   ['minecraft:air_drag_modifier', 'mul_air_drag_modifier', 'add_multiplied_total'],
 ] as const
 
-describe('Java Edition 26.2 sulfur cube archetype definitions', () => {
+describe('sulfur cube archetype definitions for Java Edition 26.2', () => {
   it('preserves the verified identifier-sorted runtime registry order', () => {
     expect(je26_2Archetypes.map(({ id }) => id)).toEqual(je26_2ArchetypeRegistryOrder)
     expect(je26_2Archetypes.map(({ registryIndex }) => registryIndex)).toEqual(

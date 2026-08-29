@@ -17,7 +17,7 @@ import {
   CdxTextInput,
   CdxToggleButtonGroup,
 } from '@wikimedia/codex'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getImageLink } from '@/utils/image'
 import {
@@ -26,6 +26,7 @@ import {
   je26_2SwallowableItemIds,
 } from '../data/je26_2'
 import {
+  blockGridNavigationTargetIndex,
   blockSelectorSearchText,
   blockSpriteFileName,
   humanizeIdentifier,
@@ -51,6 +52,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const blockSearch = ref('')
 const blockFilterElement = ref<HTMLDetailsElement | null>(null)
+const blockKeyboardFocusId = ref<string | null>(props.modelValue.selectedBlockId)
 const selectedBlockArchetypeIds = ref<Je26_2ArchetypeId[]>([...je26_2ArchetypeRegistryOrder])
 const activeBlockTooltip = ref<{
   readonly label: string
@@ -164,6 +166,12 @@ const filteredBlockItems = computed<BlockSelectorItem[]>(() => {
   )
 })
 
+watch(filteredBlockItems, (items) => {
+  if (!items.some(({ id }) => id === blockKeyboardFocusId.value)) {
+    blockKeyboardFocusId.value = items[0]?.id ?? null
+  }
+})
+
 const allBlockArchetypesSelected = computed(
   () => selectedBlockArchetypeIds.value.length === je26_2ArchetypeRegistryOrder.length,
 )
@@ -237,6 +245,7 @@ function updateMode(value: string | number | null | (string | number)[]): void {
 
 function updateBlock(value: string): void {
   hideBlockTooltip()
+  blockKeyboardFocusId.value = value
   emit('update:modelValue', selectCubePropertyBlock(props.modelValue, value))
 }
 
@@ -310,6 +319,54 @@ function showBlockTooltip(item: BlockSelectorItem, event: Event): void {
     top: below ? bounds.bottom + 8 : bounds.top - 8,
     below,
   }
+}
+
+function focusBlockItem(item: BlockSelectorItem, event: FocusEvent): void {
+  blockKeyboardFocusId.value = item.id
+  showBlockTooltip(item, event)
+}
+
+function moveBlockKeyboardFocus(event: KeyboardEvent): void {
+  const current = event.currentTarget
+
+  if (!(current instanceof HTMLButtonElement)) {
+    return
+  }
+
+  const container = current.parentElement
+
+  if (container === null) {
+    return
+  }
+
+  const buttons = [...container.querySelectorAll<HTMLButtonElement>('.block-picker__item')]
+  const currentIndex = buttons.indexOf(current)
+
+  if (currentIndex < 0 || buttons.length === 0) {
+    return
+  }
+
+  const firstTop = buttons[0]!.getBoundingClientRect().top
+  const firstDifferentRow = buttons.findIndex(
+    (button) => Math.abs(button.getBoundingClientRect().top - firstTop) > 1,
+  )
+  const columns = firstDifferentRow < 0 ? buttons.length : firstDifferentRow
+  const targetIndex = blockGridNavigationTargetIndex(
+    currentIndex,
+    buttons.length,
+    columns,
+    event.key,
+  )
+
+  if (targetIndex === null) {
+    return
+  }
+
+  const target = buttons[targetIndex]!
+
+  event.preventDefault()
+  blockKeyboardFocusId.value = target.dataset.itemId ?? null
+  target.focus()
 }
 
 function hideBlockTooltip(): void {
@@ -388,7 +445,9 @@ function hideBlockTooltip(): void {
         </div>
         <div
           class="block-picker__results"
+          role="listbox"
           :aria-label="t('sulfurCube.properties.blockResultsLabel')"
+          aria-describedby="sulfur-cube-block-results-keyboard-help"
           @scroll="hideBlockTooltip"
         >
           <button
@@ -397,12 +456,16 @@ function hideBlockTooltip(): void {
             class="block-picker__item"
             :class="{ 'block-picker__item--selected': item.id === modelValue.selectedBlockId }"
             type="button"
-            :aria-pressed="item.id === modelValue.selectedBlockId"
+            role="option"
+            :data-item-id="item.id"
+            :tabindex="item.id === blockKeyboardFocusId ? 0 : -1"
+            :aria-selected="item.id === modelValue.selectedBlockId"
             :aria-label="item.label"
             @mouseenter="showBlockTooltip(item, $event)"
             @mouseleave="hideBlockTooltip"
-            @focus="showBlockTooltip(item, $event)"
+            @focus="focusBlockItem(item, $event)"
             @blur="hideBlockTooltip"
+            @keydown="moveBlockKeyboardFocus"
             @click="updateBlock(item.id)"
           >
             <img
@@ -420,6 +483,9 @@ function hideBlockTooltip(): void {
             {{ t('sulfurCube.properties.blockNoResults') }}
           </p>
         </div>
+        <p id="sulfur-cube-block-results-keyboard-help" class="visually-hidden">
+          {{ t('sulfurCube.properties.blockResultsKeyboardHelp') }}
+        </p>
         <p class="block-picker__count" aria-live="polite">
           {{
             t('sulfurCube.properties.blockResultCount', {
@@ -744,6 +810,18 @@ function hideBlockTooltip(): void {
   margin: 0;
   color: var(--color-subtle, #54595d);
   font-size: 0.8rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
 }
 
 .property-controls__custom-editor {
