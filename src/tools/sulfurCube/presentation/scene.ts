@@ -9,8 +9,8 @@ import {
 } from './radialPlane'
 
 export const maximumRenderedTrajectoryTicks = 200
-export const launchVectorMaximumDisplayLength = 4
-export const launchVectorRootSpeedScale = 1.2
+export const launchVectorMaximumDisplayLength = 8
+export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
 export const thetaLabelHorizontalOffset = -0.08

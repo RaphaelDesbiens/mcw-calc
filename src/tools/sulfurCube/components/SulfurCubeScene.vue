@@ -36,12 +36,22 @@ interface DragState {
   readonly transform: WorldToSvgTransform
 }
 
-const props = defineProps<{
-  evaluation: DiagnosticEvaluation
-  sceneSize: SceneSize
-  showComparisonHelp?: boolean
-  showSizeControl?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    evaluation: DiagnosticEvaluation
+    sceneSize: SceneSize
+    initialZoomSteps?: number
+    showAimQLabel?: boolean
+    showComparisonHelp?: boolean
+    showSizeControl?: boolean
+  }>(),
+  {
+    initialZoomSteps: 0,
+    showAimQLabel: true,
+    showComparisonHelp: true,
+    showSizeControl: true,
+  },
+)
 
 const emit = defineEmits<{
   translateAttacker: [delta: Vec3]
@@ -60,11 +70,18 @@ const viewport = {
 } as const
 const initialScene = createRadialScenePresentation(props.evaluation)
 const sceneProjection = initialScene.projection
-const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
 const initialTransformScale = createWorldToSvgTransform(initialScene.bounds, viewport).scale
 const initialCameraWidth = initialScene.bounds.maxX - initialScene.bounds.minX
 const minimumCameraWidth = initialCameraWidth / 4
 const maximumCameraWidth = initialCameraWidth * 8
+const initialCameraCenter = {
+  x: (initialScene.bounds.minX + initialScene.bounds.maxX) / 2,
+  y: (initialScene.bounds.minY + initialScene.bounds.maxY) / 2,
+}
+const initialZoomFactor = 0.74 ** props.initialZoomSteps
+const cameraBounds = shallowRef<WorldBounds>(
+  scaleWorldBoundsAroundPoint(initialScene.bounds, initialCameraCenter, initialZoomFactor),
+)
 const nextSceneSize = computed(() => (props.sceneSize === 'regular' ? 'compact' : 'regular'))
 const sceneSizeButtonLabel = computed(() =>
   props.sceneSize === 'regular'
@@ -84,6 +101,10 @@ const view = computed(() => {
   })
   const launchStart = toSvg(scene.cube.feet)
   const launchEnd = toSvg(scene.launchEnd)
+  const launchBodyEnd = {
+    x: launchStart.x + (launchEnd.x - launchStart.x) * 0.94,
+    y: launchStart.y + (launchEnd.y - launchStart.y) * 0.94,
+  }
   const attackerFeet = toSvg(scene.attackerFeet)
   const attackerEyes = toSvg(scene.attackerEyes)
   const unclampedAimPoint = toSvg(scene.aimPoint)
@@ -200,6 +221,7 @@ const view = computed(() => {
     aimQLabel,
     horizontalFeetReference,
     launchStart,
+    launchBodyEnd,
     launchEnd,
     launchLabel,
     thetaLabel,
@@ -570,7 +592,7 @@ function formatCoordinate(value: number): string {
             id="sulfur-cube-launch-arrow"
             :markerWidth="view.visual.launchArrowWidth"
             :markerHeight="view.visual.launchArrowHeight"
-            refX="7.68"
+            refX="8"
             refY="3"
             orient="auto"
             markerUnits="userSpaceOnUse"
@@ -661,6 +683,7 @@ function formatCoordinate(value: number): string {
           marker-end="url(#sulfur-cube-look-arrow)"
         />
         <text
+          v-if="showAimQLabel !== false"
           class="aim-q-label"
           :x="view.aimQLabel.x"
           :y="view.aimQLabel.y"
@@ -721,9 +744,16 @@ function formatCoordinate(value: number): string {
           class="launch-vector"
           :x1="view.launchStart.x"
           :y1="view.launchStart.y"
+          :x2="view.launchBodyEnd.x"
+          :y2="view.launchBodyEnd.y"
+          :stroke-width="view.visual.launchStrokeWidth"
+        />
+        <line
+          class="launch-vector-marker-carrier"
+          :x1="view.launchStart.x"
+          :y1="view.launchStart.y"
           :x2="view.launchEnd.x"
           :y2="view.launchEnd.y"
-          :stroke-width="view.visual.launchStrokeWidth"
           marker-end="url(#sulfur-cube-launch-arrow)"
         />
         <text
@@ -1008,6 +1038,7 @@ figcaption {
 .cube-shape,
 .attacker-shape,
 .launch-vector,
+.launch-vector-marker-carrier,
 .launch-label {
   pointer-events: none;
 }
@@ -1109,6 +1140,10 @@ figcaption {
 .launch-vector {
   stroke: var(--scene-launch);
   stroke-linecap: butt;
+}
+
+.launch-vector-marker-carrier {
+  stroke: transparent;
 }
 
 .launch-arrow {

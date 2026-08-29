@@ -713,7 +713,9 @@ function hideBlockTooltip(): void {
 }
 
 .block-picker__item--selected {
-  border: 2px solid var(--border-color-progressive, #36c);
+  border-color: #202122;
+  outline: 3px solid #202122;
+  outline-offset: -3px;
   background: var(--background-color-progressive-subtle, #eaf3ff);
 }
 

@@ -208,6 +208,8 @@ describe('radial scene presentation', () => {
     for (let index = 1; index < lengths.length; index += 1) {
       expect(lengths[index]).toBeGreaterThan(lengths[index - 1]!)
     }
+    expect(launchVectorDisplayLength(0.01)).toBeLessThan(0.35)
+    expect(launchVectorDisplayLength(64)).toBeGreaterThan(7.5)
     expect(lengths[lengths.length - 1]).toBeLessThanOrEqual(launchVectorMaximumDisplayLength)
     expect(() => launchVectorDisplayLength(-1)).toThrow(/nonnegative/)
     expect(() => launchVectorDisplayLength(Number.NaN)).toThrow(/finite/)
