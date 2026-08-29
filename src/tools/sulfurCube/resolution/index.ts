@@ -1,3 +1,22 @@
+export { resolveAttackConfiguration, resolvePrimaryPlayerMeleeAttack } from './attackConfiguration'
+export type {
+  AttackConfiguration,
+  AttackConfigurationIssue,
+  AttackResolution,
+  CriticalEligibilityFailure,
+  DamageSourceConfiguration,
+  DeferredPlayerAttackConfiguration,
+  DeferredPlayerAttackFamily,
+  InvalidAttackResolution,
+  NoOperationAttackResolution,
+  OmittedVelocityOperationDiagnostic,
+  PlayerCriticalEligibilityState,
+  PlayerMeleeAttackDiagnostics,
+  PlayerMeleeMechanicsParameters,
+  PrimaryPlayerMeleeAttackConfiguration,
+  SuccessfulAttackResolution,
+  UnsupportedAttackResolution,
+} from './attackConfiguration'
 export { foldAttributeModifiers, je26_2AttributeDefinitions } from './attributes'
 export { matchBlockDefinitions, resolveBlock, resolveJe26_2Block } from './blockResolution'
 export type {

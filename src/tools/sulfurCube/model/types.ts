@@ -132,6 +132,62 @@ export interface AttackSequenceResult {
   readonly resultingVelocity: Vec3
 }
 
+export type SulfurCubeDirectionProviderId =
+  | 'nonProjectileSourcePosition'
+  | 'callerYaw'
+  | 'projectileMotion'
+  | 'potionPosition'
+  | 'fireworkPosition'
+
+export interface VelocityOperationProvenance {
+  readonly sourceFamily: string
+  readonly reason: string
+  readonly damageSourceType: string | null
+}
+
+export interface SulfurCubeKnockbackOperation {
+  readonly kind: 'sulfurCubeKnockbackCall'
+  readonly providerId: SulfurCubeDirectionProviderId
+  readonly call: KnockbackCall
+  /** Every call owns its independently sampled mechanics context. */
+  readonly context: SulfurCubeKnockbackContext
+  readonly provenance: VelocityOperationProvenance
+}
+
+export interface DirectPushOperation {
+  readonly kind: 'directPush'
+  readonly providerId: string
+  readonly addedVelocity: Vec3
+  readonly provenance: VelocityOperationProvenance
+}
+
+export type VelocityOperation = SulfurCubeKnockbackOperation | DirectPushOperation
+
+export interface SulfurCubeKnockbackOperationResult {
+  readonly kind: 'sulfurCubeKnockbackCall'
+  readonly operation: SulfurCubeKnockbackOperation
+  readonly existingVelocity: Vec3
+  readonly addedVelocity: Vec3
+  readonly resultingVelocity: Vec3
+  readonly knockbackResult: KnockbackCallResult
+}
+
+export interface DirectPushOperationResult {
+  readonly kind: 'directPush'
+  readonly operation: DirectPushOperation
+  readonly existingVelocity: Vec3
+  readonly addedVelocity: Vec3
+  readonly resultingVelocity: Vec3
+}
+
+export type VelocityOperationResult = SulfurCubeKnockbackOperationResult | DirectPushOperationResult
+
+export interface VelocityOperationSequenceResult {
+  readonly initialVelocity: Vec3
+  readonly operationResults: readonly VelocityOperationResult[]
+  readonly resultingVelocity: Vec3
+}
+
 export interface TrajectoryAssumptions {
   readonly gravity: number
   readonly drag: number

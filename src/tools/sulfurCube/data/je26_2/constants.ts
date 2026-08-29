@@ -25,6 +25,14 @@ export const je26_2Constants = {
   ),
   sulfurCubeBaseDimensions: sourcedValue({ width: 0.49, height: 0.49 }, ['sulfurCubeDimensions']),
   adultSulfurCubeRuntimeSize: sourcedValue(2, ['sulfurCubeRuntimeSize']),
+  playerMeleeBaseDamageScale: sourcedValue(0.2, ['playerMeleeDamage']),
+  playerMeleeStrengthDamageScale: sourcedValue(0.8, ['playerMeleeDamage']),
+  playerMeleeFullStrengthThreshold: sourcedValue(0.9, ['playerMeleeDamage']),
+  playerMeleeCriticalMultiplier: sourcedValue(1.5, ['playerMeleeDamage']),
+  playerMeleeKnockbackDivisor: sourcedValue(2, ['playerMeleeKnockback']),
+  playerMeleeSprintKnockbackBonus: sourcedValue(0.5, ['playerMeleeKnockback']),
+  playerMeleeKnockbackPerEnchantmentLevel: sourcedValue(1, ['playerMeleeKnockback']),
+  degreesToRadiansFloat: sourcedValue(0.01745329238474369, ['playerMeleeKnockback']),
 } as const
 
 export const je26_2CubeAttributeDefinitions = Object.freeze({
@@ -64,4 +72,15 @@ export const je26_2KnockbackMechanics = Object.freeze({
   resultClampMinimum: je26_2Constants.resultClampMinimum.value,
   resultClampMaximum: je26_2Constants.resultClampMaximum.value,
   vectorNormalizationThreshold: je26_2Constants.vectorNormalizationThreshold.value,
+})
+
+export const je26_2PlayerMeleeMechanics = Object.freeze({
+  baseDamageScale: je26_2Constants.playerMeleeBaseDamageScale.value,
+  strengthDamageScale: je26_2Constants.playerMeleeStrengthDamageScale.value,
+  fullStrengthThreshold: je26_2Constants.playerMeleeFullStrengthThreshold.value,
+  criticalMultiplier: je26_2Constants.playerMeleeCriticalMultiplier.value,
+  knockbackDivisor: je26_2Constants.playerMeleeKnockbackDivisor.value,
+  sprintKnockbackBonus: je26_2Constants.playerMeleeSprintKnockbackBonus.value,
+  knockbackPerEnchantmentLevel: je26_2Constants.playerMeleeKnockbackPerEnchantmentLevel.value,
+  degreesToRadians: je26_2Constants.degreesToRadiansFloat.value,
 })

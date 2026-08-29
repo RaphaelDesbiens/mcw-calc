@@ -35,7 +35,26 @@ export const provenance = {
     sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/player/Player.java',
     locator: 'causeExtraKnockback (local lines 1121-1157)',
     notes:
-      'Future AttackConfiguration work must re-audit the complete caller path; this entry only preserves the separate-call behavior and direction source.',
+      'The complete primary-player-melee caller path is recorded by playerMeleeDamage and playerMeleeKnockback; this entry preserves the separate-call behavior and direction source.',
+  },
+  playerMeleeDamage: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/player/Player.java',
+    locator:
+      'attack and getAttackStrengthScale (local lines 951-1005, 1032-1049, 1207-1209, 1816-1827)',
+    notes:
+      'Defines Float32 attack-strength damage scaling, critical eligibility and multiplier, item/enchantment damage ordering, and the total damageArgument passed to target knockback.',
+  },
+  playerMeleeKnockback: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/player/Player.java',
+    locator: 'attack and causeExtraKnockback (local lines 962-989 and 1121-1149)',
+    notes:
+      'LivingEntity.getKnockback folds effective ATTACK_KNOCKBACK and enchantments before dividing by two at LivingEntity.java local lines 1540-1544. An eligible sprint contributes 0.5F to the one combined extra-call K.',
   },
   bouncyArchetype: {
     edition: 'Java Edition',

@@ -37,6 +37,7 @@ export {
   je26_2Constants,
   je26_2CubeAttributeDefinitions,
   je26_2KnockbackMechanics,
+  je26_2PlayerMeleeMechanics,
 } from './constants'
 export { provenance } from './provenance'
 export type { ProvenanceId, ProvenanceRecord, SourcedValue } from './provenance'
