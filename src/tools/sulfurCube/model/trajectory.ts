@@ -1,5 +1,6 @@
 import type { NumericBackend } from '../numerics/types'
 import type {
+  BounceSuppressionReason,
   FlatFloorContact,
   FlatFloorTrajectoryAssumptions,
   FlatFloorTrajectoryResult,
@@ -7,6 +8,10 @@ import type {
   TrajectoryAssumptions,
   TrajectoryResult,
   TrajectoryTick,
+  UniformFloorState,
+  UniformFloorTick,
+  UniformFloorTrajectoryAssumptions,
+  UniformFloorTrajectoryResult,
   Vec3,
 } from './types'
 import { addVec3 } from './vectors'
@@ -269,5 +274,352 @@ export function simulateFlatFloorFirstContactTrajectory(
     contact,
     horizontalDistance: horizontalDistanceBetween(initialPosition, position),
     maximumFeetY,
+  }
+}
+
+function assertUniformFloorAssumptions(
+  state: UniformFloorState,
+  assumptions: UniformFloorTrajectoryAssumptions,
+): void {
+  for (const [name, value] of Object.entries({
+    tick: state.tick,
+    feetPositionX: state.feetPosition.x,
+    feetPositionY: state.feetPosition.y,
+    feetPositionZ: state.feetPosition.z,
+    velocityX: state.velocity.x,
+    velocityY: state.velocity.y,
+    velocityZ: state.velocity.z,
+    gravity: assumptions.gravity,
+    baseAirDrag: assumptions.baseAirDrag,
+    movementCutoff: assumptions.movementCutoff,
+    movementBlockSampleOffset: assumptions.movementBlockSampleOffset,
+    floorY: assumptions.floorY,
+    cubeBounciness: assumptions.cube.bounciness,
+    cubeAirDragModifier: assumptions.cube.airDragModifier,
+    cubeFrictionModifier: assumptions.cube.frictionModifier,
+    floorSurfaceHeight: assumptions.floor.surfaceHeightWithinBlock,
+    floorFriction: assumptions.floor.friction,
+    floorBounceRestitution: assumptions.floor.bounceRestitution,
+    floorSpeedFactor: assumptions.floor.speedFactor,
+  })) {
+    assertFiniteNumber(value, name)
+  }
+
+  if (!Number.isInteger(state.tick) || state.tick < 0) {
+    throw new RangeError('state.tick must be a nonnegative integer')
+  }
+  if (assumptions.movementCutoff < 0) {
+    throw new RangeError('movementCutoff must not be negative')
+  }
+  if (assumptions.gravity < 0) {
+    throw new RangeError('gravity must not be negative')
+  }
+  if (assumptions.cube.bounciness < 0 || assumptions.cube.bounciness > 1) {
+    throw new RangeError('cube.bounciness must be between 0 and 1')
+  }
+  if (assumptions.floor.bounceRestitution < 0 || assumptions.floor.bounceRestitution > 1) {
+    throw new RangeError('floor.bounceRestitution must be between 0 and 1')
+  }
+  if (assumptions.floor.surfaceHeightWithinBlock < 0) {
+    throw new RangeError('floor.surfaceHeightWithinBlock must not be negative')
+  }
+}
+
+function bounceSuppressionReason(
+  effectiveVerticalVelocity: number,
+  assumptions: UniformFloorTrajectoryAssumptions,
+  effectiveRestitution: number,
+): BounceSuppressionReason | null {
+  if (-effectiveVerticalVelocity < assumptions.gravity) {
+    return 'belowGravityThreshold'
+  }
+  if (assumptions.entitySuppressesBounce) {
+    return 'entitySuppressesBounce'
+  }
+  if (assumptions.floor.suppressesBounce) {
+    return 'floorSuppressesBounce'
+  }
+  if (effectiveRestitution === 0) {
+    return 'zeroEffectiveRestitution'
+  }
+
+  return null
+}
+
+function usesEndingFloorSpeedFactor(
+  endFeetY: number,
+  endOnGround: boolean,
+  assumptions: UniformFloorTrajectoryAssumptions,
+): boolean {
+  if (assumptions.floor.speedFactor === 1) {
+    return false
+  }
+
+  const influenceHeight =
+    assumptions.movementBlockSampleOffset + 1 - assumptions.floor.surfaceHeightWithinBlock
+
+  return endOnGround || endFeetY - assumptions.floorY < influenceHeight
+}
+
+/**
+ * Advances one JE 26.2 movement tick over an infinite, uniform horizontal floor.
+ * The optional numbering fields are presentation diagnostics supplied by the
+ * trajectory wrapper; they do not affect the transition.
+ */
+export function advanceUniformFloorState(
+  state: UniformFloorState,
+  assumptions: UniformFloorTrajectoryAssumptions,
+  numerics: NumericBackend,
+  arcNumber: number | null = null,
+  airborneContactNumber: number | null = null,
+): UniformFloorTick {
+  assertUniformFloorAssumptions(state, assumptions)
+
+  const effectiveVelocity = {
+    x: cutMovementComponent(state.velocity.x, assumptions.movementCutoff),
+    y: cutMovementComponent(state.velocity.y, assumptions.movementCutoff),
+    z: cutMovementComponent(state.velocity.z, assumptions.movementCutoff),
+  }
+  const airDrag = computeModifiedFriction(
+    assumptions.baseAirDrag,
+    assumptions.cube.airDragModifier,
+    numerics,
+  )
+  const startGroundFriction = state.onGround
+    ? computeModifiedFriction(
+        assumptions.floor.friction,
+        assumptions.cube.frictionModifier,
+        numerics,
+      )
+    : numerics.sourceFloat(1)
+  const horizontalTravelFactor = numerics.sourceFloat(startGroundFriction * airDrag)
+  const requestedEndY = state.feetPosition.y + effectiveVelocity.y
+  const floorCollision = effectiveVelocity.y < 0 && requestedEndY < assumptions.floorY
+  const geometricTouch =
+    effectiveVelocity.y < 0 && !floorCollision && requestedEndY === assumptions.floorY
+  const appliedMovement = {
+    x: effectiveVelocity.x,
+    y: floorCollision ? assumptions.floorY - state.feetPosition.y : effectiveVelocity.y,
+    z: effectiveVelocity.z,
+  }
+  const endFeetPosition = addVec3(state.feetPosition, appliedMovement)
+  const verticalMovementFraction = floorCollision ? appliedMovement.y / effectiveVelocity.y : null
+  const eligible =
+    floorCollision &&
+    -effectiveVelocity.y >= assumptions.gravity &&
+    !assumptions.entitySuppressesBounce &&
+    !assumptions.floor.suppressesBounce
+  const restitution = eligible
+    ? Math.max(assumptions.cube.bounciness, assumptions.floor.bounceRestitution)
+    : 0
+  const partialContactDrag =
+    floorCollision && restitution > 0 && verticalMovementFraction !== null
+      ? 1 + verticalMovementFraction * (airDrag - 1)
+      : null
+  const postCollisionVerticalVelocity = floorCollision
+    ? restitution > 0 && partialContactDrag !== null && verticalMovementFraction !== null
+      ? (verticalMovementFraction * assumptions.gravity - effectiveVelocity.y) *
+        partialContactDrag *
+        restitution
+      : 0
+    : effectiveVelocity.y
+  const endOnGround = floorCollision
+  const endBlockSpeedFactor = usesEndingFloorSpeedFactor(
+    endFeetPosition.y,
+    endOnGround,
+    assumptions,
+  )
+    ? assumptions.floor.speedFactor
+    : 1
+  let resultingVelocity = {
+    x: effectiveVelocity.x * endBlockSpeedFactor * horizontalTravelFactor,
+    y: (postCollisionVerticalVelocity - assumptions.gravity) * airDrag,
+    z: effectiveVelocity.z * endBlockSpeedFactor * horizontalTravelFactor,
+  }
+  let afterTravelHorizontalScale: number | null = null
+
+  if (
+    assumptions.floor.afterTravel === 'slimeStepOn' &&
+    endOnGround &&
+    Math.abs(resultingVelocity.y) < 0.1 &&
+    !assumptions.entitySuppressesBounce
+  ) {
+    afterTravelHorizontalScale = 0.4 + Math.abs(resultingVelocity.y) * 0.2
+    resultingVelocity = {
+      ...resultingVelocity,
+      x: resultingVelocity.x * afterTravelHorizontalScale,
+      z: resultingVelocity.z * afterTravelHorizontalScale,
+    }
+  }
+
+  const suppressionReason = floorCollision
+    ? bounceSuppressionReason(effectiveVelocity.y, assumptions, restitution)
+    : null
+  const end: UniformFloorState = {
+    tick: state.tick + 1,
+    feetPosition: endFeetPosition,
+    velocity: resultingVelocity,
+    onGround: endOnGround,
+    supportingFloor: endOnGround,
+  }
+
+  return {
+    start: {
+      ...state,
+      feetPosition: { ...state.feetPosition },
+      velocity: { ...state.velocity },
+    },
+    effectiveVelocity,
+    startGroundFriction,
+    airDrag,
+    horizontalTravelFactor,
+    appliedMovement,
+    endBlockSpeedFactor,
+    collision: {
+      geometricTouch,
+      floorCollision,
+      verticalCollision: floorCollision,
+      verticalCollisionBelow: floorCollision,
+      verticalMovementFraction,
+    },
+    rebound: {
+      eligible,
+      restitution,
+      partialContactDrag,
+      postCollisionVerticalVelocity,
+      suppressionReason,
+      emittedBounceEvent: floorCollision && restitution > 0,
+      willVisiblyTakeOffNextTick:
+        floorCollision && resultingVelocity.y >= assumptions.movementCutoff,
+    },
+    afterTravelHorizontalScale,
+    end,
+    arcNumber,
+    airborneContactNumber,
+  }
+}
+
+function sameUniformFloorState(first: UniformFloorState, second: UniformFloorState): boolean {
+  return (
+    first.feetPosition.x === second.feetPosition.x &&
+    first.feetPosition.y === second.feetPosition.y &&
+    first.feetPosition.z === second.feetPosition.z &&
+    first.velocity.x === second.velocity.x &&
+    first.velocity.y === second.velocity.y &&
+    first.velocity.z === second.velocity.z &&
+    first.onGround === second.onGround &&
+    first.supportingFloor === second.supportingFloor
+  )
+}
+
+/**
+ * Simulates repeated arcs until the state is a deterministic fixed point or
+ * the required safety horizon is reached.
+ */
+export function simulateRepeatedUniformFloorTrajectory(
+  initialState: UniformFloorState,
+  maximumTickCount: number,
+  assumptions: UniformFloorTrajectoryAssumptions,
+  numerics: NumericBackend,
+): UniformFloorTrajectoryResult {
+  if (!Number.isInteger(maximumTickCount) || maximumTickCount < 0) {
+    throw new RangeError('maximumTickCount must be a nonnegative integer')
+  }
+  if (initialState.feetPosition.y < assumptions.floorY) {
+    throw new RangeError('initial state must not begin below the uniform floor')
+  }
+
+  assertUniformFloorAssumptions(initialState, assumptions)
+
+  let state: UniformFloorState = {
+    ...initialState,
+    feetPosition: { ...initialState.feetPosition },
+    velocity: { ...initialState.velocity },
+  }
+  let currentArc: number | null = initialState.feetPosition.y > assumptions.floorY ? 1 : null
+  let arcCount = currentArc ?? 0
+  let airborneContactCount = 0
+  let floorCollisionTickCount = 0
+  let bounceEventCount = 0
+  let maximumDiscreteFeetY = initialState.feetPosition.y
+  let firstGeometricTouch: UniformFloorTick | null = null
+  let firstFloorCollision: UniformFloorTick | null = null
+  let status: UniformFloorTrajectoryResult['status'] = 'truncated'
+  const ticks: UniformFloorTick[] = []
+
+  for (let index = 0; index < maximumTickCount; index += 1) {
+    const effectiveVerticalVelocity = cutMovementComponent(
+      state.velocity.y,
+      assumptions.movementCutoff,
+    )
+
+    if (
+      currentArc === null &&
+      state.feetPosition.y === assumptions.floorY &&
+      effectiveVerticalVelocity > 0
+    ) {
+      arcCount += 1
+      currentArc = arcCount
+    }
+
+    const provisionalTick = advanceUniformFloorState(state, assumptions, numerics, currentArc, null)
+    const isAirborneContact =
+      provisionalTick.collision.floorCollision && !provisionalTick.start.onGround
+
+    if (isAirborneContact) {
+      airborneContactCount += 1
+    }
+
+    const tick: UniformFloorTick = {
+      ...provisionalTick,
+      airborneContactNumber: isAirborneContact ? airborneContactCount : null,
+    }
+
+    ticks.push(tick)
+    maximumDiscreteFeetY = Math.max(maximumDiscreteFeetY, tick.end.feetPosition.y)
+
+    if (tick.collision.geometricTouch && firstGeometricTouch === null) {
+      firstGeometricTouch = tick
+    }
+    if (tick.collision.floorCollision) {
+      floorCollisionTickCount += 1
+      firstFloorCollision ??= tick
+      currentArc = null
+    }
+    if (tick.rebound.emittedBounceEvent) {
+      bounceEventCount += 1
+    }
+
+    state = tick.end
+
+    const lookahead = advanceUniformFloorState(state, assumptions, numerics)
+    if (sameUniformFloorState(state, lookahead.end)) {
+      status = 'settled'
+      break
+    }
+  }
+
+  return {
+    initialState: {
+      ...initialState,
+      feetPosition: { ...initialState.feetPosition },
+      velocity: { ...initialState.velocity },
+    },
+    assumptions,
+    ticks,
+    status,
+    endpoint: state,
+    firstGeometricTouch,
+    firstFloorCollision,
+    airborneContactCount,
+    floorCollisionTickCount,
+    bounceEventCount,
+    arcCount,
+    horizontalDisplacement: horizontalDistanceBetween(
+      initialState.feetPosition,
+      state.feetPosition,
+    ),
+    maximumDiscreteFeetY,
+    requestedMaximumTicks: maximumTickCount,
   }
 }

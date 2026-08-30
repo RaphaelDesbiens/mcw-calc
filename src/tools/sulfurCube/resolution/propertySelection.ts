@@ -15,6 +15,7 @@ export interface CustomCubePropertyFormState {
   readonly horizontalPower: CustomPropertyInput
   readonly verticalPower: CustomPropertyInput
   readonly knockbackResistance: CustomPropertyInput
+  readonly bounciness: CustomPropertyInput
   readonly airDragModifier: CustomPropertyInput
   readonly frictionModifier: CustomPropertyInput
 }
@@ -53,7 +54,7 @@ export type CustomPropertyDiagnostic =
     }
   | {
       readonly kind: 'custom_value_out_of_range'
-      readonly field: 'knockbackResistance' | 'airDragModifier' | 'frictionModifier'
+      readonly field: 'knockbackResistance' | 'bounciness' | 'airDragModifier' | 'frictionModifier'
       readonly value: number
       readonly minimum: number
       readonly maximum: number
@@ -83,6 +84,7 @@ function toFormState(values: CubeLaunchProperties): CustomCubePropertyFormState 
     horizontalPower: String(values.horizontalPower),
     verticalPower: String(values.verticalPower),
     knockbackResistance: String(values.knockbackResistance),
+    bounciness: String(values.bounciness),
     airDragModifier: String(values.airDragModifier),
     frictionModifier: String(values.frictionModifier),
   }
@@ -91,6 +93,7 @@ function toFormState(values: CubeLaunchProperties): CustomCubePropertyFormState 
 function valuesFromProfile(profile: ResolvedCubeProfile): CubeLaunchProperties {
   return {
     ...toCubeMechanicsProperties(profile),
+    bounciness: profile.attributes['minecraft:bounciness'].effectiveValue,
     airDragModifier: profile.attributes['minecraft:air_drag_modifier'].effectiveValue,
     frictionModifier: profile.attributes['minecraft:friction_modifier'].effectiveValue,
   }
@@ -190,6 +193,17 @@ function parseCustomValues(formState: CustomCubePropertyFormState): {
     })
   }
 
+  const bounciness = parsed.bounciness
+  if (bounciness !== undefined && (bounciness < 0 || bounciness > 1)) {
+    diagnostics.push({
+      kind: 'custom_value_out_of_range',
+      field: 'bounciness',
+      value: bounciness,
+      minimum: 0,
+      maximum: 1,
+    })
+  }
+
   const frictionModifier = parsed.frictionModifier
   if (frictionModifier !== undefined && (frictionModifier < 0 || frictionModifier > 2048)) {
     diagnostics.push({
@@ -208,6 +222,7 @@ function parseCustomValues(formState: CustomCubePropertyFormState): {
             horizontalPower: parsed.horizontalPower,
             verticalPower: parsed.verticalPower,
             knockbackResistance: parsed.knockbackResistance,
+            bounciness: parsed.bounciness,
             airDragModifier: parsed.airDragModifier,
             frictionModifier: parsed.frictionModifier,
           }

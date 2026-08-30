@@ -3,6 +3,8 @@ import {
   bouncyArchetype,
   je26_2Constants,
   je26_2KnockbackMechanics,
+  je26_2UniformFloorProfileDefinitions,
+  je26_2UniformFloorProfiles,
   provenance,
 } from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
@@ -48,6 +50,30 @@ describe('java Edition 26.2 milestone data', () => {
     expect(je26_2KnockbackMechanics.resultClampMaximum).toBe(128)
     expect(je26_2Constants.standingPlayerEyeHeight.value).toBe(1.62)
     expect(je26_2Constants.standingPlayerDimensions.value).toEqual({ width: 0.6, height: 1.8 })
+  })
+
+  it('keeps source-backed uniform floor properties separate from cube properties', () => {
+    expect(je26_2UniformFloorProfiles.ordinary_full_block).toMatchObject({
+      surfaceHeightWithinBlock: 1,
+      friction: 0.6000000238418579,
+      bounceRestitution: 0,
+      speedFactor: 1,
+      suppressesBounce: false,
+      afterTravel: 'none',
+    })
+    expect(je26_2UniformFloorProfiles.slime_block).toMatchObject({
+      friction: 0.800000011920929,
+      bounceRestitution: 1,
+      afterTravel: 'slimeStepOn',
+    })
+    expect(je26_2UniformFloorProfiles.honey_block).toMatchObject({
+      surfaceHeightWithinBlock: 0.9375,
+      speedFactor: 0.4000000059604645,
+      suppressesBounce: true,
+    })
+    expect(je26_2UniformFloorProfileDefinitions.bed.bounceRestitution.provenance).toContain(
+      'uniformFloorProperties',
+    )
   })
 
   it('keeps the first milestone to one ordinary call from rest', () => {

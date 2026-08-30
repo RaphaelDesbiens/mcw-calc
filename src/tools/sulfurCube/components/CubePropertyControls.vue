@@ -231,6 +231,10 @@ const lockedPropertyRows = computed(() => {
       value: numberFormatter.format(values.knockbackResistance),
     },
     {
+      label: t('sulfurCube.properties.bounciness'),
+      value: numberFormatter.format(values.bounciness),
+    },
+    {
       label: t('sulfurCube.properties.airDragModifier'),
       value: numberFormatter.format(values.airDragModifier),
     },
@@ -571,6 +575,18 @@ function hideBlockTooltip(): void {
               max="2048"
               step="0.01"
               @update:model-value="updateCustomField('airDragModifier', $event)"
+            />
+          </CdxField>
+          <CdxField :status="customFieldHasError('bounciness') ? 'error' : 'default'">
+            <template #label>{{ t('sulfurCube.properties.bounciness') }}</template>
+            <CdxTextInput
+              :model-value="customFormState.bounciness"
+              :status="customFieldHasError('bounciness') ? 'error' : 'default'"
+              input-type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              @update:model-value="updateCustomField('bounciness', $event)"
             />
           </CdxField>
           <CdxField :status="customFieldHasError('frictionModifier') ? 'error' : 'default'">

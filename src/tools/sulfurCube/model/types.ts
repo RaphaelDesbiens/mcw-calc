@@ -37,10 +37,13 @@ export interface CubeMechanicsProperties {
   readonly knockbackResistance: number
 }
 
-export interface CubeLaunchProperties extends CubeMechanicsProperties {
+export interface CubeMotionProperties {
+  readonly bounciness: number
   readonly airDragModifier: number
   readonly frictionModifier: number
 }
+
+export interface CubeLaunchProperties extends CubeMechanicsProperties, CubeMotionProperties {}
 
 export interface SulfurCubeMechanicsParameters {
   readonly horizontalHitAngleScale: number
@@ -257,6 +260,96 @@ export interface FlatFloorTrajectoryResult {
   /** X/Z displacement from the initial feet position to the simulated endpoint. */
   readonly horizontalDistance: number
   readonly maximumFeetY: number
+}
+
+export type UniformFloorAfterTravel = 'none' | 'slimeStepOn'
+
+export interface UniformFloorProfile {
+  readonly id: string
+  readonly surfaceHeightWithinBlock: number
+  readonly friction: number
+  readonly bounceRestitution: number
+  readonly speedFactor: number
+  readonly suppressesBounce: boolean
+  readonly afterTravel: UniformFloorAfterTravel
+}
+
+export interface UniformFloorTrajectoryAssumptions {
+  readonly gravity: number
+  readonly baseAirDrag: number
+  readonly movementCutoff: number
+  readonly movementBlockSampleOffset: number
+  readonly floorY: number
+  readonly cube: CubeMotionProperties
+  readonly floor: UniformFloorProfile
+  readonly entitySuppressesBounce: boolean
+  /** The motion-only simulator assumes an Explosive cube has no active fuse. */
+  readonly noActiveExplosiveFuse: true
+}
+
+export interface UniformFloorState {
+  readonly tick: number
+  readonly feetPosition: Vec3
+  readonly velocity: Vec3
+  readonly onGround: boolean
+  readonly supportingFloor: boolean
+}
+
+export type BounceSuppressionReason =
+  | 'belowGravityThreshold'
+  | 'entitySuppressesBounce'
+  | 'floorSuppressesBounce'
+  | 'zeroEffectiveRestitution'
+
+export interface UniformFloorCollisionDiagnostics {
+  readonly geometricTouch: boolean
+  readonly floorCollision: boolean
+  readonly verticalCollision: boolean
+  readonly verticalCollisionBelow: boolean
+  readonly verticalMovementFraction: number | null
+}
+
+export interface UniformFloorReboundDiagnostics {
+  readonly eligible: boolean
+  readonly restitution: number
+  readonly partialContactDrag: number | null
+  readonly postCollisionVerticalVelocity: number
+  readonly suppressionReason: BounceSuppressionReason | null
+  readonly emittedBounceEvent: boolean
+  readonly willVisiblyTakeOffNextTick: boolean
+}
+
+export interface UniformFloorTick {
+  readonly start: UniformFloorState
+  readonly effectiveVelocity: Vec3
+  readonly startGroundFriction: number
+  readonly airDrag: number
+  readonly horizontalTravelFactor: number
+  readonly appliedMovement: Vec3
+  readonly endBlockSpeedFactor: number
+  readonly collision: UniformFloorCollisionDiagnostics
+  readonly rebound: UniformFloorReboundDiagnostics
+  readonly afterTravelHorizontalScale: number | null
+  readonly end: UniformFloorState
+  readonly arcNumber: number | null
+  readonly airborneContactNumber: number | null
+}
+
+export interface UniformFloorTrajectoryResult {
+  readonly initialState: UniformFloorState
+  readonly assumptions: UniformFloorTrajectoryAssumptions
+  readonly ticks: readonly UniformFloorTick[]
+  readonly status: 'settled' | 'truncated'
+  readonly endpoint: UniformFloorState
+  readonly firstGeometricTouch: UniformFloorTick | null
+  readonly firstFloorCollision: UniformFloorTick | null
+  readonly airborneContactCount: number
+  readonly floorCollisionTickCount: number
+  readonly bounceEventCount: number
+  readonly arcCount: number
+  readonly horizontalDisplacement: number
+  readonly maximumDiscreteFeetY: number
+  readonly requestedMaximumTicks: number
 }
 
 export interface LaunchSummary {

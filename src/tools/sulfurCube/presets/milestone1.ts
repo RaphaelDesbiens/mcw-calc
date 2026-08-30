@@ -7,11 +7,18 @@ import type {
   KnockbackCall,
   SulfurCubeKnockbackContext,
   TrajectoryAssumptions,
+  UniformFloorProfile,
+  UniformFloorTrajectoryAssumptions,
   Vec2,
   Vec3,
 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
-import { bouncyArchetype, je26_2Constants, je26_2KnockbackMechanics } from '../data/je26_2'
+import {
+  bouncyArchetype,
+  je26_2Constants,
+  je26_2KnockbackMechanics,
+  je26_2UniformFloorProfiles,
+} from '../data/je26_2'
 import { computeModifiedFriction } from '../model/trajectory'
 import { standardNumerics } from '../numerics/standard'
 
@@ -75,6 +82,7 @@ export function createBouncyCubeLaunchProperties(): CubeLaunchProperties {
     horizontalPower: bouncyArchetype.knockbackModifiers.horizontalPower.value,
     verticalPower: bouncyArchetype.knockbackModifiers.verticalPower.value,
     knockbackResistance: bouncyArchetype.effectiveProperties.knockbackResistance.value,
+    bounciness: bouncyArchetype.effectiveProperties.bounciness.value,
     airDragModifier: bouncyArchetype.effectiveProperties.airDragModifier.value,
     frictionModifier: bouncyArchetype.effectiveProperties.frictionModifier.value,
   }
@@ -117,5 +125,23 @@ export function createFlatFloorTrajectoryAssumptions(
     floorBlockFriction,
     entityFrictionModifier: properties.frictionModifier,
     initialGroundHorizontalFactor: numerics.sourceFloat(modifiedFloorFriction * trajectory.drag),
+  }
+}
+
+export function createUniformFloorTrajectoryAssumptions(
+  floorY: number,
+  properties: Pick<CubeLaunchProperties, 'bounciness' | 'airDragModifier' | 'frictionModifier'>,
+  floor: UniformFloorProfile = je26_2UniformFloorProfiles.ordinary_full_block,
+): UniformFloorTrajectoryAssumptions {
+  return {
+    gravity: je26_2Constants.defaultGravity.value,
+    baseAirDrag: je26_2Constants.baseAirDrag.value,
+    movementCutoff: je26_2Constants.movementCutoff.value,
+    movementBlockSampleOffset: je26_2Constants.movementBlockSampleOffset.value,
+    floorY,
+    cube: { ...properties },
+    floor,
+    entitySuppressesBounce: false,
+    noActiveExplosiveFuse: true,
   }
 }

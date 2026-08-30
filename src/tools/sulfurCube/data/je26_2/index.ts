@@ -41,6 +41,16 @@ export {
   je26_2PlayerMeleeMechanics,
 } from './constants'
 export {
+  je26_2UniformFloorProfileDefinitions,
+  je26_2UniformFloorProfileOrder,
+  je26_2UniformFloorProfiles,
+  toUniformFloorProfile,
+} from './floorProfiles'
+export type {
+  Je26_2UniformFloorProfileDefinition,
+  Je26_2UniformFloorProfileId,
+} from './floorProfiles'
+export {
   je26_2PlayerMeleeWeaponPresetOrder,
   je26_2PlayerMeleeWeaponPresets,
 } from './playerMeleePresets'

@@ -217,6 +217,26 @@ export const provenance = {
     notes:
       'The first launch update begins on ground and uses supporting-block friction for its post-move horizontal velocity. The narrow reader model assumes an ordinary full block with decoded friction 0.6000000238418579 and stops at first return before rebound.',
   },
+  repeatedUniformFloorMotion: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/Entity.java',
+    locator:
+      'move, collide, updateSupportingBlock, applyEffectsFromBlocks, pushEntities and checkFallDamage (local lines 717-862 and 1143-1268); LivingEntity.travelInAir and computeModifiedFriction (local lines 2460-2492)',
+    notes:
+      'Defines strict per-component movement cutoff, movement/collision ordering, retained onGround state on a rebound tick, floor speed-factor sampling, gravity and omnidirectional drag. The reader model is intentionally restricted to an infinite uniform horizontal floor.',
+  },
+  uniformFloorProperties: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/level/block/Blocks.java',
+    locator:
+      'ordinary, slime, honey, ice, blue ice, soul sand and bed block registrations; BlockBehaviour.Properties friction, speedFactor and jumpFactor values',
+    notes:
+      'Collision heights are supplied by each block shape. Bed restitution is defined by BedBlock.fallOn/bounceUp, slime restitution and its late horizontal stepOn scale by SlimeBlock, and honey bounce suppression by HoneyBlock.',
+  },
 } as const satisfies Record<string, ProvenanceRecord>
 
 export type ProvenanceId = keyof typeof provenance

@@ -34,6 +34,7 @@ describe('cube property selection modes', () => {
         horizontalPower: 0.4125,
         verticalPower: 0.105,
         knockbackResistance: -2,
+        bounciness: 0.8999999761581421,
         airDragModifier: 0.009999999776482582,
       },
       supported: true,
@@ -60,6 +61,7 @@ describe('cube property selection modes', () => {
         horizontalPower: 0.9125,
         verticalPower: 0.09,
         knockbackResistance: -1,
+        bounciness: 0.5,
         airDragModifier: 0.009999999776482582,
       },
       supported: true,
@@ -79,6 +81,7 @@ describe('cube property selection modes', () => {
         horizontalPower: 0.75,
         verticalPower: 0.105,
         knockbackResistance: -2,
+        bounciness: 0.8999999761581421,
         airDragModifier: 0.009999999776482582,
       },
       supported: true,
@@ -119,6 +122,7 @@ describe('cube property selection modes', () => {
         horizontalPower: 0.4125,
         verticalPower: 0.105,
         knockbackResistance: 0.5,
+        bounciness: 0.4000000059604645,
         airDragModifier: 0.10000000149011612,
       },
       source: {
@@ -134,6 +138,7 @@ describe('cube property selection modes', () => {
     state = updateCustomCubeProperty(state, 'horizontalPower', '')
     state = updateCustomCubeProperty(state, 'knockbackResistance', 2)
     state = updateCustomCubeProperty(state, 'airDragModifier', -1)
+    state = updateCustomCubeProperty(state, 'bounciness', 2)
     const resolved = resolveCubePropertySelection(state)
 
     expect(resolved.values).toBeNull()
@@ -158,6 +163,13 @@ describe('cube property selection modes', () => {
           value: -1,
           minimum: 0,
           maximum: 2048,
+        },
+        {
+          kind: 'custom_value_out_of_range',
+          field: 'bounciness',
+          value: 2,
+          minimum: 0,
+          maximum: 1,
         },
       ]),
     )
