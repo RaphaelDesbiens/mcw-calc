@@ -3,6 +3,7 @@ import type {
   CubeGeometry,
   CubeLaunchProperties,
   CubeMechanicsProperties,
+  FlatFloorTrajectoryAssumptions,
   KnockbackCall,
   SulfurCubeKnockbackContext,
   TrajectoryAssumptions,
@@ -75,6 +76,7 @@ export function createBouncyCubeLaunchProperties(): CubeLaunchProperties {
     verticalPower: bouncyArchetype.knockbackModifiers.verticalPower.value,
     knockbackResistance: bouncyArchetype.effectiveProperties.knockbackResistance.value,
     airDragModifier: bouncyArchetype.effectiveProperties.airDragModifier.value,
+    frictionModifier: bouncyArchetype.effectiveProperties.frictionModifier.value,
   }
 }
 
@@ -94,4 +96,26 @@ export function createBouncyTrajectoryAssumptions(numerics: NumericBackend): Tra
     bouncyArchetype.effectiveProperties.airDragModifier.value,
     numerics,
   )
+}
+
+export function createFlatFloorTrajectoryAssumptions(
+  floorY: number,
+  properties: Pick<CubeLaunchProperties, 'airDragModifier' | 'frictionModifier'>,
+  numerics: NumericBackend,
+): FlatFloorTrajectoryAssumptions {
+  const trajectory = createTrajectoryAssumptions(properties.airDragModifier, numerics)
+  const floorBlockFriction = je26_2Constants.ordinaryFullBlockFriction.value
+  const modifiedFloorFriction = computeModifiedFriction(
+    floorBlockFriction,
+    properties.frictionModifier,
+    numerics,
+  )
+
+  return {
+    ...trajectory,
+    floorY,
+    floorBlockFriction,
+    entityFrictionModifier: properties.frictionModifier,
+    initialGroundHorizontalFactor: numerics.sourceFloat(modifiedFloorFriction * trajectory.drag),
+  }
 }

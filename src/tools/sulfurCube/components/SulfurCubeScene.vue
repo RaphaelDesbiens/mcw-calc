@@ -185,10 +185,33 @@ const view = computed(() => {
           x: launchValueAnchor.x + Math.sin(launchValueAngle) * launchValueOffset,
           y: launchValueAnchor.y - Math.cos(launchValueAngle) * launchValueOffset,
           rotation: (launchValueAngle * 180) / Math.PI,
-          value: t('sulfurCube.scene.launchSpeedValue', {
-            value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
-          }),
+          value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
         }
+  const sceneMetrics = {
+    x: 18 * zoomFactor,
+    speedY: 24 * zoomFactor,
+    distanceY: 44 * zoomFactor,
+    speed: t('sulfurCube.scene.speedMetric', {
+      value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
+    }),
+    distance: t('sulfurCube.scene.distanceMetric', {
+      value: props.evaluation.trajectory.horizontalDistance.toFixed(2),
+    }),
+  }
+  const maximumHeightLabel =
+    scene.maximumHeight === null
+      ? null
+      : (() => {
+          const apex = toSvg(scene.maximumHeight.point)
+
+          return {
+            x: Math.min(viewport.width - 140, Math.max(140, apex.x)),
+            y: Math.min(viewport.height - 18, Math.max(70, apex.y - 12 * zoomFactor)),
+            value: t('sulfurCube.scene.maximumHeightMetric', {
+              value: scene.maximumHeight.heightAboveFloor.toFixed(2),
+            }),
+          }
+        })()
   const thetaSquareHorizontalSign = Math.sign(attackerFeet.x - horizontalFeetReference.x) || -1
   const thetaSquareVerticalSign = Math.sign(cubeFeet.y - horizontalFeetReference.y) || -1
   const thetaSquareCorner = {
@@ -243,6 +266,8 @@ const view = computed(() => {
     launchEnd,
     launchLabel,
     launchValueLabel,
+    sceneMetrics,
+    maximumHeightLabel,
     thetaLabel,
     thetaSquarePath,
     thetaArcPoints: thetaArcPoints.map((point) => `${point.x},${point.y}`).join(' '),
@@ -630,6 +655,25 @@ function formatCoordinate(value: number): string {
           @pointerdown="startDrag('camera', $event)"
         />
 
+        <g class="scene-metrics" aria-hidden="true">
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.speedY">
+            {{ view.sceneMetrics.speed }}
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
+            {{ view.sceneMetrics.distance }}
+          </text>
+        </g>
+
+        <text
+          v-if="view.maximumHeightLabel"
+          class="maximum-height-label"
+          :x="view.maximumHeightLabel.x"
+          :y="view.maximumHeightLabel.y"
+          text-anchor="middle"
+        >
+          {{ view.maximumHeightLabel.value }}
+        </text>
+
         <g class="reference-geometry">
           <line
             class="ground-line"
@@ -909,6 +953,9 @@ function formatCoordinate(value: number): string {
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
       <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>
+      <p v-if="!view.scene.reach.intersects" class="scene-reach-warning" role="status">
+        {{ t('sulfurCube.scene.reachMissWarning') }}
+      </p>
       <p v-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
         {{
           t('sulfurCube.scene.trajectoryTruncated', {
@@ -1074,6 +1121,26 @@ figcaption {
   pointer-events: none;
 }
 
+.scene-metrics {
+  fill: var(--scene-ink);
+  font-size: var(--scene-small-label-font-size);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.maximum-height-label {
+  fill: var(--scene-launch);
+  font-size: var(--scene-minor-font-size);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.scene-reach-warning {
+  color: var(--color-error, #b32424);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
 .reference-geometry line {
   stroke: var(--scene-border);
   stroke-width: var(--scene-stroke-thin);
@@ -1088,7 +1155,7 @@ figcaption {
   fill: none;
   stroke: var(--scene-theta-muted);
   stroke-dasharray: var(--scene-dash-theta);
-  stroke-width: var(--scene-stroke-thinnest);
+  stroke-width: calc(var(--scene-stroke-thinnest) * 0.84);
 }
 
 .theta-geometry .theta-arc {

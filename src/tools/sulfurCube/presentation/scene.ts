@@ -7,11 +7,13 @@ import {
   projectVectorToRadialPlane,
   radialLateralOffset,
 } from './radialPlane'
+import { resolveRadialReachDiagnostic } from './reach'
 
 export const maximumRenderedTrajectoryTicks = 200
 export const launchVectorMaximumDisplayLength = 8
 export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
+export const provisionalPlayerReach = 3
 export const thetaArcRadius = 0.78
 export const thetaLabelHorizontalOffset = -0.08
 export const thetaLabelVerticalOffset = -0.02
@@ -52,6 +54,11 @@ export interface RadialScenePresentation {
   readonly aimPoint: PlanePoint
   readonly aimArrowEnd: PlanePoint
   readonly aimLateralOffset: number
+  readonly reach: {
+    readonly reach: number
+    readonly assumedHitboxWidth: number
+    readonly intersects: boolean
+  }
   readonly horizontalFeetReference: PlanePoint
   readonly thetaArc: readonly PlanePoint[]
   readonly thetaLabelPoint: PlanePoint
@@ -61,6 +68,10 @@ export interface RadialScenePresentation {
   readonly launchDisplayLength: number
   readonly trajectory: readonly SceneTrajectoryPoint[]
   readonly trajectoryEndMarker: PlanePoint | null
+  readonly maximumHeight: {
+    readonly heightAboveFloor: number
+    readonly point: PlanePoint
+  } | null
   readonly renderedTrajectoryTicks: number
   readonly requestedTrajectoryTicks: number
 }
@@ -221,6 +232,14 @@ export function createRadialScenePresentation(
     aimArrowLength,
     context.mechanics.vectorNormalizationThreshold,
   )
+  const reach = resolveRadialReachDiagnostic(
+    attackerEyes,
+    aimArrowEnd,
+    cubeFeet,
+    context.cube.dimensions.width,
+    context.cube.dimensions.height,
+    provisionalPlayerReach,
+  )
   const launchVector = projectVectorToRadialPlane(evaluation.launchVelocity, projection)
   const launchSpeed = Math.hypot(launchVector.x, launchVector.y)
   const launchDisplayLength = launchVectorDisplayLength(launchSpeed)
@@ -240,6 +259,19 @@ export function createRadialScenePresentation(
       point: projectPointToRadialPlane(tick.resultingPosition, projection),
     })),
   ]
+  const maximumHeightTick = trajectory.ticks.reduce<(typeof trajectory.ticks)[number] | null>(
+    (highest, tick) =>
+      highest === null || tick.resultingPosition.y > highest.resultingPosition.y ? tick : highest,
+    null,
+  )
+  const maximumHeightAboveFloor = trajectory.maximumFeetY - trajectory.initialPosition.y
+  const maximumHeight =
+    maximumHeightTick === null || maximumHeightAboveFloor < 3
+      ? null
+      : {
+          heightAboveFloor: maximumHeightAboveFloor,
+          point: projectPointToRadialPlane(maximumHeightTick.resultingPosition, projection),
+        }
   const horizontalFeetReference = { x: cubeFeet.x, y: attackerFeet.y }
   const thetaPresentation = createThetaPresentation(
     attackerFeet,
@@ -270,6 +302,7 @@ export function createRadialScenePresentation(
     aimPoint,
     aimArrowEnd,
     aimLateralOffset: radialLateralOffset(inputs.aimPoint, projection),
+    reach,
     horizontalFeetReference,
     thetaArc: thetaPresentation.arc,
     thetaLabelPoint: thetaPresentation.label,
@@ -278,11 +311,12 @@ export function createRadialScenePresentation(
     launchEnd,
     launchDisplayLength,
     trajectory: trajectoryPoints,
-    trajectoryEndMarker: extendTrajectoryEnd(
-      trajectoryPoints,
-      context.mechanics.vectorNormalizationThreshold,
-    ),
+    trajectoryEndMarker:
+      trajectory.contact !== null && trajectory.contact.tick === trajectory.ticks.length
+        ? (trajectoryPoints[trajectoryPoints.length - 1]?.point ?? null)
+        : extendTrajectoryEnd(trajectoryPoints, context.mechanics.vectorNormalizationThreshold),
+    maximumHeight,
     renderedTrajectoryTicks: trajectoryPoints.length - 1,
-    requestedTrajectoryTicks: trajectory.ticks.length,
+    requestedTrajectoryTicks: inputs.trajectoryTicks,
   }
 }

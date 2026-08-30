@@ -234,6 +234,10 @@ const lockedPropertyRows = computed(() => {
       label: t('sulfurCube.properties.airDragModifier'),
       value: numberFormatter.format(values.airDragModifier),
     },
+    {
+      label: t('sulfurCube.properties.frictionModifier'),
+      value: numberFormatter.format(values.frictionModifier),
+    },
   ]
 })
 
@@ -567,6 +571,18 @@ function hideBlockTooltip(): void {
               max="2048"
               step="0.01"
               @update:model-value="updateCustomField('airDragModifier', $event)"
+            />
+          </CdxField>
+          <CdxField :status="customFieldHasError('frictionModifier') ? 'error' : 'default'">
+            <template #label>{{ t('sulfurCube.properties.frictionModifier') }}</template>
+            <CdxTextInput
+              :model-value="customFormState.frictionModifier"
+              :status="customFieldHasError('frictionModifier') ? 'error' : 'default'"
+              input-type="number"
+              min="0"
+              max="2048"
+              step="0.01"
+              @update:model-value="updateCustomField('frictionModifier', $event)"
             />
           </CdxField>
         </div>

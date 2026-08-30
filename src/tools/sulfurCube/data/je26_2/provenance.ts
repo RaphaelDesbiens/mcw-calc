@@ -198,6 +198,16 @@ export const provenance = {
     notes:
       'Absorbed sulfur cubes use omnidirectional air drag through SulfurCube.omnidirectionalAirMover (local lines 426-429).',
   },
+  flatFloorContact: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/Entity.java',
+    locator:
+      'move, collide, and applyEffectsFromBlocks (local lines 717-862 and 1143-1268); floor-friction selection occurs in LivingEntity.travelInAir local lines 2460-2485',
+    notes:
+      'The first launch update begins on ground and uses supporting-block friction for its post-move horizontal velocity. The narrow reader model assumes an ordinary full block with decoded friction 0.6000000238418579 and stops at first return before rebound.',
+  },
 } as const satisfies Record<string, ProvenanceRecord>
 
 export type ProvenanceId = keyof typeof provenance

@@ -39,6 +39,7 @@ export interface CubeMechanicsProperties {
 
 export interface CubeLaunchProperties extends CubeMechanicsProperties {
   readonly airDragModifier: number
+  readonly frictionModifier: number
 }
 
 export interface SulfurCubeMechanicsParameters {
@@ -210,6 +211,52 @@ export interface TrajectoryResult {
   readonly ticks: readonly TrajectoryTick[]
   readonly resultingPosition: Vec3
   readonly resultingVelocity: Vec3
+}
+
+export interface FlatFloorTrajectoryAssumptions extends TrajectoryAssumptions {
+  /** Top surface of the infinite level floor, equal to the initial feet Y. */
+  readonly floorY: number
+  /** Decoded friction value of the assumed ordinary full block. */
+  readonly floorBlockFriction: number
+  /** Effective entity friction modifier resolved from the selected cube properties. */
+  readonly entityFrictionModifier: number
+  /** Horizontal post-move factor used only by the first update, which begins on ground. */
+  readonly initialGroundHorizontalFactor: number
+}
+
+export interface FlatFloorTrajectoryTick {
+  readonly tick: number
+  readonly startingPosition: Vec3
+  readonly startingVelocity: Vec3
+  readonly effectiveVelocity: Vec3
+  readonly appliedMovement: Vec3
+  readonly resultingPosition: Vec3
+  /** Null on first floor contact because post-contact rebound is outside this milestone. */
+  readonly resultingVelocity: Vec3 | null
+  readonly firstFloorContact: boolean
+}
+
+export interface FlatFloorContact {
+  readonly tick: number
+  readonly position: Vec3
+  readonly horizontalDistance: number
+  readonly maximumFeetY: number
+  readonly effectiveVelocity: Vec3
+  readonly appliedMovement: Vec3
+  readonly verticalMovementFraction: number
+}
+
+export interface FlatFloorTrajectoryResult {
+  readonly initialPosition: Vec3
+  readonly initialVelocity: Vec3
+  readonly assumptions: FlatFloorTrajectoryAssumptions
+  readonly ticks: readonly FlatFloorTrajectoryTick[]
+  readonly resultingPosition: Vec3
+  readonly resultingVelocity: Vec3 | null
+  readonly contact: FlatFloorContact | null
+  /** X/Z displacement from the initial feet position to the simulated endpoint. */
+  readonly horizontalDistance: number
+  readonly maximumFeetY: number
 }
 
 export interface LaunchSummary {

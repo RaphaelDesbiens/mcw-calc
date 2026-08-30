@@ -1,10 +1,15 @@
 import type { Vec3 } from '../model/types'
 import { describe, expect, it } from 'vitest'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
-import { computeModifiedFriction, simulateFreeFlightTrajectory } from '../model/trajectory'
+import {
+  computeModifiedFriction,
+  simulateFlatFloorFirstContactTrajectory,
+  simulateFreeFlightTrajectory,
+} from '../model/trajectory'
 import { standardNumerics } from '../numerics/standard'
 import { createBouncyTrajectoryAssumptions } from '../presets/milestone1'
 import { createFixtureInputs, directMeleeFixtures, m1TenTickFixture } from './experimentFixtures'
+import { flatFloorFixtures } from './flatFloorFixtures'
 
 function expectVec3Close(actual: Vec3, expected: Vec3, digits = 5): void {
   expect(actual.x).toBeCloseTo(expected.x, digits)
@@ -79,5 +84,65 @@ describe('simplified absorbed-cube free flight', () => {
         movementCutoff: 0.003,
       }),
     ).toThrow(/tickCount/)
+  })
+})
+
+describe('source-audited first return to an ordinary flat floor', () => {
+  for (const fixture of flatFloorFixtures) {
+    it(`matches ${fixture.id}`, () => {
+      const result = simulateFlatFloorFirstContactTrajectory(
+        { x: 0, y: 0, z: 0 },
+        fixture.initialVelocity,
+        200,
+        {
+          gravity: 0.08,
+          drag: fixture.drag,
+          movementCutoff: 0.003,
+          floorY: 0,
+          floorBlockFriction: 0.6000000238418579,
+          entityFrictionModifier: 0.30000001192092896,
+          initialGroundHorizontalFactor: fixture.initialGroundHorizontalFactor,
+        },
+      )
+
+      expect(result.contact?.tick).toBe(fixture.expected.contactTick)
+      expect(
+        Math.abs(result.resultingPosition.x - fixture.expected.contactPosition.x),
+      ).toBeLessThanOrEqual(1e-9)
+      expect(
+        Math.abs(result.resultingPosition.y - fixture.expected.contactPosition.y),
+      ).toBeLessThanOrEqual(1e-9)
+      expect(
+        Math.abs(result.resultingPosition.z - fixture.expected.contactPosition.z),
+      ).toBeLessThanOrEqual(1e-9)
+      expect(
+        Math.abs(result.horizontalDistance - fixture.expected.horizontalDistance),
+      ).toBeLessThanOrEqual(1e-9)
+      expect(Math.abs(result.maximumFeetY - fixture.expected.maximumFeetY)).toBeLessThanOrEqual(
+        1e-9,
+      )
+    })
+  }
+
+  it('applies full horizontal movement on the vertically clipped contact tick', () => {
+    const result = simulateFlatFloorFirstContactTrajectory(
+      { x: 0, y: 0, z: 0 },
+      { x: 0.3, y: 0.8, z: 0.4 },
+      200,
+      {
+        gravity: 0.08,
+        drag: 0.9991000294685364,
+        movementCutoff: 0.003,
+        floorY: 0,
+        floorBlockFriction: 0.6000000238418579,
+        entityFrictionModifier: 0.30000001192092896,
+        initialGroundHorizontalFactor: 0.8792080283164978,
+      },
+    )
+
+    expect(result.contact?.appliedMovement.x).toBe(result.contact?.effectiveVelocity.x)
+    expect(result.contact?.appliedMovement.z).toBe(result.contact?.effectiveVelocity.z)
+    expect(result.contact?.appliedMovement.y).not.toBe(result.contact?.effectiveVelocity.y)
+    expect(result.resultingVelocity).toBeNull()
   })
 })

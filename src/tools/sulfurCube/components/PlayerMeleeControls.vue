@@ -21,6 +21,15 @@ const { t } = useI18n()
 const survivalAvailability = computed(() =>
   resolvePlayerMeleeVanillaSurvivalAvailability(props.modelValue),
 )
+const criticalHitSelectable = computed(() => {
+  const attackStrengthPercent = Number(props.modelValue.attackStrengthPercent)
+
+  return (
+    Number.isFinite(attackStrengthPercent) &&
+    attackStrengthPercent > 90 &&
+    !props.modelValue.sprinting
+  )
+})
 
 const weaponItems: MenuItemData[] = [
   { value: 'bareHand', label: t('sulfurCube.attack.weapon.bareHand') },
@@ -34,7 +43,14 @@ const knockbackItems: MenuItemData[] = [
 ]
 
 function update(fields: Partial<PlayerMeleeFormState>): void {
-  emit('update:modelValue', { ...props.modelValue, ...fields })
+  const next = { ...props.modelValue, ...fields }
+  const attackStrengthPercent = Number(next.attackStrengthPercent)
+
+  if (!Number.isFinite(attackStrengthPercent) || attackStrengthPercent <= 90 || next.sprinting) {
+    next.criticalHitConditions = false
+  }
+
+  emit('update:modelValue', next)
 }
 
 function updateWeapon(value: string | number | null): void {
@@ -108,12 +124,15 @@ function updateAttackStrength(value: NumericFormValue): void {
       >
         {{ t('sulfurCube.attack.sprinting') }}
       </CdxCheckbox>
-      <CdxCheckbox
-        :model-value="modelValue.criticalHitConditions"
-        @update:model-value="update({ criticalHitConditions: $event })"
-      >
-        {{ t('sulfurCube.attack.criticalConditions') }}
-      </CdxCheckbox>
+      <span :class="{ 'player-attack__critical--unavailable': !criticalHitSelectable }">
+        <CdxCheckbox
+          :model-value="modelValue.criticalHitConditions"
+          :disabled="!criticalHitSelectable"
+          @update:model-value="update({ criticalHitConditions: $event })"
+        >
+          {{ t('sulfurCube.attack.criticalConditions') }}
+        </CdxCheckbox>
+      </span>
     </div>
 
     <p
@@ -183,6 +202,10 @@ function updateAttackStrength(value: NumericFormValue): void {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
+}
+
+.player-attack__critical--unavailable {
+  opacity: 0.55;
 }
 
 @media (max-width: 34rem) {

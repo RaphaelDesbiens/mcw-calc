@@ -9,12 +9,15 @@ import type {
 import type { DiagnosticEvaluation, DiagnosticInputs } from './diagnostic'
 import { je26_2KnockbackMechanics, je26_2PlayerMeleeWeaponPresets } from '../data/je26_2'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
-import { simulateFreeFlightTrajectory } from '../model/trajectory'
+import { simulateFlatFloorFirstContactTrajectory } from '../model/trajectory'
 import { applyVelocityOperations } from '../model/velocityOperations'
 import { standardNumerics } from '../numerics/standard'
 import { resolveAttackConfiguration } from '../resolution'
 import { createDiagnosticKnockbackContext } from './diagnostic'
-import { createBouncyCubeLaunchProperties, createTrajectoryAssumptions } from './milestone1'
+import {
+  createBouncyCubeLaunchProperties,
+  createFlatFloorTrajectoryAssumptions,
+} from './milestone1'
 
 export interface PlayerMeleeInputs {
   readonly weaponPresetId: Je26_2PlayerMeleeWeaponPresetId
@@ -176,11 +179,11 @@ export function evaluatePlayerMeleeInputs(
   }
 
   const launchVelocity = operationSequence.resultingVelocity
-  const trajectory = simulateFreeFlightTrajectory(
+  const trajectory = simulateFlatFloorFirstContactTrajectory(
     context.cube.feetPosition,
     launchVelocity,
     diagnosticInputs.trajectoryTicks,
-    createTrajectoryAssumptions(properties.airDragModifier, numerics),
+    createFlatFloorTrajectoryAssumptions(context.cube.feetPosition.y, properties, numerics),
   )
 
   return {
@@ -218,7 +221,6 @@ export function findDefaultPlayerMeleeTrajectoryTicks(
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): number {
   const maximumTicks = 200
-  const targetDrop = 2
   const evaluation = evaluatePlayerMeleeInputs(
     { ...diagnosticInputs, trajectoryTicks: maximumTicks },
     playerMeleeInputs,
@@ -226,10 +228,5 @@ export function findDefaultPlayerMeleeTrajectoryTicks(
     numerics,
     properties,
   )
-  const targetY = evaluation.trajectory.initialPosition.y - targetDrop
-  const firstTickAtOrBelowTarget = evaluation.trajectory.ticks.find(
-    (tick) => tick.resultingPosition.y <= targetY,
-  )
-
-  return firstTickAtOrBelowTarget?.tick ?? maximumTicks
+  return evaluation.trajectory.contact?.tick ?? maximumTicks
 }

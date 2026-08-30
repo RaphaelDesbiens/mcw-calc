@@ -241,11 +241,16 @@ const finalRows = computed<readonly ReadoutRow[]>(() => {
 
 const trajectoryRows = computed<readonly ReadoutRow[]>(() => {
   const trajectory = props.evaluation.trajectory
+  const resultingVelocity = trajectory.resultingVelocity
 
   return [
     { label: t('sulfurCube.readout.tickHorizon'), value: formatNumber(trajectory.ticks.length) },
     { label: t('sulfurCube.readout.gravity'), value: formatNumber(trajectory.assumptions.gravity) },
     { label: t('sulfurCube.readout.drag'), value: formatNumber(trajectory.assumptions.drag) },
+    {
+      label: t('sulfurCube.readout.initialGroundFactor'),
+      value: formatNumber(trajectory.assumptions.initialGroundHorizontalFactor),
+    },
     {
       label: t('sulfurCube.readout.cutoff'),
       value: formatNumber(trajectory.assumptions.movementCutoff),
@@ -259,12 +264,26 @@ const trajectoryRows = computed<readonly ReadoutRow[]>(() => {
       ),
     },
     {
+      label: t('sulfurCube.readout.horizontalDistance'),
+      value: formatNumber(trajectory.horizontalDistance),
+    },
+    {
+      label: t('sulfurCube.readout.maximumFeetY'),
+      value: formatNumber(trajectory.maximumFeetY),
+    },
+    {
+      label: t('sulfurCube.readout.contactTick'),
+      value:
+        trajectory.contact === null
+          ? t('sulfurCube.readout.notReached')
+          : formatNumber(trajectory.contact.tick),
+    },
+    {
       label: t('sulfurCube.readout.finalVelocity'),
-      value: formatVector(
-        trajectory.resultingVelocity.x,
-        trajectory.resultingVelocity.y,
-        trajectory.resultingVelocity.z,
-      ),
+      value:
+        resultingVelocity === null
+          ? t('sulfurCube.readout.reboundNotSimulated')
+          : formatVector(resultingVelocity.x, resultingVelocity.y, resultingVelocity.z),
     },
   ]
 })

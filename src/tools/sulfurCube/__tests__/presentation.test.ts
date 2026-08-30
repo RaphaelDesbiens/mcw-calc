@@ -24,7 +24,6 @@ import {
   thetaArcRadius,
   thetaLabelHorizontalOffset,
   thetaLabelVerticalOffset,
-  trajectoryEndExtension,
 } from '../presentation/scene'
 import {
   clampPointToBoundsFromOrigin,
@@ -186,18 +185,15 @@ describe('radial scene presentation', () => {
     expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
     expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
     expect(scene.cubeFeetLineEnd).toEqual({ x: 3, y: 0 })
-    expect(scene.trajectory).toHaveLength(16)
-    expect(scene.trajectory[15].tick).toBe(15)
+    expect(scene.trajectory).toHaveLength(12)
+    expect(scene.trajectory[11].tick).toBe(11)
     const trajectoryEnd = scene.trajectoryEndMarker!
-    const finalTick = scene.trajectory[15].point
-    const previousTick = scene.trajectory[14].point
+    const finalTick = scene.trajectory[11].point
+    const previousTick = scene.trajectory[10].point
 
-    expect(Math.hypot(trajectoryEnd.x - finalTick.x, trajectoryEnd.y - finalTick.y)).toBeCloseTo(
-      trajectoryEndExtension,
-      12,
-    )
-    expect(scene.cube.feet.y - previousTick.y).toBeLessThan(2)
-    expect(scene.cube.feet.y - finalTick.y).toBeGreaterThanOrEqual(2)
+    expect(trajectoryEnd).toEqual(finalTick)
+    expect(previousTick.y).toBeGreaterThan(scene.cube.feet.y)
+    expect(finalTick.y).toBe(scene.cube.feet.y)
   })
 
   it('expands low velocity arrows with a monotonic bounded display curve', () => {
@@ -266,16 +262,16 @@ describe('radial scene presentation', () => {
     expect(scene.aimLateralOffset).toBeCloseTo(-0.4, 12)
   })
 
-  it('limits drawing work without changing the requested model horizon', () => {
+  it('stops drawing at floor contact while preserving the requested maximum length', () => {
     const evaluation = evaluateDiagnosticInputs({
       ...getDiagnosticPreset('M1').inputs,
       trajectoryTicks: 200,
     })
     const scene = createRadialScenePresentation(evaluation)
 
-    expect(scene.renderedTrajectoryTicks).toBe(200)
+    expect(scene.renderedTrajectoryTicks).toBe(11)
     expect(scene.requestedTrajectoryTicks).toBe(200)
-    expect(evaluation.trajectory.ticks).toHaveLength(200)
+    expect(evaluation.trajectory.ticks).toHaveLength(11)
   })
 
   it('supports a fixed projection and camera while interactive objects move', () => {

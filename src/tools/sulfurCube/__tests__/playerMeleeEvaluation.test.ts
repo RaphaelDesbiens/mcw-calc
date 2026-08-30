@@ -132,7 +132,7 @@ describe('full-tool primary player melee evaluation', () => {
     ).toBe(-37.5)
   })
 
-  it('finds the default two-block-drop horizon from the cumulative velocity', () => {
+  it('finds first floor contact from the cumulative velocity', () => {
     const inputs = createMilestone1DefaultInputs()
     const meleeInputs = {
       ...createDefaultPlayerMeleeInputs(),
@@ -152,9 +152,9 @@ describe('full-tool primary player melee evaluation', () => {
       meleeInputs,
       yaw,
     )
-    const targetY = inputs.cubeFeetPosition.y - 2
-
-    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(targetY)
-    expect(current.trajectory.resultingPosition.y).toBeLessThanOrEqual(targetY)
+    expect(previous.trajectory.contact).toBeNull()
+    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
+    expect(current.trajectory.contact?.tick).toBe(tickCount)
+    expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
   })
 })

@@ -16,6 +16,7 @@ export interface CustomCubePropertyFormState {
   readonly verticalPower: CustomPropertyInput
   readonly knockbackResistance: CustomPropertyInput
   readonly airDragModifier: CustomPropertyInput
+  readonly frictionModifier: CustomPropertyInput
 }
 
 export type CubePropertySelectionSource =
@@ -52,7 +53,7 @@ export type CustomPropertyDiagnostic =
     }
   | {
       readonly kind: 'custom_value_out_of_range'
-      readonly field: 'knockbackResistance' | 'airDragModifier'
+      readonly field: 'knockbackResistance' | 'airDragModifier' | 'frictionModifier'
       readonly value: number
       readonly minimum: number
       readonly maximum: number
@@ -83,6 +84,7 @@ function toFormState(values: CubeLaunchProperties): CustomCubePropertyFormState 
     verticalPower: String(values.verticalPower),
     knockbackResistance: String(values.knockbackResistance),
     airDragModifier: String(values.airDragModifier),
+    frictionModifier: String(values.frictionModifier),
   }
 }
 
@@ -90,6 +92,7 @@ function valuesFromProfile(profile: ResolvedCubeProfile): CubeLaunchProperties {
   return {
     ...toCubeMechanicsProperties(profile),
     airDragModifier: profile.attributes['minecraft:air_drag_modifier'].effectiveValue,
+    frictionModifier: profile.attributes['minecraft:friction_modifier'].effectiveValue,
   }
 }
 
@@ -187,6 +190,17 @@ function parseCustomValues(formState: CustomCubePropertyFormState): {
     })
   }
 
+  const frictionModifier = parsed.frictionModifier
+  if (frictionModifier !== undefined && (frictionModifier < 0 || frictionModifier > 2048)) {
+    diagnostics.push({
+      kind: 'custom_value_out_of_range',
+      field: 'frictionModifier',
+      value: frictionModifier,
+      minimum: 0,
+      maximum: 2048,
+    })
+  }
+
   return {
     values:
       diagnostics.length === 0
@@ -195,6 +209,7 @@ function parseCustomValues(formState: CustomCubePropertyFormState): {
             verticalPower: parsed.verticalPower,
             knockbackResistance: parsed.knockbackResistance,
             airDragModifier: parsed.airDragModifier,
+            frictionModifier: parsed.frictionModifier,
           }
         : null,
     diagnostics,

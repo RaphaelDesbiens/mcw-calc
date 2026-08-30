@@ -25,14 +25,13 @@ function expectVec3Within(actual: Vec3, expected: Vec3, tolerance: number): void
 }
 
 describe('stage 3 diagnostic orchestration', () => {
-  it('creates the reader default with standing eyes and the first two-block-drop horizon', () => {
+  it('creates the reader default with standing eyes and first floor contact', () => {
     const inputs = createMilestone1DefaultInputs()
     const previous = evaluateDiagnosticInputs({
       ...inputs,
       trajectoryTicks: inputs.trajectoryTicks - 1,
     })
     const current = evaluateDiagnosticInputs(inputs)
-    const targetY = inputs.cubeFeetPosition.y - 2
 
     expect(inputs.cubeFeetPosition).toEqual({ x: 0, y: 0, z: 0 })
     expect(inputs.attackerFeetPosition).toEqual({ x: 0, y: -0.3, z: 2.6 })
@@ -40,8 +39,10 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(inputs.attackerEyePosition.y).toBeCloseTo(1.32, 12)
     expect(inputs.attackerEyePosition.z).toBe(2.6)
     expect(inputs.aimPoint).toEqual({ x: 0, y: 0.4, z: -1.7 })
-    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(targetY)
-    expect(current.trajectory.resultingPosition.y).toBeLessThanOrEqual(targetY)
+    expect(previous.trajectory.contact).toBeNull()
+    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
+    expect(current.trajectory.contact?.tick).toBe(inputs.trajectoryTicks)
+    expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
   })
 
   it.each(diagnosticPresets)('reproduces the $id direct-melee fixture', (preset) => {
@@ -72,16 +73,16 @@ describe('stage 3 diagnostic orchestration', () => {
     )
   })
 
-  it('finds the first default horizon tick at least two blocks below the starting cube height', () => {
+  it('finds the first default return to the initial floor level', () => {
     const inputs = getDiagnosticPreset('M1').inputs
     const tickCount = findDefaultTrajectoryTicks(inputs)
     const previous = evaluateDiagnosticInputs({ ...inputs, trajectoryTicks: tickCount - 1 })
     const current = evaluateDiagnosticInputs({ ...inputs, trajectoryTicks: tickCount })
-    const targetY = current.trajectory.initialPosition.y - 2
-
-    expect(tickCount).toBe(15)
-    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(targetY)
-    expect(current.trajectory.resultingPosition.y).toBeLessThanOrEqual(targetY)
+    expect(tickCount).toBe(11)
+    expect(previous.trajectory.contact).toBeNull()
+    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
+    expect(current.trajectory.contact?.tick).toBe(tickCount)
+    expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
     expect(findDefaultTrajectoryTicks(getDiagnosticPreset('M8').inputs)).toBeGreaterThan(tickCount)
   })
 

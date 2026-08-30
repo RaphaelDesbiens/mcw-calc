@@ -1,22 +1,22 @@
 import type {
   CubeLaunchProperties,
+  FlatFloorTrajectoryResult,
   KnockbackCallResult,
   LaunchSummary,
   SulfurCubeKnockbackContext,
-  TrajectoryResult,
   Vec3,
 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
 import { je26_2Constants, je26_2KnockbackMechanics } from '../data/je26_2'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
-import { simulateFreeFlightTrajectory } from '../model/trajectory'
+import { simulateFlatFloorFirstContactTrajectory } from '../model/trajectory'
 import { lengthVec3, normalizeVec3, subtractVec3 } from '../model/vectors'
 import { standardNumerics } from '../numerics/standard'
 import {
   createBouncyCubeLaunchProperties,
+  createFlatFloorTrajectoryAssumptions,
   createMilestone1Context,
-  createTrajectoryAssumptions,
 } from './milestone1'
 
 export type DiagnosticPresetId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'
@@ -41,7 +41,7 @@ export interface DiagnosticEvaluation {
   readonly callResult: KnockbackCallResult
   /** Complete immediate velocity used by the scene and free-flight continuation. */
   readonly launchVelocity: Vec3
-  readonly trajectory: TrajectoryResult
+  readonly trajectory: FlatFloorTrajectoryResult
   readonly launchSummary: LaunchSummary
 }
 
@@ -257,11 +257,11 @@ export function evaluateDiagnosticInputs(
     context,
     numerics,
   )
-  const trajectory = simulateFreeFlightTrajectory(
+  const trajectory = simulateFlatFloorFirstContactTrajectory(
     context.cube.feetPosition,
     callResult.resultingVelocity,
     inputs.trajectoryTicks,
-    createTrajectoryAssumptions(properties.airDragModifier, numerics),
+    createFlatFloorTrajectoryAssumptions(context.cube.feetPosition.y, properties, numerics),
   )
 
   return {
@@ -291,16 +291,10 @@ export function findDefaultTrajectoryTicks(
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): number {
   const maximumTicks = 200
-  const targetDrop = 2
   const evaluation = evaluateDiagnosticInputs(
     { ...inputs, trajectoryTicks: maximumTicks },
     numerics,
     properties,
   )
-  const targetY = evaluation.trajectory.initialPosition.y - targetDrop
-  const firstTickAtOrBelowTarget = evaluation.trajectory.ticks.find(
-    (tick) => tick.resultingPosition.y <= targetY,
-  )
-
-  return firstTickAtOrBelowTarget?.tick ?? maximumTicks
+  return evaluation.trajectory.contact?.tick ?? maximumTicks
 }
