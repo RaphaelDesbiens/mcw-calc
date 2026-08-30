@@ -76,6 +76,15 @@ export const provenance = {
     notes:
       'Knockback is an active main-hand item enchantment with maximum level 2. An empty hand is not an item in either supported tag, so bare-hand Knockback is unavailable in unmodified vanilla Survival.',
   },
+  playerMeleeReach: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/client/player/LocalPlayer.java',
+    locator: 'pick and raycastHitResult (local lines 1238-1288)',
+    notes:
+      'Ordinary Survival entity reach is a strict 3-block eye-ray entry test. ProjectileUtil.java local lines 109-145 supplies pick-radius and inside-picking behavior; AABB.java local lines 294-399 supplies the 1e-7 clipping tolerance; absorbed SulfurCube.canBePickedFromInside returns false at local lines 923-930. Block and competing-entity occlusion are not evaluated by the current clear-scene diagnostic.',
+  },
   bouncyArchetype: {
     edition: 'Java Edition',
     version: '26.2',

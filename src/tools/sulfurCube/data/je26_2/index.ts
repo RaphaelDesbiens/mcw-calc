@@ -37,6 +37,7 @@ export {
   je26_2Constants,
   je26_2CubeAttributeDefinitions,
   je26_2KnockbackMechanics,
+  je26_2OrdinaryPlayerMeleeReach,
   je26_2PlayerMeleeMechanics,
 } from './constants'
 export {

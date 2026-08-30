@@ -953,8 +953,18 @@ function formatCoordinate(value: number): string {
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
       <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>
-      <p v-if="!view.scene.reach.intersects" class="scene-reach-warning" role="status">
-        {{ t('sulfurCube.scene.reachMissWarning') }}
+      <p
+        v-if="view.scene.reach.status !== 'within_reach'"
+        class="scene-reach-warning"
+        role="status"
+      >
+        {{
+          t(
+            view.scene.reach.status === 'inside_unpickable_aabb'
+              ? 'sulfurCube.scene.reachInsideWarning'
+              : 'sulfurCube.scene.reachMissWarning',
+          )
+        }}
       </p>
       <p v-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
         {{

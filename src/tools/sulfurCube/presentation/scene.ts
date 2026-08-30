@@ -1,3 +1,4 @@
+import type { ClearRayEntityReachResult } from '../model/reach'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import type { PlanePoint, RadialProjection, WorldBounds } from './types'
 import { je26_2Constants } from '../data/je26_2'
@@ -7,13 +8,11 @@ import {
   projectVectorToRadialPlane,
   radialLateralOffset,
 } from './radialPlane'
-import { resolveRadialReachDiagnostic } from './reach'
 
 export const maximumRenderedTrajectoryTicks = 200
 export const launchVectorMaximumDisplayLength = 8
 export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
-export const provisionalPlayerReach = 3
 export const thetaArcRadius = 0.78
 export const thetaLabelHorizontalOffset = -0.08
 export const thetaLabelVerticalOffset = -0.02
@@ -54,11 +53,7 @@ export interface RadialScenePresentation {
   readonly aimPoint: PlanePoint
   readonly aimArrowEnd: PlanePoint
   readonly aimLateralOffset: number
-  readonly reach: {
-    readonly reach: number
-    readonly assumedHitboxWidth: number
-    readonly intersects: boolean
-  }
+  readonly reach: ClearRayEntityReachResult
   readonly horizontalFeetReference: PlanePoint
   readonly thetaArc: readonly PlanePoint[]
   readonly thetaLabelPoint: PlanePoint
@@ -232,14 +227,6 @@ export function createRadialScenePresentation(
     aimArrowLength,
     context.mechanics.vectorNormalizationThreshold,
   )
-  const reach = resolveRadialReachDiagnostic(
-    attackerEyes,
-    aimArrowEnd,
-    cubeFeet,
-    context.cube.dimensions.width,
-    context.cube.dimensions.height,
-    provisionalPlayerReach,
-  )
   const launchVector = projectVectorToRadialPlane(evaluation.launchVelocity, projection)
   const launchSpeed = Math.hypot(launchVector.x, launchVector.y)
   const launchDisplayLength = launchVectorDisplayLength(launchSpeed)
@@ -302,7 +289,7 @@ export function createRadialScenePresentation(
     aimPoint,
     aimArrowEnd,
     aimLateralOffset: radialLateralOffset(inputs.aimPoint, projection),
-    reach,
+    reach: evaluation.reach,
     horizontalFeetReference,
     thetaArc: thetaPresentation.arc,
     thetaLabelPoint: thetaPresentation.label,

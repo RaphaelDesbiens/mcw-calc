@@ -43,6 +43,7 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
     expect(current.trajectory.contact?.tick).toBe(inputs.trajectoryTicks)
     expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
+    expect(current.reach.status).toBe('within_reach')
   })
 
   it.each(diagnosticPresets)('reproduces the $id direct-melee fixture', (preset) => {
@@ -96,6 +97,21 @@ describe('stage 3 diagnostic orchestration', () => {
 
     expect(evaluation.callResult.input.context.attacker.feetPosition.y).toBe(3)
     expect(evaluation.callResult.input.context.attacker.eyePosition.y).toBe(1.7)
+  })
+
+  it('evaluates melee reach from the exact 3D eye ray rather than the radial projection', () => {
+    const inputs = createMilestone1DefaultInputs()
+    const evaluation = evaluateDiagnosticInputs({
+      ...inputs,
+      aimPoint: {
+        x: inputs.attackerEyePosition.x + 1.5,
+        y: inputs.attackerEyePosition.y,
+        z: inputs.attackerEyePosition.z - 2.598076211353316,
+      },
+    })
+
+    expect(evaluation.reach.status).toBe('ray_miss')
+    expect(evaluation.reach.occlusion).toBe('not_evaluated')
   })
 
   it('does not mutate shared preset inputs', () => {

@@ -176,6 +176,7 @@ describe('radial scene presentation', () => {
       ),
     ).toBeCloseTo(aimArrowLength, 12)
     expect(scene.aimArrowEnd).not.toEqual(scene.aimPoint)
+    expect(scene.reach).toEqual(evaluation.reach)
     const launchSpeed = Math.hypot(0.165, 0.378)
     const expectedDisplayLength = launchVectorDisplayLength(launchSpeed)
 

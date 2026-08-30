@@ -18,6 +18,7 @@ import {
   createBouncyCubeLaunchProperties,
   createFlatFloorTrajectoryAssumptions,
 } from './milestone1'
+import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
 
 export interface PlayerMeleeInputs {
   readonly weaponPresetId: Je26_2PlayerMeleeWeaponPresetId
@@ -210,6 +211,7 @@ export function evaluatePlayerMeleeInputs(
     attackResolution,
     operationSequence,
     attackerYawDegrees,
+    reach: resolveOrdinarySurvivalPlayerMeleeReach(context),
   }
 }
 

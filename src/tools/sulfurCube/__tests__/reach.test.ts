@@ -1,42 +1,74 @@
 import { describe, expect, it } from 'vitest'
-import {
-  resolveRadialReachDiagnostic,
-  segmentIntersectsAxisAlignedPlaneRectangle,
-} from '../presentation/reach'
+import { createFeetAnchoredAabb, resolveClearRayEntityReach } from '../model/reach'
+import { adultCubeReachFixtureAabb, playerMeleeClearRayFixtures } from './playerMeleeReachFixtures'
 
-describe('provisional radial player reach', () => {
-  it('detects a segment crossing the assumed cube rectangle', () => {
-    expect(
-      segmentIntersectsAxisAlignedPlaneRectangle(
-        { x: -2, y: 1 },
-        { x: 1, y: 1 },
-        { minX: -0.7, maxX: 0.7, minY: 0, maxY: 1.96 },
-      ),
-    ).toBe(true)
+describe('ordinary JE 26.2 player-melee clear-ray reach', () => {
+  it.each(playerMeleeClearRayFixtures)('reproduces $id', (fixture) => {
+    const result = resolveClearRayEntityReach({
+      eye: fixture.eye,
+      lookDirection: fixture.lookDirection,
+      targetAabb: adultCubeReachFixtureAabb,
+      reach: fixture.reach,
+      pickRadius: 0,
+      canBePickedFromInside: false,
+      clipTolerance: 1e-7,
+    })
+
+    expect(result.status).toBe(fixture.expectedStatus)
+    expect(result.occlusion).toBe('not_evaluated')
+
+    if (fixture.expectedEntryPoint === undefined) {
+      expect(result.entryPoint).toBeNull()
+      expect(result.entryDistance).toBeNull()
+    } else {
+      expect(result.entryPoint?.x).toBeCloseTo(fixture.expectedEntryPoint.x, 12)
+      expect(result.entryPoint?.y).toBeCloseTo(fixture.expectedEntryPoint.y, 12)
+      expect(result.entryPoint?.z).toBeCloseTo(fixture.expectedEntryPoint.z, 12)
+      expect(result.entryDistance).toBeCloseTo(fixture.expectedEntryDistance!, 12)
+    }
   })
 
-  it('rejects aim above or short of the cube', () => {
-    const rectangle = { minX: -0.7, maxX: 0.7, minY: 0, maxY: 1.96 }
-
+  it('constructs the exact feet-anchored axis-aligned cube box', () => {
     expect(
-      segmentIntersectsAxisAlignedPlaneRectangle({ x: -2, y: 2.2 }, { x: 1, y: 2.2 }, rectangle),
-    ).toBe(false)
-    expect(
-      segmentIntersectsAxisAlignedPlaneRectangle({ x: -4, y: 1 }, { x: -1, y: 1 }, rectangle),
-    ).toBe(false)
+      createFeetAnchoredAabb({
+        feetPosition: { x: 2, y: -1, z: 4 },
+        dimensions: { width: 0.98, height: 0.98 },
+      }),
+    ).toEqual({
+      min: { x: 1.51, y: -1, z: 3.51 },
+      max: { x: 2.49, y: -0.020000000000000018, z: 4.49 },
+    })
   })
 
-  it('uses the adult cube horizontal diagonal as the radial width', () => {
-    const result = resolveRadialReachDiagnostic(
-      { x: -2.6, y: 0.8 },
-      { x: 0.4, y: 0.8 },
-      { x: 0, y: 0 },
-      0.98,
-      0.98,
-      3,
-    )
+  it('rejects a hidden-lateral miss that the old diagonal radial envelope admitted', () => {
+    const result = resolveClearRayEntityReach({
+      eye: { x: 0, y: 0.49, z: -2.6 },
+      lookDirection: { x: 0.5, y: 0, z: Math.sqrt(0.75) },
+      targetAabb: adultCubeReachFixtureAabb,
+      reach: 3,
+      pickRadius: 0,
+      canBePickedFromInside: false,
+      clipTolerance: 1e-7,
+    })
 
-    expect(result.assumedHitboxWidth).toBeCloseTo(Math.sqrt(2 * 0.98 ** 2), 12)
-    expect(result.intersects).toBe(true)
+    expect(result.status).toBe('ray_miss')
+  })
+
+  it('can represent an entity that permits picking from inside', () => {
+    const result = resolveClearRayEntityReach({
+      eye: { x: 0, y: 0.49, z: 0 },
+      lookDirection: { x: 0, y: 0, z: 1 },
+      targetAabb: adultCubeReachFixtureAabb,
+      reach: 3,
+      pickRadius: 0,
+      canBePickedFromInside: true,
+      clipTolerance: 1e-7,
+    })
+
+    expect(result).toMatchObject({
+      status: 'within_reach',
+      entryPoint: { x: 0, y: 0.49, z: 0 },
+      entryDistance: 0,
+    })
   })
 })

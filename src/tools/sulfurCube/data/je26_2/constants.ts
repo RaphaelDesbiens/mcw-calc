@@ -34,6 +34,10 @@ export const je26_2Constants = {
   playerMeleeSprintKnockbackBonus: sourcedValue(0.5, ['playerMeleeKnockback']),
   playerMeleeKnockbackPerEnchantmentLevel: sourcedValue(1, ['playerMeleeKnockback']),
   degreesToRadiansFloat: sourcedValue(0.01745329238474369, ['playerMeleeKnockback']),
+  ordinarySurvivalPlayerMeleeReach: sourcedValue(3, ['playerMeleeReach']),
+  entityRayClipTolerance: sourcedValue(1e-7, ['playerMeleeReach']),
+  sulfurCubePickRadius: sourcedValue(0, ['playerMeleeReach']),
+  absorbedSulfurCubeCanBePickedFromInside: sourcedValue(false, ['playerMeleeReach']),
 } as const
 
 export const je26_2CubeAttributeDefinitions = Object.freeze({
@@ -84,4 +88,12 @@ export const je26_2PlayerMeleeMechanics = Object.freeze({
   sprintKnockbackBonus: je26_2Constants.playerMeleeSprintKnockbackBonus.value,
   knockbackPerEnchantmentLevel: je26_2Constants.playerMeleeKnockbackPerEnchantmentLevel.value,
   degreesToRadians: je26_2Constants.degreesToRadiansFloat.value,
+})
+
+export const je26_2OrdinaryPlayerMeleeReach = Object.freeze({
+  strictMaximumReach: je26_2Constants.ordinarySurvivalPlayerMeleeReach.value,
+  clipTolerance: je26_2Constants.entityRayClipTolerance.value,
+  sulfurCubePickRadius: je26_2Constants.sulfurCubePickRadius.value,
+  absorbedSulfurCubeCanBePickedFromInside:
+    je26_2Constants.absorbedSulfurCubeCanBePickedFromInside.value,
 })

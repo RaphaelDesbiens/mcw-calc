@@ -1,3 +1,4 @@
+import type { ClearRayEntityReachResult } from '../model/reach'
 import type {
   CubeLaunchProperties,
   FlatFloorTrajectoryResult,
@@ -18,6 +19,7 @@ import {
   createFlatFloorTrajectoryAssumptions,
   createMilestone1Context,
 } from './milestone1'
+import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
 
 export type DiagnosticPresetId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'
 
@@ -43,6 +45,7 @@ export interface DiagnosticEvaluation {
   readonly launchVelocity: Vec3
   readonly trajectory: FlatFloorTrajectoryResult
   readonly launchSummary: LaunchSummary
+  readonly reach: ClearRayEntityReachResult
 }
 
 const sharedFeet = { x: 0, y: 0, z: 1.5 } as const
@@ -282,6 +285,7 @@ export function evaluateDiagnosticInputs(
       je26_2KnockbackMechanics.vectorNormalizationThreshold,
       numerics,
     ),
+    reach: resolveOrdinarySurvivalPlayerMeleeReach(context),
   }
 }
 
