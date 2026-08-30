@@ -39,5 +39,13 @@ export {
   je26_2KnockbackMechanics,
   je26_2PlayerMeleeMechanics,
 } from './constants'
+export {
+  je26_2PlayerMeleeWeaponPresetOrder,
+  je26_2PlayerMeleeWeaponPresets,
+} from './playerMeleePresets'
+export type {
+  Je26_2PlayerMeleeWeaponPreset,
+  Je26_2PlayerMeleeWeaponPresetId,
+} from './playerMeleePresets'
 export { provenance } from './provenance'
 export type { ProvenanceId, ProvenanceRecord, SourcedValue } from './provenance'

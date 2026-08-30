@@ -1,6 +1,11 @@
 import type { Vec3 } from '../model/types'
 import { describe, expect, it } from 'vitest'
-import { createDiagnosticFormState, parseDiagnosticFormState } from '../components/formState'
+import {
+  createDiagnosticFormState,
+  createPlayerMeleeFormState,
+  parseDiagnosticFormState,
+  parsePlayerMeleeFormState,
+} from '../components/formState'
 import {
   createMilestone1DefaultInputs,
   diagnosticPresets,
@@ -8,6 +13,7 @@ import {
   findDefaultTrajectoryTicks,
   getDiagnosticPreset,
 } from '../presets/diagnostic'
+import { createDefaultPlayerMeleeInputs } from '../presets/playerMelee'
 import { directMeleeFixtures } from './experimentFixtures'
 
 const standardExperimentTolerance = 0.00015
@@ -59,6 +65,7 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(evaluation.launchSummary.horizontalSpeed).toBeCloseTo(0.165, 12)
     expect(evaluation.launchSummary.totalSpeed).toBeCloseTo(0.41244271, 7)
     expect(evaluation.launchSummary.horizontalDirection).toEqual({ x: 0, y: -1 })
+    expect(evaluation.launchVelocity).toEqual(evaluation.callResult.resultingVelocity)
     expect(evaluation.trajectory.ticks).toHaveLength(10)
     expect(evaluation.trajectory.resultingPosition).toEqual(
       evaluation.trajectory.ticks[9].resultingPosition,
@@ -103,6 +110,22 @@ describe('stage 3 diagnostic orchestration', () => {
     const inputs = getDiagnosticPreset('M6').inputs
 
     expect(parseDiagnosticFormState(createDiagnosticFormState(inputs))).toEqual(inputs)
+  })
+
+  it('round-trips and validates the player-melee form boundary', () => {
+    const inputs = {
+      ...createDefaultPlayerMeleeInputs(),
+      weaponPresetId: 'ironSword' as const,
+      attackStrength: 0.75,
+      sprinting: true,
+      knockbackEnchantmentLevel: 2 as const,
+    }
+    const form = createPlayerMeleeFormState(inputs)
+
+    expect(parsePlayerMeleeFormState(form)).toEqual(inputs)
+    expect(() => parsePlayerMeleeFormState({ ...form, attackStrengthPercent: 101 })).toThrow(
+      /between 0 and 100/,
+    )
   })
 
   it('rejects incomplete numeric fields at the form boundary', () => {

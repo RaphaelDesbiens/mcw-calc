@@ -16,3 +16,11 @@ export interface DiagnosticFormState {
   readonly damageArgument: NumericFormValue
   readonly trajectoryTicks: NumericFormValue
 }
+
+export interface PlayerMeleeFormState {
+  readonly weaponPresetId: 'bareHand' | 'ironSword'
+  readonly attackStrengthPercent: NumericFormValue
+  readonly sprinting: boolean
+  readonly criticalHitConditions: boolean
+  readonly knockbackEnchantmentLevel: 0 | 1 | 2
+}

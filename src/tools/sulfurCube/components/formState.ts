@@ -1,13 +1,44 @@
 import type { Vec3 } from '../model/types'
 import type { DiagnosticInputs } from '../presets/diagnostic'
-import type { DiagnosticFormState, NumericFormValue } from './types'
+import type { PlayerMeleeInputs } from '../presets/playerMelee'
+import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { je26_2Constants } from '../data/je26_2'
 
 function stringifyNumber(value: number): string {
   return String(value)
 }
 
-function parseNumber(value: NumericFormValue, field: keyof DiagnosticFormState): number {
+export function createPlayerMeleeFormState(inputs: PlayerMeleeInputs): PlayerMeleeFormState {
+  return {
+    weaponPresetId: inputs.weaponPresetId,
+    attackStrengthPercent: stringifyNumber(inputs.attackStrength * 100),
+    sprinting: inputs.sprinting,
+    criticalHitConditions: inputs.criticalHitConditions,
+    knockbackEnchantmentLevel: inputs.knockbackEnchantmentLevel,
+  }
+}
+
+export function parsePlayerMeleeFormState(state: PlayerMeleeFormState): PlayerMeleeInputs {
+  const attackStrengthPercent = parseNumber(state.attackStrengthPercent, 'attackStrengthPercent')
+
+  if (attackStrengthPercent < 0 || attackStrengthPercent > 100) {
+    throw new RangeError('attackStrengthPercent must be between 0 and 100')
+  }
+
+  if (![0, 1, 2].includes(state.knockbackEnchantmentLevel)) {
+    throw new RangeError('knockbackEnchantmentLevel must be 0, 1, or 2')
+  }
+
+  return {
+    weaponPresetId: state.weaponPresetId,
+    attackStrength: attackStrengthPercent / 100,
+    sprinting: state.sprinting,
+    criticalHitConditions: state.criticalHitConditions,
+    knockbackEnchantmentLevel: state.knockbackEnchantmentLevel,
+  }
+}
+
+function parseNumber(value: NumericFormValue, field: string): number {
   if (typeof value === 'string' && value.trim() === '') {
     throw new RangeError(`${field} must not be empty`)
   }

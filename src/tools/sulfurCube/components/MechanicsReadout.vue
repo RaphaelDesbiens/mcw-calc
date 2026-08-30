@@ -61,7 +61,7 @@ function formatVector(x: number, y: number, z: number): string {
 }
 
 const summaryRows = computed<readonly ReadoutRow[]>(() => {
-  const { launchSummary, callResult } = props.evaluation
+  const { launchSummary, launchVelocity } = props.evaluation
 
   return [
     {
@@ -86,19 +86,11 @@ const summaryRows = computed<readonly ReadoutRow[]>(() => {
     },
     {
       label: t('sulfurCube.readout.addedVelocity'),
-      value: formatVector(
-        callResult.addedVelocity.x,
-        callResult.addedVelocity.y,
-        callResult.addedVelocity.z,
-      ),
+      value: formatVector(launchVelocity.x, launchVelocity.y, launchVelocity.z),
     },
     {
       label: t('sulfurCube.readout.resultingVelocity'),
-      value: formatVector(
-        callResult.resultingVelocity.x,
-        callResult.resultingVelocity.y,
-        callResult.resultingVelocity.z,
-      ),
+      value: formatVector(launchVelocity.x, launchVelocity.y, launchVelocity.z),
     },
   ]
 })

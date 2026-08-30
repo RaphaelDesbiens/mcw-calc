@@ -56,6 +56,16 @@ export const provenance = {
     notes:
       'LivingEntity.getKnockback folds effective ATTACK_KNOCKBACK and enchantments before dividing by two at LivingEntity.java local lines 1540-1544. An eligible sprint contributes 0.5F to the one combined extra-call K.',
   },
+  playerMeleeWeaponPresets: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/item/Items.java',
+    locator:
+      'iron sword registration (local line 1015); Player base ATTACK_DAMAGE registration is in Player.java local lines 206-208 and sword damage folding is defined by ToolMaterial.java local lines 26 and 97-103',
+    notes:
+      'The reader presets expose already-folded effective attributes: bare hand has effective ATTACK_DAMAGE 1, while an iron sword adds 5 for an effective value of 6. Neither preset adds base ATTACK_KNOCKBACK.',
+  },
   bouncyArchetype: {
     edition: 'Java Edition',
     version: '26.2',

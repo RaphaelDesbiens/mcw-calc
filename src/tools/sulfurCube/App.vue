@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import type { MenuItemData } from '@wikimedia/codex'
-import type { DiagnosticFormState } from './components/types'
+import type { DiagnosticFormState, PlayerMeleeFormState } from './components/types'
 import type { Je26_2ArchetypeId } from './data/je26_2'
 import type { Vec3 } from './model/types'
 import type { SulfurCubeViewMode } from './presentation/viewMode'
 import type { DiagnosticEvaluation } from './presets/diagnostic'
+import type { PlayerMeleeEvaluation } from './presets/playerMelee'
 import type { CubePropertySelectionState } from './resolution'
 import { CdxAccordion, CdxButton, CdxField, CdxMessage, CdxSelect } from '@wikimedia/codex'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalcField from '@/components/CalcField.vue'
+import AttackOperationTrace from './components/AttackOperationTrace.vue'
 import ControlsPanel from './components/ControlsPanel.vue'
 import {
   createDiagnosticFormState,
+  createPlayerMeleeFormState,
   parseDiagnosticFormState,
+  parsePlayerMeleeFormState,
   resetAttackerEyeToStandingPresetInFormState,
   translateAttackerForFeetFormEdit,
   translateAttackerInFormState,
@@ -33,6 +37,12 @@ import {
   findDefaultTrajectoryTicks,
 } from './presets/diagnostic'
 import {
+  createDefaultPlayerMeleeInputs,
+  deriveMinecraftYawDegreesFromAim,
+  evaluatePlayerMeleeInputs,
+  findDefaultPlayerMeleeTrajectoryTicks,
+} from './presets/playerMelee'
+import {
   createDefaultCubePropertySelectionState,
   resolveCubePropertySelection,
   selectCubePropertyArchetype,
@@ -44,6 +54,7 @@ const props = defineProps<{
 }>()
 
 const defaultInputs = createMilestone1DefaultInputs()
+const defaultPlayerMeleeInputs = createDefaultPlayerMeleeInputs()
 const isCompactView = props.viewMode === 'compact'
 const defaultPropertySelection = createDefaultCubePropertySelectionState()
 const initialPropertySelection = isCompactView
@@ -54,6 +65,10 @@ const { t } = useI18n()
 const sceneSize = ref<'regular' | 'compact'>(isCompactView ? 'compact' : 'regular')
 const sceneResetVersion = ref(0)
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
+const playerMeleeState = ref<PlayerMeleeFormState>(
+  createPlayerMeleeFormState(defaultPlayerMeleeInputs),
+)
+const attackerYawDegrees = ref(deriveMinecraftYawDegreesFromAim(defaultInputs, 0))
 const propertySelection = ref<CubePropertySelectionState>(initialPropertySelection)
 const trajectoryTicksDefaultActive = ref(true)
 const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
@@ -63,7 +78,37 @@ const compactArchetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((
   label: humanizeIdentifier(archetypeId),
 }))
 
+const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
+  if (isCompactView) {
+    return null
+  }
+
+  const properties = propertyResolution.value.values
+
+  if (properties === null) {
+    return null
+  }
+
+  try {
+    const inputs = parseDiagnosticFormState(formState.value)
+
+    return evaluatePlayerMeleeInputs(
+      inputs,
+      parsePlayerMeleeFormState(playerMeleeState.value),
+      deriveMinecraftYawDegreesFromAim(inputs, attackerYawDegrees.value),
+      standardNumerics,
+      properties,
+    )
+  } catch {
+    return null
+  }
+})
+
 const evaluation = computed<DiagnosticEvaluation | null>(() => {
+  if (!isCompactView) {
+    return playerMeleeEvaluation.value
+  }
+
   const properties = propertyResolution.value.values
 
   if (properties === null) {
@@ -85,6 +130,10 @@ function updateFormState(value: DiagnosticFormState): void {
   formState.value = value
 }
 
+function updatePlayerMeleeState(value: PlayerMeleeFormState): void {
+  playerMeleeState.value = value
+}
+
 function updatePropertySelection(value: CubePropertySelectionState): void {
   propertySelection.value = value
 }
@@ -100,6 +149,8 @@ function updateFormStateFromControls(value: DiagnosticFormState): void {
 function reset(): void {
   trajectoryTicksDefaultActive.value = true
   formState.value = createDiagnosticFormState(defaultInputs)
+  playerMeleeState.value = createPlayerMeleeFormState(defaultPlayerMeleeInputs)
+  attackerYawDegrees.value = deriveMinecraftYawDegreesFromAim(defaultInputs, 0)
   sceneResetVersion.value += 1
 }
 
@@ -117,11 +168,16 @@ function refreshDefaultTrajectoryTicks(): void {
   let trajectoryTicks: number
 
   try {
-    trajectoryTicks = findDefaultTrajectoryTicks(
-      parseDiagnosticFormState(formState.value),
-      standardNumerics,
-      properties,
-    )
+    const inputs = parseDiagnosticFormState(formState.value)
+    trajectoryTicks = isCompactView
+      ? findDefaultTrajectoryTicks(inputs, standardNumerics, properties)
+      : findDefaultPlayerMeleeTrajectoryTicks(
+          inputs,
+          parsePlayerMeleeFormState(playerMeleeState.value),
+          deriveMinecraftYawDegreesFromAim(inputs, attackerYawDegrees.value),
+          standardNumerics,
+          properties,
+        )
   } catch {
     return
   }
@@ -178,7 +234,20 @@ function updateCompactArchetype(value: string | number | null): void {
   )
 }
 
-watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
+watch(
+  formState,
+  () => {
+    try {
+      const inputs = parseDiagnosticFormState(formState.value)
+      attackerYawDegrees.value = deriveMinecraftYawDegreesFromAim(inputs, attackerYawDegrees.value)
+    } catch {
+      // Retain the last source-relevant yaw while position or aim fields are incomplete.
+    }
+  },
+  { deep: true },
+)
+
+watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajectoryTicks, {
   deep: true,
   immediate: true,
 })
@@ -239,9 +308,11 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
           :model-value="formState"
           :property-selection="propertySelection"
           :property-resolution="propertyResolution"
+          :player-melee="playerMeleeState"
           :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
           @update:model-value="updateFormStateFromControls"
           @update:property-selection="updatePropertySelection"
+          @update:player-melee="updatePlayerMeleeState"
           @reset-attacker-eye-standing="resetAttackerEyeStanding"
           @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
           @reset="reset"
@@ -275,6 +346,12 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
           :evaluation="evaluation"
           :show-details="false"
           :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
+        />
+
+        <AttackOperationTrace
+          v-if="playerMeleeEvaluation"
+          class="interaction-grid__trace"
+          :evaluation="playerMeleeEvaluation"
         />
 
         <MechanicsReadout
@@ -388,6 +465,7 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
   grid-template-areas:
     'scene scene'
     'controls power'
+    'trace trace'
     'readout readout'
     'details details';
   grid-template-columns: minmax(18rem, 0.8fr) minmax(22rem, 1.2fr);
@@ -397,6 +475,7 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
   grid-template-areas:
     'power scene'
     'controls readout'
+    'trace trace'
     'details details';
   grid-template-columns: minmax(18rem, 0.85fr) minmax(22rem, 1.15fr);
 }
@@ -417,6 +496,10 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
   grid-area: readout;
 }
 
+.interaction-grid__trace {
+  grid-area: trace;
+}
+
 .interaction-grid__details {
   grid-area: details;
 }
@@ -429,6 +512,7 @@ watch([formState, propertyResolution], refreshDefaultTrajectoryTicks, {
       'scene'
       'power'
       'controls'
+      'trace'
       'readout'
       'details';
     grid-template-columns: minmax(0, 1fr);

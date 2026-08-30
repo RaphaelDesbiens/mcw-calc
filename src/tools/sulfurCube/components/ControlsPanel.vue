@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import type { CubePropertySelectionResolution, CubePropertySelectionState } from '../resolution'
-import type { DiagnosticFormState, NumericFormValue } from './types'
+import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { CdxAccordion, CdxButton, CdxField, CdxTextInput } from '@wikimedia/codex'
 import { useI18n } from 'vue-i18n'
 import CubePropertyControls from './CubePropertyControls.vue'
 import InfoTooltip from './InfoTooltip.vue'
+import PlayerMeleeControls from './PlayerMeleeControls.vue'
 
 const props = defineProps<{
   modelValue: DiagnosticFormState
   propertySelection: CubePropertySelectionState
   propertyResolution: CubePropertySelectionResolution
   trajectoryTicksDefaultActive: boolean
+  playerMelee: PlayerMeleeFormState
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
   'update:propertySelection': [value: CubePropertySelectionState]
+  'update:playerMelee': [value: PlayerMeleeFormState]
   reset: []
   resetAttackerEyeStanding: []
   toggleTrajectoryTicksDefault: []
@@ -45,24 +48,10 @@ function updateField(field: keyof DiagnosticFormState, value: NumericFormValue):
       @update:model-value="emit('update:propertySelection', $event)"
     />
 
-    <CdxField>
-      <template #label>
-        <span class="field-label-with-info">
-          {{ t('sulfurCube.controls.damageArgument') }}
-          <InfoTooltip
-            :text="t('sulfurCube.controls.damageArgumentHelp')"
-            :label="t('sulfurCube.controls.damageArgumentHelpLabel')"
-          />
-        </span>
-      </template>
-      <CdxTextInput
-        :model-value="modelValue.damageArgument"
-        input-type="number"
-        min="0"
-        step="0.1"
-        @update:model-value="updateField('damageArgument', $event)"
-      />
-    </CdxField>
+    <PlayerMeleeControls
+      :model-value="playerMelee"
+      @update:model-value="emit('update:playerMelee', $event)"
+    />
 
     <CdxAccordion heading-level="h4" separation="outline">
       <template #title>

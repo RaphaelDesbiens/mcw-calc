@@ -2,6 +2,7 @@ import type {
   CubeLaunchProperties,
   KnockbackCallResult,
   LaunchSummary,
+  SulfurCubeKnockbackContext,
   TrajectoryResult,
   Vec3,
 } from '../model/types'
@@ -14,7 +15,7 @@ import { lengthVec3, normalizeVec3, subtractVec3 } from '../model/vectors'
 import { standardNumerics } from '../numerics/standard'
 import {
   createBouncyCubeLaunchProperties,
-  createMilestone1Scenario,
+  createMilestone1Context,
   createTrajectoryAssumptions,
 } from './milestone1'
 
@@ -38,6 +39,8 @@ export interface DiagnosticEvaluation {
   readonly inputs: DiagnosticInputs
   readonly properties: CubeLaunchProperties
   readonly callResult: KnockbackCallResult
+  /** Complete immediate velocity used by the scene and free-flight continuation. */
+  readonly launchVelocity: Vec3
   readonly trajectory: TrajectoryResult
   readonly launchSummary: LaunchSummary
 }
@@ -181,29 +184,15 @@ function assertFiniteVec3(vector: Vec3, name: string): void {
   }
 }
 
-export function getDiagnosticPreset(id: DiagnosticPresetId): DiagnosticPreset {
-  const preset = diagnosticPresets.find((candidate) => candidate.id === id)
-
-  if (preset === undefined) {
-    throw new RangeError(`unknown diagnostic preset: ${id}`)
-  }
-
-  return preset
-}
-
-export function evaluateDiagnosticInputs(
+export function createDiagnosticKnockbackContext(
   inputs: DiagnosticInputs,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
-): DiagnosticEvaluation {
+): SulfurCubeKnockbackContext {
   assertFiniteVec3(inputs.attackerFeetPosition, 'attackerFeetPosition')
   assertFiniteVec3(inputs.attackerEyePosition, 'attackerEyePosition')
   assertFiniteVec3(inputs.aimPoint, 'aimPoint')
   assertFiniteVec3(inputs.cubeFeetPosition, 'cubeFeetPosition')
-
-  if (!Number.isFinite(inputs.damageArgument) || inputs.damageArgument < 0) {
-    throw new RangeError('damageArgument must be finite and nonnegative')
-  }
 
   if (
     !Number.isInteger(inputs.trajectoryTicks) ||
@@ -219,34 +208,57 @@ export function evaluateDiagnosticInputs(
     throw new RangeError('aimPoint must define a nonzero look direction from attackerEyePosition')
   }
 
-  const lookDirection = normalizeVec3(
-    eyeToAim,
-    numerics,
-    je26_2KnockbackMechanics.vectorNormalizationThreshold,
-  )
-  const scenario = createMilestone1Scenario(
+  return createMilestone1Context(
     {
       feetPosition: inputs.attackerFeetPosition,
       eyePosition: inputs.attackerEyePosition,
-      lookDirection,
+      lookDirection: normalizeVec3(
+        eyeToAim,
+        numerics,
+        je26_2KnockbackMechanics.vectorNormalizationThreshold,
+      ),
     },
     inputs.cubeFeetPosition,
-    {
-      x: inputs.attackerFeetPosition.x - inputs.cubeFeetPosition.x,
-      y: inputs.attackerFeetPosition.z - inputs.cubeFeetPosition.z,
-    },
-    inputs.damageArgument,
     numerics,
     properties,
   )
+}
+
+export function getDiagnosticPreset(id: DiagnosticPresetId): DiagnosticPreset {
+  const preset = diagnosticPresets.find((candidate) => candidate.id === id)
+
+  if (preset === undefined) {
+    throw new RangeError(`unknown diagnostic preset: ${id}`)
+  }
+
+  return preset
+}
+
+export function evaluateDiagnosticInputs(
+  inputs: DiagnosticInputs,
+  numerics: NumericBackend = standardNumerics,
+  properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
+): DiagnosticEvaluation {
+  if (!Number.isFinite(inputs.damageArgument) || inputs.damageArgument < 0) {
+    throw new RangeError('damageArgument must be finite and nonnegative')
+  }
+  const context = createDiagnosticKnockbackContext(inputs, numerics, properties)
+  const initialVelocity = { x: 0, y: 0, z: 0 }
   const callResult = applySulfurCubeKnockbackCall(
-    scenario.initialVelocity,
-    scenario.call,
-    scenario.context,
+    initialVelocity,
+    {
+      damageArgument: inputs.damageArgument,
+      horizontalBaseDirection: {
+        x: inputs.attackerFeetPosition.x - inputs.cubeFeetPosition.x,
+        y: inputs.attackerFeetPosition.z - inputs.cubeFeetPosition.z,
+      },
+      scaling: { kind: 'ordinaryDamage' },
+    },
+    context,
     numerics,
   )
   const trajectory = simulateFreeFlightTrajectory(
-    scenario.context.cube.feetPosition,
+    context.cube.feetPosition,
     callResult.resultingVelocity,
     inputs.trajectoryTicks,
     createTrajectoryAssumptions(properties.airDragModifier, numerics),
@@ -263,6 +275,7 @@ export function evaluateDiagnosticInputs(
     },
     properties: { ...properties },
     callResult,
+    launchVelocity: { ...callResult.resultingVelocity },
     trajectory,
     launchSummary: summarizeLaunchVelocity(
       callResult.addedVelocity,

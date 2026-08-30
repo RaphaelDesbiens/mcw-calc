@@ -221,7 +221,7 @@ export function createRadialScenePresentation(
     aimArrowLength,
     context.mechanics.vectorNormalizationThreshold,
   )
-  const launchVector = projectVectorToRadialPlane(callResult.addedVelocity, projection)
+  const launchVector = projectVectorToRadialPlane(evaluation.launchVelocity, projection)
   const launchSpeed = Math.hypot(launchVector.x, launchVector.y)
   const launchDisplayLength = launchVectorDisplayLength(launchSpeed)
   const launchEnd = setPlaneVectorLength(
