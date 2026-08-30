@@ -204,6 +204,6 @@ describe('cube property selection modes', () => {
     expect(evaluation.properties).toEqual(properties)
     expect(evaluation.callResult.diagnostics.h0).toBe(0.9125)
     expect(evaluation.callResult.diagnostics.v0).toBe(0.09)
-    expect(evaluation.trajectory.assumptions.drag).toBeCloseTo(0.9991, 7)
+    expect(evaluation.trajectory.ticks[0]?.airDrag).toBeCloseTo(0.9991, 7)
   })
 })

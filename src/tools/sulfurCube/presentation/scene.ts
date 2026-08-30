@@ -2,6 +2,7 @@ import type { ClearRayEntityReachResult } from '../model/reach'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import type { PlanePoint, RadialProjection, WorldBounds } from './types'
 import { je26_2Constants } from '../data/je26_2'
+import { maximumTrajectoryTicks } from '../presets/diagnostic'
 import {
   createRadialProjection,
   projectPointToRadialPlane,
@@ -9,14 +10,13 @@ import {
   radialLateralOffset,
 } from './radialPlane'
 
-export const maximumRenderedTrajectoryTicks = 200
+export const maximumRenderedTrajectoryTicks = maximumTrajectoryTicks
 export const launchVectorMaximumDisplayLength = 8
 export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
 export const thetaLabelHorizontalOffset = -0.08
 export const thetaLabelVerticalOffset = -0.02
-export const trajectoryEndExtension = 0.18
 export const cubeFeetLineHalfLength = 3
 
 export const radialSceneCamera = {
@@ -29,6 +29,8 @@ export const radialSceneCamera = {
 export interface SceneTrajectoryPoint {
   readonly tick: number
   readonly point: PlanePoint
+  readonly floorCollision: boolean
+  readonly arcNumber: number | null
 }
 
 export interface RadialScenePresentation {
@@ -63,6 +65,9 @@ export interface RadialScenePresentation {
   readonly launchDisplayLength: number
   readonly trajectory: readonly SceneTrajectoryPoint[]
   readonly trajectoryEndMarker: PlanePoint | null
+  readonly trajectoryStatus: 'settled' | 'truncated'
+  readonly airborneContactCount: number
+  readonly bounceEventCount: number
   readonly maximumHeight: {
     readonly heightAboveFloor: number
     readonly point: PlanePoint
@@ -145,30 +150,6 @@ function createThetaPresentation(
   }
 }
 
-function extendTrajectoryEnd(
-  points: readonly SceneTrajectoryPoint[],
-  minimumVectorLength: number,
-): PlanePoint | null {
-  if (points.length < 2) {
-    return null
-  }
-
-  const previous = points[points.length - 2].point
-  const last = points[points.length - 1].point
-  const deltaX = last.x - previous.x
-  const deltaY = last.y - previous.y
-  const length = Math.hypot(deltaX, deltaY)
-
-  if (length < minimumVectorLength) {
-    return last
-  }
-
-  return {
-    x: last.x + (trajectoryEndExtension * deltaX) / length,
-    y: last.y + (trajectoryEndExtension * deltaY) / length,
-  }
-}
-
 function createCubeAnchoredBounds(
   cubeFeet: PlanePoint,
   cubeWidth: number,
@@ -239,25 +220,30 @@ export function createRadialScenePresentation(
   const trajectoryPoints = [
     {
       tick: 0,
-      point: projectPointToRadialPlane(trajectory.initialPosition, projection),
+      point: projectPointToRadialPlane(trajectory.initialState.feetPosition, projection),
+      floorCollision: false,
+      arcNumber: null,
     },
     ...trajectory.ticks.slice(0, maximumRenderedTrajectoryTicks).map((tick) => ({
-      tick: tick.tick,
-      point: projectPointToRadialPlane(tick.resultingPosition, projection),
+      tick: tick.end.tick,
+      point: projectPointToRadialPlane(tick.end.feetPosition, projection),
+      floorCollision: tick.collision.floorCollision,
+      arcNumber: tick.arcNumber,
     })),
   ]
   const maximumHeightTick = trajectory.ticks.reduce<(typeof trajectory.ticks)[number] | null>(
     (highest, tick) =>
-      highest === null || tick.resultingPosition.y > highest.resultingPosition.y ? tick : highest,
+      highest === null || tick.end.feetPosition.y > highest.end.feetPosition.y ? tick : highest,
     null,
   )
-  const maximumHeightAboveFloor = trajectory.maximumFeetY - trajectory.initialPosition.y
+  const maximumHeightAboveFloor =
+    trajectory.maximumDiscreteFeetY - trajectory.initialState.feetPosition.y
   const maximumHeight =
     maximumHeightTick === null || maximumHeightAboveFloor < 3
       ? null
       : {
           heightAboveFloor: maximumHeightAboveFloor,
-          point: projectPointToRadialPlane(maximumHeightTick.resultingPosition, projection),
+          point: projectPointToRadialPlane(maximumHeightTick.end.feetPosition, projection),
         }
   const horizontalFeetReference = { x: cubeFeet.x, y: attackerFeet.y }
   const thetaPresentation = createThetaPresentation(
@@ -270,6 +256,15 @@ export function createRadialScenePresentation(
     cubeFeet,
     context.cube.dimensions.width,
     context.cube.dimensions.height,
+  )
+  const trajectoryHorizontalCoordinates = trajectoryPoints.map(({ point }) => point.x)
+  const floorLineMinimumX = Math.min(
+    cubeFeet.x - cubeFeetLineHalfLength,
+    ...trajectoryHorizontalCoordinates,
+  )
+  const floorLineMaximumX = Math.max(
+    cubeFeet.x + cubeFeetLineHalfLength,
+    ...trajectoryHorizontalCoordinates,
   )
 
   return {
@@ -293,15 +288,18 @@ export function createRadialScenePresentation(
     horizontalFeetReference,
     thetaArc: thetaPresentation.arc,
     thetaLabelPoint: thetaPresentation.label,
-    cubeFeetLineStart: { x: cubeFeet.x - cubeFeetLineHalfLength, y: cubeFeet.y },
-    cubeFeetLineEnd: { x: cubeFeet.x + cubeFeetLineHalfLength, y: cubeFeet.y },
+    cubeFeetLineStart: { x: floorLineMinimumX, y: cubeFeet.y },
+    cubeFeetLineEnd: { x: floorLineMaximumX, y: cubeFeet.y },
     launchEnd,
     launchDisplayLength,
     trajectory: trajectoryPoints,
     trajectoryEndMarker:
-      trajectory.contact !== null && trajectory.contact.tick === trajectory.ticks.length
-        ? (trajectoryPoints[trajectoryPoints.length - 1]?.point ?? null)
-        : extendTrajectoryEnd(trajectoryPoints, context.mechanics.vectorNormalizationThreshold),
+      trajectory.ticks.length === 0
+        ? null
+        : (trajectoryPoints[trajectoryPoints.length - 1]?.point ?? null),
+    trajectoryStatus: trajectory.status,
+    airborneContactCount: trajectory.airborneContactCount,
+    bounceEventCount: trajectory.bounceEventCount,
     maximumHeight,
     renderedTrajectoryTicks: trajectoryPoints.length - 1,
     requestedTrajectoryTicks: inputs.trajectoryTicks,

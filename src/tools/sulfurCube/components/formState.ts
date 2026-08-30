@@ -74,6 +74,7 @@ export function createDiagnosticFormState(inputs: DiagnosticInputs): DiagnosticF
     aimZ: stringifyNumber(inputs.aimPoint.z),
     damageArgument: stringifyNumber(inputs.damageArgument),
     trajectoryTicks: stringifyNumber(inputs.trajectoryTicks),
+    floorProfileId: inputs.floorProfileId,
   }
 }
 
@@ -101,6 +102,7 @@ export function parseDiagnosticFormState(state: DiagnosticFormState): Diagnostic
     },
     damageArgument: parseNumber(state.damageArgument, 'damageArgument'),
     trajectoryTicks: parseNumber(state.trajectoryTicks, 'trajectoryTicks'),
+    floorProfileId: state.floorProfileId,
   }
 }
 

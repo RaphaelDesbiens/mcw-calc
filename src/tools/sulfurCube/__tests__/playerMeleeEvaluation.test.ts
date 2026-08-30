@@ -73,7 +73,7 @@ describe('full-tool primary player melee evaluation', () => {
     )
     expect(melee.launchVelocity).toEqual(melee.operationSequence.resultingVelocity)
     expect(melee.launchVelocity).not.toEqual(melee.callResult.resultingVelocity)
-    expect(melee.trajectory.initialVelocity).toEqual(melee.launchVelocity)
+    expect(melee.trajectory.initialState.velocity).toEqual(melee.launchVelocity)
 
     const scene = createRadialScenePresentation(melee)
     const projectedLaunch = projectVectorToRadialPlane(melee.launchVelocity, scene.projection)
@@ -132,7 +132,7 @@ describe('full-tool primary player melee evaluation', () => {
     ).toBe(-37.5)
   })
 
-  it('finds first floor contact from the cumulative velocity', () => {
+  it('finds settlement from the cumulative velocity', () => {
     const inputs = createMilestone1DefaultInputs()
     const meleeInputs = {
       ...createDefaultPlayerMeleeInputs(),
@@ -152,9 +152,9 @@ describe('full-tool primary player melee evaluation', () => {
       meleeInputs,
       yaw,
     )
-    expect(previous.trajectory.contact).toBeNull()
-    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
-    expect(current.trajectory.contact?.tick).toBe(tickCount)
-    expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
+    expect(previous.trajectory.status).toBe('truncated')
+    expect(current.trajectory.status).toBe('settled')
+    expect(current.trajectory.endpoint.feetPosition.y).toBe(inputs.cubeFeetPosition.y)
+    expect(current.trajectory.firstFloorCollision).not.toBeNull()
   })
 })

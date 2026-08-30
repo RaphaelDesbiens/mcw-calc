@@ -1,3 +1,5 @@
+import type { Je26_2UniformFloorProfileId } from '../data/je26_2'
+
 export type NumericFormValue = string | number
 
 export interface DiagnosticFormState {
@@ -15,6 +17,7 @@ export interface DiagnosticFormState {
   readonly aimZ: NumericFormValue
   readonly damageArgument: NumericFormValue
   readonly trajectoryTicks: NumericFormValue
+  readonly floorProfileId: Je26_2UniformFloorProfileId
 }
 
 export interface PlayerMeleeFormState {

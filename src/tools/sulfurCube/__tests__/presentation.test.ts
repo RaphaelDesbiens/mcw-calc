@@ -186,15 +186,14 @@ describe('radial scene presentation', () => {
     expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
     expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
     expect(scene.cubeFeetLineEnd).toEqual({ x: 3, y: 0 })
-    expect(scene.trajectory).toHaveLength(12)
-    expect(scene.trajectory[11].tick).toBe(11)
+    expect(scene.trajectory).toHaveLength(16)
+    expect(scene.trajectory[15].tick).toBe(15)
     const trajectoryEnd = scene.trajectoryEndMarker!
-    const finalTick = scene.trajectory[11].point
-    const previousTick = scene.trajectory[10].point
+    const finalTick = scene.trajectory[15].point
 
     expect(trajectoryEnd).toEqual(finalTick)
-    expect(previousTick.y).toBeGreaterThan(scene.cube.feet.y)
-    expect(finalTick.y).toBe(scene.cube.feet.y)
+    expect(scene.trajectoryStatus).toBe('truncated')
+    expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(11)
   })
 
   it('expands low velocity arrows with a monotonic bounded display curve', () => {
@@ -263,16 +262,28 @@ describe('radial scene presentation', () => {
     expect(scene.aimLateralOffset).toBeCloseTo(-0.4, 12)
   })
 
-  it('stops drawing at floor contact while preserving the requested maximum length', () => {
+  it('stops drawing at settlement while preserving the requested maximum length', () => {
     const evaluation = evaluateDiagnosticInputs({
       ...getDiagnosticPreset('M1').inputs,
       trajectoryTicks: 200,
     })
     const scene = createRadialScenePresentation(evaluation)
 
-    expect(scene.renderedTrajectoryTicks).toBe(11)
+    expect(scene.renderedTrajectoryTicks).toBe(90)
     expect(scene.requestedTrajectoryTicks).toBe(200)
-    expect(evaluation.trajectory.ticks).toHaveLength(11)
+    expect(evaluation.trajectory.ticks).toHaveLength(90)
+    expect(evaluation.trajectory.status).toBe('settled')
+    expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(11)
+    expect(scene.trajectoryStatus).toBe('settled')
+    expect(scene.bounceEventCount).toBeGreaterThan(0)
+    expect(scene.airborneContactCount).toBeGreaterThan(1)
+    expect(scene.trajectory.some(({ floorCollision }) => floorCollision)).toBe(true)
+    expect(new Set(scene.trajectory.map(({ arcNumber }) => arcNumber).filter(Boolean)).size).toBe(
+      scene.airborneContactCount,
+    )
+    expect(scene.cubeFeetLineEnd.x).toBeGreaterThanOrEqual(
+      scene.trajectoryEndMarker?.x ?? Number.NEGATIVE_INFINITY,
+    )
   })
 
   it('supports a fixed projection and camera while interactive objects move', () => {

@@ -1,23 +1,28 @@
+import type { Je26_2UniformFloorProfileId } from '../data/je26_2'
 import type { ClearRayEntityReachResult } from '../model/reach'
 import type {
   CubeLaunchProperties,
-  FlatFloorTrajectoryResult,
   KnockbackCallResult,
   LaunchSummary,
   SulfurCubeKnockbackContext,
+  UniformFloorTrajectoryResult,
   Vec3,
 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
-import { je26_2Constants, je26_2KnockbackMechanics } from '../data/je26_2'
+import {
+  je26_2Constants,
+  je26_2KnockbackMechanics,
+  je26_2UniformFloorProfiles,
+} from '../data/je26_2'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
-import { simulateFlatFloorFirstContactTrajectory } from '../model/trajectory'
+import { simulateRepeatedUniformFloorTrajectory } from '../model/trajectory'
 import { lengthVec3, normalizeVec3, subtractVec3 } from '../model/vectors'
 import { standardNumerics } from '../numerics/standard'
 import {
   createBouncyCubeLaunchProperties,
-  createFlatFloorTrajectoryAssumptions,
   createMilestone1Context,
+  createUniformFloorTrajectoryAssumptions,
 } from './milestone1'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
 
@@ -30,6 +35,7 @@ export interface DiagnosticInputs {
   readonly aimPoint: Vec3
   readonly damageArgument: number
   readonly trajectoryTicks: number
+  readonly floorProfileId: Je26_2UniformFloorProfileId
 }
 
 export interface DiagnosticPreset {
@@ -43,7 +49,7 @@ export interface DiagnosticEvaluation {
   readonly callResult: KnockbackCallResult
   /** Complete immediate velocity used by the scene and free-flight continuation. */
   readonly launchVelocity: Vec3
-  readonly trajectory: FlatFloorTrajectoryResult
+  readonly trajectory: UniformFloorTrajectoryResult
   readonly launchSummary: LaunchSummary
   readonly reach: ClearRayEntityReachResult
 }
@@ -53,6 +59,8 @@ const sharedEyes = { x: 0, y: 1.62, z: 1.5 } as const
 const sharedAim = { x: 0, y: 0.49, z: 0.48 } as const
 const sharedCubeFeet = { x: 0, y: 0, z: 0 } as const
 const standardDefaultTrajectoryTicks = 15
+export const maximumTrajectoryTicks = 1000
+export const defaultUniformFloorProfileId: Je26_2UniformFloorProfileId = 'ordinary_full_block'
 
 export function createMilestone1DefaultInputs(): DiagnosticInputs {
   const attackerFeetPosition = { x: 0, y: -0.3, z: 2.6 } as const
@@ -67,6 +75,7 @@ export function createMilestone1DefaultInputs(): DiagnosticInputs {
     aimPoint: { x: 0, y: 0.4, z: -1.7 },
     damageArgument: 1,
     trajectoryTicks: 0,
+    floorProfileId: defaultUniformFloorProfileId,
   }
 
   return {
@@ -87,6 +96,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: sharedAim,
       damageArgument: 1,
       trajectoryTicks: standardDefaultTrajectoryTicks,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -98,6 +108,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: { x: -0.4, y: 0.49, z: 0.48 },
       damageArgument: 1,
       trajectoryTicks: standardDefaultTrajectoryTicks,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -109,6 +120,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: { x: 0.4, y: 0.49, z: 0.48 },
       damageArgument: 1,
       trajectoryTicks: standardDefaultTrajectoryTicks,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -120,6 +132,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: { x: 0, y: 0.88, z: 0.48 },
       damageArgument: 1,
       trajectoryTicks: standardDefaultTrajectoryTicks,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -131,6 +144,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: { x: 0, y: 0.1, z: 0.48 },
       damageArgument: 1,
       trajectoryTicks: standardDefaultTrajectoryTicks,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -142,6 +156,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: sharedAim,
       damageArgument: 1,
       trajectoryTicks: 11,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -153,6 +168,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: sharedAim,
       damageArgument: 1,
       trajectoryTicks: standardDefaultTrajectoryTicks,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -164,6 +180,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: sharedAim,
       damageArgument: 4,
       trajectoryTicks: 23,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
   {
@@ -175,6 +192,7 @@ export const diagnosticPresets: readonly DiagnosticPreset[] = [
       aimPoint: sharedAim,
       damageArgument: 9,
       trajectoryTicks: 31,
+      floorProfileId: defaultUniformFloorProfileId,
     },
   },
 ]
@@ -200,9 +218,13 @@ export function createDiagnosticKnockbackContext(
   if (
     !Number.isInteger(inputs.trajectoryTicks) ||
     inputs.trajectoryTicks < 0 ||
-    inputs.trajectoryTicks > 200
+    inputs.trajectoryTicks > maximumTrajectoryTicks
   ) {
-    throw new RangeError('trajectoryTicks must be an integer from 0 to 200')
+    throw new RangeError(`trajectoryTicks must be an integer from 0 to ${maximumTrajectoryTicks}`)
+  }
+
+  if (je26_2UniformFloorProfiles[inputs.floorProfileId] === undefined) {
+    throw new RangeError(`unknown JE 26.2 uniform floor profile: ${inputs.floorProfileId}`)
   }
 
   const eyeToAim = subtractVec3(inputs.aimPoint, inputs.attackerEyePosition)
@@ -260,11 +282,21 @@ export function evaluateDiagnosticInputs(
     context,
     numerics,
   )
-  const trajectory = simulateFlatFloorFirstContactTrajectory(
-    context.cube.feetPosition,
-    callResult.resultingVelocity,
+  const trajectory = simulateRepeatedUniformFloorTrajectory(
+    {
+      tick: 0,
+      feetPosition: context.cube.feetPosition,
+      velocity: callResult.resultingVelocity,
+      onGround: true,
+      supportingFloor: true,
+    },
     inputs.trajectoryTicks,
-    createFlatFloorTrajectoryAssumptions(context.cube.feetPosition.y, properties, numerics),
+    createUniformFloorTrajectoryAssumptions(
+      context.cube.feetPosition.y,
+      properties,
+      je26_2UniformFloorProfiles[inputs.floorProfileId],
+    ),
+    numerics,
   )
 
   return {
@@ -275,6 +307,7 @@ export function evaluateDiagnosticInputs(
       aimPoint: { ...inputs.aimPoint },
       damageArgument: inputs.damageArgument,
       trajectoryTicks: inputs.trajectoryTicks,
+      floorProfileId: inputs.floorProfileId,
     },
     properties: { ...properties },
     callResult,
@@ -294,11 +327,11 @@ export function findDefaultTrajectoryTicks(
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): number {
-  const maximumTicks = 200
+  const maximumTicks = maximumTrajectoryTicks
   const evaluation = evaluateDiagnosticInputs(
     { ...inputs, trajectoryTicks: maximumTicks },
     numerics,
     properties,
   )
-  return evaluation.trajectory.contact?.tick ?? maximumTicks
+  return evaluation.trajectory.ticks.length
 }

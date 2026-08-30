@@ -117,6 +117,8 @@ const view = computed(() => {
   const trajectory = scene.trajectory.map((sample) => ({
     tick: sample.tick,
     point: toSvg(sample.point),
+    floorCollision: sample.floorCollision,
+    arcNumber: sample.arcNumber,
   }))
   const finalTrajectoryTick = trajectory.length === 0 ? 0 : trajectory[trajectory.length - 1]!.tick
   const trajectoryTicks = trajectory.filter(
@@ -195,7 +197,7 @@ const view = computed(() => {
       value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
     }),
     distance: t('sulfurCube.scene.distanceMetric', {
-      value: props.evaluation.trajectory.horizontalDistance.toFixed(2),
+      value: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
     }),
   }
   const maximumHeightLabel =
@@ -688,6 +690,7 @@ function formatCoordinate(value: number): string {
           v-for="sample in view.trajectoryTicks"
           :key="sample.tick"
           class="trajectory-tick"
+          :class="{ 'trajectory-tick--contact': sample.floorCollision }"
           :cx="sample.point.x"
           :cy="sample.point.y"
           :r="view.visual.trajectoryPointRadius"
@@ -695,6 +698,9 @@ function formatCoordinate(value: number): string {
         <path
           v-if="view.trajectoryEndMarker"
           class="trajectory-end-marker"
+          :class="{
+            'trajectory-end-marker--truncated': view.scene.trajectoryStatus === 'truncated',
+          }"
           :d="`M ${view.trajectoryEndMarker.x - view.visual.trajectoryEndArm} ${view.trajectoryEndMarker.y - view.visual.trajectoryEndArm} L ${view.trajectoryEndMarker.x + view.visual.trajectoryEndArm} ${view.trajectoryEndMarker.y + view.visual.trajectoryEndArm} M ${view.trajectoryEndMarker.x - view.visual.trajectoryEndArm} ${view.trajectoryEndMarker.y + view.visual.trajectoryEndArm} L ${view.trajectoryEndMarker.x + view.visual.trajectoryEndArm} ${view.trajectoryEndMarker.y - view.visual.trajectoryEndArm}`"
         />
 
@@ -966,9 +972,16 @@ function formatCoordinate(value: number): string {
           )
         }}
       </p>
-      <p v-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
+      <p v-if="view.scene.trajectoryStatus === 'truncated'">
         {{
-          t('sulfurCube.scene.trajectoryTruncated', {
+          t('sulfurCube.scene.trajectoryContinues', {
+            ticks: view.scene.renderedTrajectoryTicks,
+          })
+        }}
+      </p>
+      <p v-else-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
+        {{
+          t('sulfurCube.scene.trajectorySettledEarly', {
             shown: view.scene.renderedTrajectoryTicks,
             requested: view.scene.requestedTrajectoryTicks,
           })
@@ -1275,12 +1288,20 @@ figcaption {
   opacity: 0.62;
 }
 
+.trajectory-tick--contact {
+  opacity: 0.9;
+}
+
 .trajectory-end-marker {
   fill: none;
   stroke: var(--scene-trajectory);
   stroke-linecap: round;
   stroke-width: var(--scene-stroke-regular);
   opacity: 0.75;
+}
+
+.trajectory-end-marker--truncated {
+  stroke-dasharray: var(--scene-dash-trajectory);
 }
 
 .minor-label {

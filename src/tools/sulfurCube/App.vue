@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MenuItemData } from '@wikimedia/codex'
 import type { DiagnosticFormState, PlayerMeleeFormState } from './components/types'
-import type { Je26_2ArchetypeId } from './data/je26_2'
+import type { Je26_2ArchetypeId, Je26_2UniformFloorProfileId } from './data/je26_2'
 import type { Vec3 } from './model/types'
 import type { SulfurCubeViewMode } from './presentation/viewMode'
 import type { DiagnosticEvaluation } from './presets/diagnostic'
@@ -27,7 +27,7 @@ import {
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
-import { je26_2ArchetypeRegistryOrder } from './data/je26_2'
+import { je26_2ArchetypeRegistryOrder, je26_2UniformFloorProfileOrder } from './data/je26_2'
 import { standardNumerics } from './numerics/standard'
 import { humanizeIdentifier } from './presentation/blockSelector'
 import { createFullSulfurCubeToolUrl } from './presentation/viewMode'
@@ -76,6 +76,10 @@ const fullToolUrl = createFullSulfurCubeToolUrl(window.location.href)
 const compactArchetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((archetypeId) => ({
   value: archetypeId,
   label: humanizeIdentifier(archetypeId),
+}))
+const compactFloorItems: MenuItemData[] = je26_2UniformFloorProfileOrder.map((floorProfileId) => ({
+  value: floorProfileId,
+  label: t(`sulfurCube.floor.${floorProfileId}`),
 }))
 
 const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
@@ -234,6 +238,20 @@ function updateCompactArchetype(value: string | number | null): void {
   )
 }
 
+function updateCompactFloor(value: string | number | null): void {
+  if (
+    typeof value !== 'string' ||
+    !je26_2UniformFloorProfileOrder.includes(value as Je26_2UniformFloorProfileId)
+  ) {
+    return
+  }
+
+  updateFormState({
+    ...formState.value,
+    floorProfileId: value as Je26_2UniformFloorProfileId,
+  })
+}
+
 watch(
   formState,
   () => {
@@ -267,6 +285,14 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
             :selected="propertySelection.selectedArchetypeId"
             :menu-items="compactArchetypeItems"
             @update:selected="updateCompactArchetype"
+          />
+        </CdxField>
+        <CdxField class="compact-toolbar__floor">
+          <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
+          <CdxSelect
+            :selected="formState.floorProfileId"
+            :menu-items="compactFloorItems"
+            @update:selected="updateCompactFloor"
           />
         </CdxField>
         <CdxButton @click="reset">
@@ -389,12 +415,13 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
 
 .compact-toolbar {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) auto auto;
+  grid-template-columns: repeat(2, minmax(11rem, 1fr)) auto auto;
   align-items: end;
   gap: 0.75rem;
 }
 
-.compact-toolbar__archetype :deep(.cdx-select) {
+.compact-toolbar__archetype :deep(.cdx-select),
+.compact-toolbar__floor :deep(.cdx-select) {
   width: 100%;
   max-width: 24rem;
 }
@@ -524,7 +551,8 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .compact-toolbar__archetype {
+  .compact-toolbar__archetype,
+  .compact-toolbar__floor {
     grid-column: 1 / -1;
   }
 }
@@ -534,7 +562,8 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
     grid-template-columns: 1fr;
   }
 
-  .compact-toolbar__archetype {
+  .compact-toolbar__archetype,
+  .compact-toolbar__floor {
     grid-column: auto;
   }
 

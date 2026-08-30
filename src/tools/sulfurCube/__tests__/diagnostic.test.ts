@@ -25,7 +25,7 @@ function expectVec3Within(actual: Vec3, expected: Vec3, tolerance: number): void
 }
 
 describe('stage 3 diagnostic orchestration', () => {
-  it('creates the reader default with standing eyes and first floor contact', () => {
+  it('creates the reader default with standing eyes and a settled trajectory', () => {
     const inputs = createMilestone1DefaultInputs()
     const previous = evaluateDiagnosticInputs({
       ...inputs,
@@ -39,10 +39,11 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(inputs.attackerEyePosition.y).toBeCloseTo(1.32, 12)
     expect(inputs.attackerEyePosition.z).toBe(2.6)
     expect(inputs.aimPoint).toEqual({ x: 0, y: 0.4, z: -1.7 })
-    expect(previous.trajectory.contact).toBeNull()
-    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
-    expect(current.trajectory.contact?.tick).toBe(inputs.trajectoryTicks)
-    expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
+    expect(inputs.trajectoryTicks).toBe(101)
+    expect(previous.trajectory.status).toBe('truncated')
+    expect(current.trajectory.status).toBe('settled')
+    expect(current.trajectory.ticks).toHaveLength(inputs.trajectoryTicks)
+    expect(current.trajectory.endpoint.feetPosition.y).toBe(inputs.cubeFeetPosition.y)
     expect(current.reach.status).toBe('within_reach')
   })
 
@@ -69,22 +70,79 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(evaluation.launchSummary.horizontalDirection).toEqual({ x: 0, y: -1 })
     expect(evaluation.launchVelocity).toEqual(evaluation.callResult.resultingVelocity)
     expect(evaluation.trajectory.ticks).toHaveLength(10)
-    expect(evaluation.trajectory.resultingPosition).toEqual(
-      evaluation.trajectory.ticks[9].resultingPosition,
+    expect(evaluation.trajectory.endpoint.feetPosition).toEqual(
+      evaluation.trajectory.ticks[9].end.feetPosition,
     )
   })
 
-  it('finds the first default return to the initial floor level', () => {
+  it('finds deterministic settlement for the default trajectory length', () => {
     const inputs = getDiagnosticPreset('M1').inputs
     const tickCount = findDefaultTrajectoryTicks(inputs)
     const previous = evaluateDiagnosticInputs({ ...inputs, trajectoryTicks: tickCount - 1 })
     const current = evaluateDiagnosticInputs({ ...inputs, trajectoryTicks: tickCount })
-    expect(tickCount).toBe(11)
-    expect(previous.trajectory.contact).toBeNull()
-    expect(previous.trajectory.resultingPosition.y).toBeGreaterThan(inputs.cubeFeetPosition.y)
-    expect(current.trajectory.contact?.tick).toBe(tickCount)
-    expect(current.trajectory.resultingPosition.y).toBe(inputs.cubeFeetPosition.y)
+    expect(tickCount).toBeGreaterThan(11)
+    expect(previous.trajectory.status).toBe('truncated')
+    expect(current.trajectory.status).toBe('settled')
+    expect(current.trajectory.endpoint.feetPosition.y).toBe(inputs.cubeFeetPosition.y)
+    expect(current.trajectory.firstFloorCollision?.end.tick).toBe(11)
     expect(findDefaultTrajectoryTicks(getDiagnosticPreset('M8').inputs)).toBeGreaterThan(tickCount)
+    expect(
+      findDefaultTrajectoryTicks({
+        ...createMilestone1DefaultInputs(),
+        floorProfileId: 'slime_block',
+      }),
+    ).toBe(851)
+  })
+
+  it('keeps the selected uniform floor independent from cube archetype properties', () => {
+    const inputs = createMilestone1DefaultInputs()
+    const ordinary = evaluateDiagnosticInputs({
+      ...inputs,
+      trajectoryTicks: 300,
+      floorProfileId: 'ordinary_full_block',
+    })
+    const slime = evaluateDiagnosticInputs({
+      ...inputs,
+      trajectoryTicks: 300,
+      floorProfileId: 'slime_block',
+    })
+    const honey = evaluateDiagnosticInputs({
+      ...inputs,
+      trajectoryTicks: 300,
+      floorProfileId: 'honey_block',
+    })
+
+    expect(ordinary.trajectory.bounceEventCount).toBeGreaterThan(0)
+    expect(slime.trajectory.bounceEventCount).toBeGreaterThan(ordinary.trajectory.bounceEventCount)
+    expect(honey.trajectory.bounceEventCount).toBe(0)
+    expect(honey.trajectory.status).toBe('settled')
+    expect(slime.trajectory.assumptions.floor.id).toBe('slime_block')
+    expect(honey.properties).toEqual(ordinary.properties)
+  })
+
+  it('uses the safety cap when Default cannot reach a fixed state', () => {
+    const inputs = createMilestone1DefaultInputs()
+    const customPerpetualProperties = {
+      horizontalPower: 0.4125,
+      verticalPower: 0.105,
+      knockbackResistance: -2,
+      bounciness: 1,
+      frictionModifier: 0,
+      airDragModifier: 0,
+    }
+    const tickCount = findDefaultTrajectoryTicks(
+      { ...inputs, floorProfileId: 'slime_block' },
+      undefined,
+      customPerpetualProperties,
+    )
+    const evaluation = evaluateDiagnosticInputs(
+      { ...inputs, floorProfileId: 'slime_block', trajectoryTicks: tickCount },
+      undefined,
+      customPerpetualProperties,
+    )
+
+    expect(tickCount).toBe(1000)
+    expect(evaluation.trajectory.status).toBe('truncated')
   })
 
   it('keeps feet and eye positions independently supplied', () => {
@@ -158,9 +216,15 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(() => evaluateDiagnosticInputs({ ...preset.inputs, damageArgument: -1 })).toThrow(
       /damageArgument/,
     )
-    expect(() => evaluateDiagnosticInputs({ ...preset.inputs, trajectoryTicks: 201 })).toThrow(
+    expect(() => evaluateDiagnosticInputs({ ...preset.inputs, trajectoryTicks: 1001 })).toThrow(
       /trajectoryTicks/,
     )
+    expect(() =>
+      evaluateDiagnosticInputs({
+        ...preset.inputs,
+        floorProfileId: 'not_a_floor' as 'ordinary_full_block',
+      }),
+    ).toThrow(/uniform floor profile/)
     expect(() =>
       evaluateDiagnosticInputs({
         ...preset.inputs,

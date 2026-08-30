@@ -7,16 +7,20 @@ import type {
   SuccessfulAttackResolution,
 } from '../resolution'
 import type { DiagnosticEvaluation, DiagnosticInputs } from './diagnostic'
-import { je26_2KnockbackMechanics, je26_2PlayerMeleeWeaponPresets } from '../data/je26_2'
+import {
+  je26_2KnockbackMechanics,
+  je26_2PlayerMeleeWeaponPresets,
+  je26_2UniformFloorProfiles,
+} from '../data/je26_2'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
-import { simulateFlatFloorFirstContactTrajectory } from '../model/trajectory'
+import { simulateRepeatedUniformFloorTrajectory } from '../model/trajectory'
 import { applyVelocityOperations } from '../model/velocityOperations'
 import { standardNumerics } from '../numerics/standard'
 import { resolveAttackConfiguration } from '../resolution'
-import { createDiagnosticKnockbackContext } from './diagnostic'
+import { createDiagnosticKnockbackContext, maximumTrajectoryTicks } from './diagnostic'
 import {
   createBouncyCubeLaunchProperties,
-  createFlatFloorTrajectoryAssumptions,
+  createUniformFloorTrajectoryAssumptions,
 } from './milestone1'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
 
@@ -180,11 +184,21 @@ export function evaluatePlayerMeleeInputs(
   }
 
   const launchVelocity = operationSequence.resultingVelocity
-  const trajectory = simulateFlatFloorFirstContactTrajectory(
-    context.cube.feetPosition,
-    launchVelocity,
+  const trajectory = simulateRepeatedUniformFloorTrajectory(
+    {
+      tick: 0,
+      feetPosition: context.cube.feetPosition,
+      velocity: launchVelocity,
+      onGround: true,
+      supportingFloor: true,
+    },
     diagnosticInputs.trajectoryTicks,
-    createFlatFloorTrajectoryAssumptions(context.cube.feetPosition.y, properties, numerics),
+    createUniformFloorTrajectoryAssumptions(
+      context.cube.feetPosition.y,
+      properties,
+      je26_2UniformFloorProfiles[diagnosticInputs.floorProfileId],
+    ),
+    numerics,
   )
 
   return {
@@ -196,6 +210,7 @@ export function evaluatePlayerMeleeInputs(
       aimPoint: { ...diagnosticInputs.aimPoint },
       damageArgument: attackResolution.diagnostics.damageArgument,
       trajectoryTicks: diagnosticInputs.trajectoryTicks,
+      floorProfileId: diagnosticInputs.floorProfileId,
     },
     properties: { ...properties },
     callResult: firstOperation.knockbackResult,
@@ -222,7 +237,7 @@ export function findDefaultPlayerMeleeTrajectoryTicks(
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): number {
-  const maximumTicks = 200
+  const maximumTicks = maximumTrajectoryTicks
   const evaluation = evaluatePlayerMeleeInputs(
     { ...diagnosticInputs, trajectoryTicks: maximumTicks },
     playerMeleeInputs,
@@ -230,5 +245,5 @@ export function findDefaultPlayerMeleeTrajectoryTicks(
     numerics,
     properties,
   )
-  return evaluation.trajectory.contact?.tick ?? maximumTicks
+  return evaluation.trajectory.ticks.length
 }
