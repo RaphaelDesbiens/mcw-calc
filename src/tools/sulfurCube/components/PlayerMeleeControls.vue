@@ -3,7 +3,9 @@ import type { MenuItemData } from '@wikimedia/codex'
 import type { Je26_2PlayerMeleeWeaponPresetId } from '../data/je26_2'
 import type { NumericFormValue, PlayerMeleeFormState } from './types'
 import { CdxCheckbox, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { resolvePlayerMeleeVanillaSurvivalAvailability } from '../presets/playerMelee'
 import InfoTooltip from './InfoTooltip.vue'
 
 const props = defineProps<{
@@ -15,6 +17,10 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const survivalAvailability = computed(() =>
+  resolvePlayerMeleeVanillaSurvivalAvailability(props.modelValue),
+)
 
 const weaponItems: MenuItemData[] = [
   { value: 'bareHand', label: t('sulfurCube.attack.weapon.bareHand') },
@@ -66,7 +72,15 @@ function updateAttackStrength(value: NumericFormValue): void {
       </CdxField>
 
       <CdxField>
-        <template #label>{{ t('sulfurCube.attack.attackStrength') }}</template>
+        <template #label>
+          <span class="player-attack__label-with-info">
+            {{ t('sulfurCube.attack.attackStrength') }}
+            <InfoTooltip
+              :text="t('sulfurCube.attack.attackStrengthHelp')"
+              :label="t('sulfurCube.attack.attackStrengthHelpLabel')"
+            />
+          </span>
+        </template>
         <CdxTextInput
           :model-value="modelValue.attackStrengthPercent"
           input-type="number"
@@ -101,6 +115,14 @@ function updateAttackStrength(value: NumericFormValue): void {
         {{ t('sulfurCube.attack.criticalConditions') }}
       </CdxCheckbox>
     </div>
+
+    <p
+      v-if="!survivalAvailability.obtainable"
+      class="player-attack__survival-warning"
+      role="status"
+    >
+      {{ t('sulfurCube.attack.survivalUnavailable') }}
+    </p>
   </section>
 </template>
 
@@ -123,10 +145,38 @@ function updateAttackStrength(value: NumericFormValue): void {
   margin: 0;
 }
 
+.player-attack__label-with-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .player-attack__fields {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: minmax(6.5rem, 0.68fr) minmax(7.5rem, 0.8fr) minmax(8rem, 1fr);
+  gap: 0.5rem;
+}
+
+.player-attack__fields > * {
+  min-width: 0;
+}
+
+.player-attack__fields :deep(.cdx-select-vue),
+.player-attack__fields :deep(.cdx-text-input) {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-attack__fields :deep(.cdx-select-vue__handle) {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-attack__survival-warning {
+  margin: -0.125rem 0 0;
+  color: var(--color-error, #b32424);
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 .player-attack__conditions {

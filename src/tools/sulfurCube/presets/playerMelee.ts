@@ -35,6 +35,18 @@ export interface PlayerMeleeEvaluation extends DiagnosticEvaluation {
   readonly attackerYawDegrees: number
 }
 
+export interface PlayerMeleeVanillaSurvivalIssue {
+  readonly code: 'unsupportedKnockbackForWeapon'
+  readonly weaponPresetId: Je26_2PlayerMeleeWeaponPresetId
+  readonly selectedLevel: 1 | 2
+  readonly maximumLevel: 0 | 1 | 2
+}
+
+export interface PlayerMeleeVanillaSurvivalAvailability {
+  readonly obtainable: boolean
+  readonly issues: readonly PlayerMeleeVanillaSurvivalIssue[]
+}
+
 const groundedEligibility: PlayerCriticalEligibilityState = {
   fallDistancePositive: false,
   onGround: true,
@@ -63,6 +75,31 @@ export function createDefaultPlayerMeleeInputs(): PlayerMeleeInputs {
     criticalHitConditions: false,
     knockbackEnchantmentLevel: 0,
   }
+}
+
+export function resolvePlayerMeleeVanillaSurvivalAvailability(
+  inputs: Pick<PlayerMeleeInputs, 'weaponPresetId' | 'knockbackEnchantmentLevel'>,
+): PlayerMeleeVanillaSurvivalAvailability {
+  const weapon = je26_2PlayerMeleeWeaponPresets[inputs.weaponPresetId]
+
+  if (weapon === undefined) {
+    return { obtainable: false, issues: [] }
+  }
+
+  const maximumLevel = weapon.maximumVanillaSurvivalKnockbackLevel.value
+  const issues: PlayerMeleeVanillaSurvivalIssue[] =
+    inputs.knockbackEnchantmentLevel > maximumLevel
+      ? [
+          {
+            code: 'unsupportedKnockbackForWeapon',
+            weaponPresetId: inputs.weaponPresetId,
+            selectedLevel: inputs.knockbackEnchantmentLevel as 1 | 2,
+            maximumLevel,
+          },
+        ]
+      : []
+
+  return { obtainable: issues.length === 0, issues }
 }
 
 export function deriveMinecraftYawDegreesFromAim(

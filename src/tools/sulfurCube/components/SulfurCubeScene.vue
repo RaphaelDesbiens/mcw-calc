@@ -171,6 +171,24 @@ const view = computed(() => {
     x: launchEnd.x + (launchEnd.x >= launchStart.x ? 18 : -18) * zoomFactor,
     y: launchEnd.y - visual.launchLabelOffset,
   }
+  const launchAngle = Math.atan2(launchEnd.y - launchStart.y, launchEnd.x - launchStart.x)
+  const launchValueAngle = Math.abs(launchAngle) > Math.PI / 2 ? launchAngle + Math.PI : launchAngle
+  const launchValueAnchor = {
+    x: launchStart.x + (launchEnd.x - launchStart.x) * 0.55,
+    y: launchStart.y + (launchEnd.y - launchStart.y) * 0.55,
+  }
+  const launchValueOffset = 13 * zoomFactor
+  const launchValueLabel =
+    scene.launchDisplayLength <= 0
+      ? null
+      : {
+          x: launchValueAnchor.x + Math.sin(launchValueAngle) * launchValueOffset,
+          y: launchValueAnchor.y - Math.cos(launchValueAngle) * launchValueOffset,
+          rotation: (launchValueAngle * 180) / Math.PI,
+          value: t('sulfurCube.scene.launchSpeedValue', {
+            value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
+          }),
+        }
   const thetaSquareHorizontalSign = Math.sign(attackerFeet.x - horizontalFeetReference.x) || -1
   const thetaSquareVerticalSign = Math.sign(cubeFeet.y - horizontalFeetReference.y) || -1
   const thetaSquareCorner = {
@@ -224,6 +242,7 @@ const view = computed(() => {
     launchBodyEnd,
     launchEnd,
     launchLabel,
+    launchValueLabel,
     thetaLabel,
     thetaSquarePath,
     thetaArcPoints: thetaArcPoints.map((point) => `${point.x},${point.y}`).join(' '),
@@ -764,6 +783,16 @@ function formatCoordinate(value: number): string {
         >
           {{ t('sulfurCube.scene.launchVector') }}
         </text>
+        <text
+          v-if="view.launchValueLabel"
+          class="launch-value-label"
+          :x="view.launchValueLabel.x"
+          :y="view.launchValueLabel.y"
+          text-anchor="middle"
+          :transform="`rotate(${view.launchValueLabel.rotation} ${view.launchValueLabel.x} ${view.launchValueLabel.y})`"
+        >
+          {{ view.launchValueLabel.value }}
+        </text>
 
         <g
           class="interactive-handle cube-handle"
@@ -1040,7 +1069,8 @@ figcaption {
 .attacker-shape,
 .launch-vector,
 .launch-vector-marker-carrier,
-.launch-label {
+.launch-label,
+.launch-value-label {
   pointer-events: none;
 }
 
@@ -1153,6 +1183,12 @@ figcaption {
 
 .launch-label {
   fill: var(--scene-launch);
+  font-weight: 700;
+}
+
+.launch-value-label {
+  fill: var(--scene-launch);
+  font-size: var(--scene-minor-font-size);
   font-weight: 700;
 }
 

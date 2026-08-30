@@ -66,6 +66,16 @@ export const provenance = {
     notes:
       'The reader presets expose already-folded effective attributes: bare hand has effective ATTACK_DAMAGE 1, while an iron sword adds 5 for an effective value of 6. Neither preset adds base ATTACK_KNOCKBACK.',
   },
+  playerMeleeWeaponAvailability: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'extractedData',
+    sourcePath: 'versions/26.2/extracted/data/minecraft/enchantment/knockback.json',
+    locator:
+      'supported_items, slots, and max_level; supported tag minecraft:enchantable/melee_weapon contains #minecraft:swords and #minecraft:spears',
+    notes:
+      'Knockback is an active main-hand item enchantment with maximum level 2. An empty hand is not an item in either supported tag, so bare-hand Knockback is unavailable in unmodified vanilla Survival.',
+  },
   bouncyArchetype: {
     edition: 'Java Edition',
     version: '26.2',

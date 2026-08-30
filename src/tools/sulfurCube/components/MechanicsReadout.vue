@@ -52,6 +52,23 @@ function formatRadians(value: number): string {
   })
 }
 
+function formatLaunchAngle(value: number): string {
+  return t('sulfurCube.readout.launchAngleValue', {
+    degrees: formatNumber((value * 180) / Math.PI),
+    radians: formatNumber(value),
+  })
+}
+
+function formatBlocksPerSecond(valueInBlocksPerTick: number): string {
+  return t('sulfurCube.readout.blocksPerSecond', {
+    value: formatNumber(valueInBlocksPerTick * 20),
+  })
+}
+
+function formatVelocityInBlocksPerSecond(x: number, y: number, z: number): string {
+  return `${formatVector(x * 20, y * 20, z * 20)} ${t('sulfurCube.readout.blocksPerSecondUnit')}`
+}
+
 function formatPair(first: number, second: number): string {
   return `(${formatNumber(first)}, ${formatNumber(second)})`
 }
@@ -66,19 +83,15 @@ const summaryRows = computed<readonly ReadoutRow[]>(() => {
   return [
     {
       label: t('sulfurCube.readout.totalSpeed'),
-      value: t('sulfurCube.readout.blocksPerTick', {
-        value: formatNumber(launchSummary.totalSpeed),
-      }),
+      value: formatBlocksPerSecond(launchSummary.totalSpeed),
     },
     {
       label: t('sulfurCube.readout.horizontalSpeed'),
-      value: t('sulfurCube.readout.blocksPerTick', {
-        value: formatNumber(launchSummary.horizontalSpeed),
-      }),
+      value: formatBlocksPerSecond(launchSummary.horizontalSpeed),
     },
     {
       label: t('sulfurCube.readout.elevation'),
-      value: formatRadians(launchSummary.elevationAngle),
+      value: formatLaunchAngle(launchSummary.elevationAngle),
     },
     {
       label: t('sulfurCube.readout.horizontalDirection'),
@@ -86,11 +99,11 @@ const summaryRows = computed<readonly ReadoutRow[]>(() => {
     },
     {
       label: t('sulfurCube.readout.addedVelocity'),
-      value: formatVector(launchVelocity.x, launchVelocity.y, launchVelocity.z),
+      value: formatVelocityInBlocksPerSecond(launchVelocity.x, launchVelocity.y, launchVelocity.z),
     },
     {
       label: t('sulfurCube.readout.resultingVelocity'),
-      value: formatVector(launchVelocity.x, launchVelocity.y, launchVelocity.z),
+      value: formatVelocityInBlocksPerSecond(launchVelocity.x, launchVelocity.y, launchVelocity.z),
     },
   ]
 })

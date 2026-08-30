@@ -7,9 +7,35 @@ import {
   deriveMinecraftYawDegreesFromAim,
   evaluatePlayerMeleeInputs,
   findDefaultPlayerMeleeTrajectoryTicks,
+  resolvePlayerMeleeVanillaSurvivalAvailability,
 } from '../presets/playerMelee'
 
 describe('full-tool primary player melee evaluation', () => {
+  it('distinguishes mechanically evaluable settings from vanilla-Survival availability', () => {
+    expect(
+      resolvePlayerMeleeVanillaSurvivalAvailability({
+        weaponPresetId: 'bareHand',
+        knockbackEnchantmentLevel: 2,
+      }),
+    ).toEqual({
+      obtainable: false,
+      issues: [
+        {
+          code: 'unsupportedKnockbackForWeapon',
+          weaponPresetId: 'bareHand',
+          selectedLevel: 2,
+          maximumLevel: 0,
+        },
+      ],
+    })
+    expect(
+      resolvePlayerMeleeVanillaSurvivalAvailability({
+        weaponPresetId: 'ironSword',
+        knockbackEnchantmentLevel: 2,
+      }),
+    ).toEqual({ obtainable: true, issues: [] })
+  })
+
   it('preserves the existing one-call launch for the default bare-hand attack', () => {
     const diagnosticInputs = createMilestone1DefaultInputs()
     const yaw = deriveMinecraftYawDegreesFromAim(diagnosticInputs, 0)
