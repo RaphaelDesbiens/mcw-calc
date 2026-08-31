@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Vec3 } from '../model/types'
+import type { RadialAttackerSide } from '../presentation/radialPlane'
 import type {
   PlanePoint,
   RadialProjection,
@@ -73,7 +74,8 @@ const viewport = {
   padding: { top: 36, right: 44, bottom: 46, left: 48 },
 } as const
 const initialScene = createRadialScenePresentation(props.evaluation)
-const sceneProjection = initialScene.projection
+const attackerSide = ref<RadialAttackerSide>(-1)
+const fallbackHorizontalAxis = shallowRef(initialScene.projection.horizontalAxis)
 const initialTransformScale = createWorldToSvgTransform(initialScene.bounds, viewport).scale
 const initialCameraWidth = initialScene.bounds.maxX - initialScene.bounds.minX
 const minimumCameraWidth = initialCameraWidth / 4
@@ -94,7 +96,10 @@ const sceneSizeButtonLabel = computed(() =>
 )
 
 const view = computed(() => {
-  const scene = createRadialScenePresentation(props.evaluation, sceneProjection)
+  const scene = createRadialScenePresentation(props.evaluation, undefined, {
+    attackerSide: attackerSide.value,
+    fallbackHorizontalAxis: fallbackHorizontalAxis.value,
+  })
   const transform = createWorldToSvgTransform(cameraBounds.value, viewport)
   const toSvg = transform.toSvg
   const halfCubeWidth = scene.cube.width / 2
@@ -130,10 +135,6 @@ const view = computed(() => {
   )
   const thetaLabel = toSvg(scene.thetaLabelPoint)
   const thetaArcPoints = scene.thetaArc.map((point) => toSvg(point))
-  const aimQAnchor = toSvg({
-    x: (scene.attackerEyes.x + scene.aimArrowEnd.x) / 2,
-    y: (scene.attackerEyes.y + scene.aimArrowEnd.y) / 2,
-  })
   const trajectoryEndMarker =
     scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
   const zoomFactor = transform.scale / initialTransformScale
@@ -148,7 +149,8 @@ const view = computed(() => {
     hitAreaRadius: Math.max(18, 18 * zoomFactor),
     labelOffset: 10 * zoomFactor,
     aimLabelOffsetX: 10 * zoomFactor,
-    aimLabelOffsetY: 12 * zoomFactor,
+    aimLabelOffsetY: 27 * zoomFactor,
+    aimQLabelOffsetY: 13 * zoomFactor,
     eyesLabelOffset: 11 * zoomFactor,
     feetLabelOffset: 18 * zoomFactor,
     launchLabelOffset: 18 * zoomFactor,
@@ -165,13 +167,9 @@ const view = computed(() => {
     minY: visual.aimPointRadius,
     maxY: viewport.height - visual.aimPointRadius,
   })
-  const aimAngle = Math.atan2(aimArrowEnd.y - attackerEyes.y, aimArrowEnd.x - attackerEyes.x)
-  const qLabelAngle = Math.abs(aimAngle) > Math.PI / 2 ? aimAngle + Math.PI : aimAngle
-  const qLabelOffset = 12 * zoomFactor
   const aimQLabel = {
-    x: aimQAnchor.x + Math.sin(aimAngle) * qLabelOffset,
-    y: aimQAnchor.y - Math.cos(aimAngle) * qLabelOffset,
-    rotation: (qLabelAngle * 180) / Math.PI,
+    x: aimPoint.x,
+    y: aimPoint.y - visual.aimQLabelOffsetY,
   }
   const launchLabel = {
     x: launchEnd.x + (launchEnd.x >= launchStart.x ? 18 : -18) * zoomFactor,
@@ -209,32 +207,58 @@ const view = computed(() => {
     minY: 18,
     maxY: viewport.height - 18,
   }
-  const createGroundLabel = (point: PlanePoint, value: string, verticalOffset: number) => {
-    const marker = clampPointToBoundsFromOrigin(cubeFeet, toSvg(point), sceneWallBounds)
+  const createGroundLabel = (
+    point: PlanePoint,
+    nameKey: 'sulfurCube.scene.firstBounceGroundMetric' | 'sulfurCube.scene.distanceGroundMetric',
+    value: string,
+    verticalOffset: number,
+  ) => {
+    const actualMarker = toSvg(point)
+    const marker = clampPointToBoundsFromOrigin(cubeFeet, actualMarker, sceneWallBounds)
     const labelY = Math.min(viewport.height - 16, marker.y + verticalOffset)
+    const isOutOfScene =
+      Math.abs(marker.x - actualMarker.x) > 0.01 || Math.abs(marker.y - actualMarker.y) > 0.01
+
+    if (isOutOfScene) {
+      const x = viewport.width - 122
+
+      return {
+        marker,
+        x,
+        y: labelY,
+        anchor: 'end' as const,
+        arrow: { x1: x + 8, y1: labelY - 4, x2: viewport.width - 14, y2: labelY - 4 },
+        value: t(nameKey, { value }),
+      }
+    }
 
     return {
       marker,
       x: Math.min(viewport.width - 88, Math.max(88, marker.x)),
       y: labelY,
-      value,
+      anchor: 'middle' as const,
+      arrow: {
+        x1: marker.x,
+        y1: labelY - 10,
+        x2: marker.x,
+        y2: marker.y + 7,
+      },
+      value: t('sulfurCube.scene.groundDistanceValue', { value }),
     }
   }
   const firstBounceGroundLabel =
     scene.firstBounce.status === 'reached'
       ? createGroundLabel(
           scene.firstBounce.point,
-          t('sulfurCube.scene.firstBounceGroundMetric', {
-            value: scene.firstBounce.horizontalDistance.toFixed(2),
-          }),
+          'sulfurCube.scene.firstBounceGroundMetric',
+          scene.firstBounce.horizontalDistance.toFixed(2),
           27,
         )
       : null
   const distanceGroundLabel = createGroundLabel(
     scene.trajectoryDistance.point,
-    t('sulfurCube.scene.distanceGroundMetric', {
-      value: scene.trajectoryDistance.horizontalDistance.toFixed(2),
-    }),
+    'sulfurCube.scene.distanceGroundMetric',
+    scene.trajectoryDistance.horizontalDistance.toFixed(2),
     firstBounceGroundLabel === null ? 27 : 54,
   )
   const maximumHeightLabel =
@@ -285,10 +309,14 @@ const view = computed(() => {
       height: scene.cube.height * transform.scale,
     },
     cubeSprite: {
-      x: cubeCenter.x - (scene.cube.width * transform.scale) / 4,
+      x: cubeCenter.x - (scene.cube.minimumWidth * transform.scale) / 4,
       y: cubeCenter.y - (scene.cube.height * transform.scale) / 4,
-      width: (scene.cube.width * transform.scale) / 2,
+      width: (scene.cube.minimumWidth * transform.scale) / 2,
       height: (scene.cube.height * transform.scale) / 2,
+    },
+    cubeMinimumEdges: {
+      left: cubeCenter.x - (scene.cube.minimumWidth * transform.scale) / 2,
+      right: cubeCenter.x + (scene.cube.minimumWidth * transform.scale) / 2,
     },
     attackerRect: {
       x: attackerHitboxTopLeft.x,
@@ -477,6 +505,15 @@ function continueDrag(event: PointerEvent): void {
       break
     case 'attacker':
     case 'cube': {
+      const currentAttackerX = view.value.scene.attackerFeet.x
+      const nextAttackerX =
+        drag.kind === 'attacker' ? currentAttackerX + deltaX : currentAttackerX - deltaX
+
+      if (Math.abs(nextAttackerX) >= 1e-5) {
+        attackerSide.value = nextAttackerX < 0 ? -1 : 1
+      }
+      fallbackHorizontalAxis.value = drag.projection.horizontalAxis
+
       const delta = {
         x: drag.projection.horizontalAxis.x * deltaX,
         y: deltaY,
@@ -577,6 +614,14 @@ function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
       unprojectPointFromRadialPlane(target, scene.projection, scene.aimLateralOffset),
     )
   } else {
+    const nextAttackerX =
+      kind === 'attacker' ? scene.attackerFeet.x + delta.x : scene.attackerFeet.x - delta.x
+
+    if (Math.abs(nextAttackerX) >= 1e-5) {
+      attackerSide.value = nextAttackerX < 0 ? -1 : 1
+    }
+    fallbackHorizontalAxis.value = scene.projection.horizontalAxis
+
     const translation = {
       x: scene.projection.horizontalAxis.x * delta.x,
       y: delta.y,
@@ -645,6 +690,11 @@ function formatCoordinate(value: number): string {
           @click="zoomCamera(0.74)"
         >
           +
+        </CdxButton>
+      </div>
+      <div class="scene-frame__overlay scene-frame__overlay--reset">
+        <CdxButton size="small" weight="quiet" @click="emit('reset')">
+          {{ t('sulfurCube.controls.reset') }}
         </CdxButton>
       </div>
       <svg
@@ -737,11 +787,11 @@ function formatCoordinate(value: number): string {
             <tspan class="scene-metric-value scene-metric-value--trajectory">
               {{ view.sceneMetrics.firstBounce }}
             </tspan>
-            <tspan v-if="view.scene.firstBounce.status === 'reached'">&#160;{{
-                t('sulfurCube.scene.blocks')
-              }}</tspan>
+            <tspan v-if="view.scene.firstBounce.status === 'reached'">
+              &#160;{{ t('sulfurCube.scene.blocks') }}
+            </tspan>
           </text>
-          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.qY">
+          <text v-if="showAimQLabel !== false" :x="view.sceneMetrics.x" :y="view.sceneMetrics.qY">
             <tspan>q&#160;=&#160;</tspan>
             <tspan class="scene-metric-value scene-metric-value--aim">
               {{ view.sceneMetrics.q }}
@@ -750,8 +800,9 @@ function formatCoordinate(value: number): string {
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.thetaY">
             <tspan>θ&#160;=&#160;</tspan>
             <tspan class="scene-metric-value scene-metric-value--theta">
-              {{ view.sceneMetrics.theta }}°
+              {{ view.sceneMetrics.theta }}
             </tspan>
+            <tspan>&#160;°</tspan>
           </text>
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.blockY">
             <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
@@ -770,31 +821,31 @@ function formatCoordinate(value: number): string {
         <g class="ground-metrics" aria-hidden="true">
           <g v-if="view.firstBounceGroundLabel">
             <line
-              :x1="view.firstBounceGroundLabel.x"
-              :y1="view.firstBounceGroundLabel.y - 10"
-              :x2="view.firstBounceGroundLabel.marker.x"
-              :y2="view.firstBounceGroundLabel.marker.y + 2"
+              :x1="view.firstBounceGroundLabel.arrow.x1"
+              :y1="view.firstBounceGroundLabel.arrow.y1"
+              :x2="view.firstBounceGroundLabel.arrow.x2"
+              :y2="view.firstBounceGroundLabel.arrow.y2"
               marker-end="url(#sulfur-cube-ground-arrow)"
             />
             <text
               :x="view.firstBounceGroundLabel.x"
               :y="view.firstBounceGroundLabel.y"
-              text-anchor="middle"
+              :text-anchor="view.firstBounceGroundLabel.anchor"
             >
               {{ view.firstBounceGroundLabel.value }}
             </text>
           </g>
           <line
-            :x1="view.distanceGroundLabel.x"
-            :y1="view.distanceGroundLabel.y - 10"
-            :x2="view.distanceGroundLabel.marker.x"
-            :y2="view.distanceGroundLabel.marker.y + 2"
+            :x1="view.distanceGroundLabel.arrow.x1"
+            :y1="view.distanceGroundLabel.arrow.y1"
+            :x2="view.distanceGroundLabel.arrow.x2"
+            :y2="view.distanceGroundLabel.arrow.y2"
             marker-end="url(#sulfur-cube-ground-arrow)"
           />
           <text
             :x="view.distanceGroundLabel.x"
             :y="view.distanceGroundLabel.y"
-            text-anchor="middle"
+            :text-anchor="view.distanceGroundLabel.anchor"
           >
             {{ view.distanceGroundLabel.value }}
           </text>
@@ -837,15 +888,24 @@ function formatCoordinate(value: number): string {
           />
         </g>
 
-        <circle
-          v-for="sample in view.trajectoryTicks"
-          :key="sample.tick"
-          class="trajectory-tick"
-          :class="{ 'trajectory-tick--contact': sample.floorCollision }"
-          :cx="sample.point.x"
-          :cy="sample.point.y"
-          :r="view.visual.trajectoryPointRadius"
-        />
+        <template v-for="sample in view.trajectoryTicks" :key="sample.tick">
+          <rect
+            v-if="sample.floorCollision"
+            class="trajectory-tick trajectory-tick--contact"
+            :x="sample.point.x - view.visual.trajectoryPointRadius"
+            :y="sample.point.y - view.visual.trajectoryPointRadius"
+            :width="view.visual.trajectoryPointRadius * 2"
+            :height="view.visual.trajectoryPointRadius * 2"
+            :transform="`rotate(45 ${sample.point.x} ${sample.point.y})`"
+          />
+          <circle
+            v-else
+            class="trajectory-tick"
+            :cx="sample.point.x"
+            :cy="sample.point.y"
+            :r="view.visual.trajectoryPointRadius"
+          />
+        </template>
         <path
           v-if="view.trajectoryEndMarker"
           class="trajectory-end-marker"
@@ -908,7 +968,6 @@ function formatCoordinate(value: number): string {
           :x="view.aimQLabel.x"
           :y="view.aimQLabel.y"
           text-anchor="middle"
-          :transform="`rotate(${view.aimQLabel.rotation} ${view.aimQLabel.x} ${view.aimQLabel.y})`"
         >
           {{ evaluation.callResult.diagnostics.q.toFixed(2) }}
         </text>
@@ -930,6 +989,20 @@ function formatCoordinate(value: number): string {
             :width="view.cubeSprite.width"
             :height="view.cubeSprite.height"
             preserveAspectRatio="xMidYMid meet"
+          />
+          <line
+            class="cube-minimum-edge"
+            :x1="view.cubeMinimumEdges.left"
+            :y1="view.cubeRect.y"
+            :x2="view.cubeMinimumEdges.left"
+            :y2="view.cubeRect.y + view.cubeRect.height"
+          />
+          <line
+            class="cube-minimum-edge"
+            :x1="view.cubeMinimumEdges.right"
+            :y1="view.cubeRect.y"
+            :x2="view.cubeMinimumEdges.right"
+            :y2="view.cubeRect.y + view.cubeRect.height"
           />
           <circle :cx="view.cubeTop.x" :cy="view.cubeTop.y" :r="view.visual.cubeEndpointRadius" />
           <circle
@@ -1088,32 +1161,27 @@ function formatCoordinate(value: number): string {
       </svg>
     </div>
 
-    <div class="scene-legend-row">
-      <div class="scene-legend" aria-hidden="true">
-        <span>
-          <i class="legend-swatch legend-swatch--player" />
-          <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
-        </span>
-        <span>
-          <i class="legend-swatch legend-swatch--cube" />
-          <span>{{ t('sulfurCube.scene.legendSulfurCube') }}</span>
-        </span>
-        <span>
-          <i class="legend-swatch legend-swatch--aim" />
-          <span>{{ t('sulfurCube.scene.aim') }}</span>
-        </span>
-        <span>
-          <i class="legend-swatch legend-swatch--theta" />
-          <span>{{ t('sulfurCube.scene.legendTheta') }}</span>
-        </span>
-        <span>
-          <i class="legend-swatch legend-swatch--launch" />
-          <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
-        </span>
-      </div>
-      <CdxButton size="small" weight="quiet" @click="emit('reset')">
-        {{ t('sulfurCube.controls.reset') }}
-      </CdxButton>
+    <div class="scene-legend" aria-hidden="true">
+      <span>
+        <i class="legend-swatch legend-swatch--player" />
+        <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
+      </span>
+      <span>
+        <i class="legend-swatch legend-swatch--cube" />
+        <span>{{ t('sulfurCube.scene.legendSulfurCube') }}</span>
+      </span>
+      <span>
+        <i class="legend-swatch legend-swatch--aim" />
+        <span>{{ t('sulfurCube.scene.aim') }}</span>
+      </span>
+      <span>
+        <i class="legend-swatch legend-swatch--theta" />
+        <span>{{ t('sulfurCube.scene.legendTheta') }}</span>
+      </span>
+      <span>
+        <i class="legend-swatch legend-swatch--launch" />
+        <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
+      </span>
     </div>
 
     <figcaption>
@@ -1124,6 +1192,10 @@ function formatCoordinate(value: number): string {
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
       <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>
+      <details v-if="showComparisonHelp !== false" class="projection-details">
+        <summary>{{ t('sulfurCube.scene.projectionAdvancedTitle') }}</summary>
+        <p>{{ t('sulfurCube.scene.projectionAdvanced') }}</p>
+      </details>
       <p v-if="view.scene.trajectoryStatus === 'truncated'">
         {{
           t('sulfurCube.scene.trajectoryContinues', {
@@ -1163,7 +1235,7 @@ function formatCoordinate(value: number): string {
   --scene-theta: #d33682;
   --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #00a000;
-  --scene-trajectory: color-mix(in srgb, #00a000 48%, transparent);
+  --scene-trajectory: #67b94b;
   --scene-move-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
     12 12;
   margin: 0;
@@ -1211,6 +1283,12 @@ figcaption {
   right: 0.25rem;
 }
 
+.scene-frame__overlay--reset {
+  top: auto;
+  right: 0.5rem;
+  bottom: 0.5rem;
+}
+
 .scene-frame__overlay :deep(.cdx-button) {
   min-width: 1.75rem;
   padding: 0 0.35rem;
@@ -1240,7 +1318,7 @@ figcaption {
 
 .scene-figure--compact .scene-frame,
 .scene-figure--compact .scene-heading,
-.scene-figure--compact .scene-legend-row,
+.scene-figure--compact .scene-legend,
 .scene-figure--compact figcaption {
   width: 100%;
 }
@@ -1338,10 +1416,10 @@ figcaption {
 }
 
 .ground-metrics {
-  fill: #397f3f;
-  stroke: #397f3f;
-  font-size: 10px;
-  font-weight: 700;
+  fill: var(--scene-trajectory);
+  stroke: var(--scene-trajectory);
+  font-size: 11px;
+  font-weight: 400;
   pointer-events: none;
 }
 
@@ -1350,7 +1428,7 @@ figcaption {
 }
 
 .ground-arrow {
-  fill: #397f3f;
+  fill: var(--scene-trajectory);
 }
 
 .reference-geometry line {
@@ -1426,6 +1504,13 @@ figcaption {
   pointer-events: none;
 }
 
+.cube-minimum-edge {
+  stroke: color-mix(in srgb, var(--scene-ink) 34%, transparent);
+  stroke-width: calc(var(--scene-stroke-thinnest) * 0.65);
+  stroke-dasharray: 1.5 3;
+  pointer-events: none;
+}
+
 .cube-shape text {
   fill: var(--scene-cube-dark);
   font-weight: 700;
@@ -1477,13 +1562,14 @@ figcaption {
 }
 
 .trajectory-tick {
-  fill: var(--scene-trajectory);
+  fill: color-mix(in srgb, var(--scene-trajectory) 44%, transparent);
   stroke: none;
   opacity: 0.72;
 }
 
 .trajectory-tick--contact {
-  opacity: 0.9;
+  fill: color-mix(in srgb, var(--scene-launch) 82%, transparent);
+  opacity: 1;
 }
 
 .trajectory-end-marker {
@@ -1541,22 +1627,15 @@ figcaption {
   stroke: var(--scene-cube-dark);
 }
 
-.scene-legend-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: calc(100% - 4cm);
-  margin-top: 0.5rem;
-  margin-inline: auto;
-}
-
 .scene-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
   color: var(--scene-muted);
   font-size: 0.875em;
+  width: calc(100% - 4cm);
+  margin-top: 0.5rem;
+  margin-inline: auto;
 }
 
 .scene-legend > span {
@@ -1596,7 +1675,7 @@ figcaption {
   --scene-theta: #ff6bb3;
   --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #33d13f;
-  --scene-trajectory: color-mix(in srgb, #33d13f 50%, transparent);
+  --scene-trajectory: #75c85a;
 }
 
 :global(.dark) .open-point-symbol {
@@ -1641,6 +1720,14 @@ figcaption {
   font-size: 0.875em;
 }
 
+.projection-details summary {
+  cursor: pointer;
+}
+
+.projection-details p {
+  margin-top: 0.25rem;
+}
+
 @media (max-width: 32rem) {
   .scene-svg {
     font-size: var(--scene-mobile-font-size);
@@ -1652,7 +1739,7 @@ figcaption {
 
   .scene-frame,
   .scene-heading,
-  .scene-legend-row,
+  .scene-legend,
   figcaption,
   .scene-figure--compact .scene-frame {
     width: 92%;

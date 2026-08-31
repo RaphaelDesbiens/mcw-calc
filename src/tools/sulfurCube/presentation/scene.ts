@@ -1,5 +1,7 @@
 import type { ClearRayEntityReachResult } from '../model/reach'
+import type { Vec2 } from '../model/types'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
+import type { RadialAttackerSide } from './radialPlane'
 import type { PlanePoint, RadialProjection, WorldBounds } from './types'
 import { je26_2Constants } from '../data/je26_2'
 import { maximumTrajectoryTicks } from '../presets/diagnostic'
@@ -42,6 +44,7 @@ export interface RadialScenePresentation {
     readonly top: PlanePoint
     readonly bottom: PlanePoint
     readonly width: number
+    readonly minimumWidth: number
     readonly height: number
   }
   readonly attackerFeet: PlanePoint
@@ -86,6 +89,11 @@ export interface RadialScenePresentation {
   } | null
   readonly renderedTrajectoryTicks: number
   readonly requestedTrajectoryTicks: number
+}
+
+export interface RadialScenePresentationOptions {
+  readonly attackerSide?: RadialAttackerSide
+  readonly fallbackHorizontalAxis?: Vec2
 }
 
 function addScaledVector(origin: PlanePoint, vector: PlanePoint, scale: number): PlanePoint {
@@ -180,6 +188,7 @@ function createCubeAnchoredBounds(
 export function createRadialScenePresentation(
   evaluation: DiagnosticEvaluation,
   projectionOverride?: RadialProjection,
+  options: RadialScenePresentationOptions = {},
 ): RadialScenePresentation {
   const { callResult, inputs, trajectory } = evaluation
   const { context } = callResult.input
@@ -189,6 +198,8 @@ export function createRadialScenePresentation(
       context.cube.feetPosition,
       context.attacker.feetPosition,
       context.mechanics.vectorNormalizationThreshold,
+      options.attackerSide ?? -1,
+      options.fallbackHorizontalAxis ?? { x: 0, y: 1 },
     )
   const cubeFeet = projectPointToRadialPlane(context.cube.feetPosition, projection)
   const cubeCenter = projectPointToRadialPlane(callResult.diagnostics.cubeCenter, projection)
@@ -211,15 +222,10 @@ export function createRadialScenePresentation(
   }
   const aimPoint = projectPointToRadialPlane(inputs.aimPoint, projection)
   const projectedLookDirection = projectVectorToRadialPlane(
-    context.attacker.lookDirection,
+    callResult.diagnostics.normalizedLookDirection,
     projection,
   )
-  const aimArrowEnd = setPlaneVectorLength(
-    attackerEyes,
-    projectedLookDirection,
-    aimArrowLength,
-    context.mechanics.vectorNormalizationThreshold,
-  )
+  const aimArrowEnd = addScaledVector(attackerEyes, projectedLookDirection, aimArrowLength)
   const launchVector = projectVectorToRadialPlane(evaluation.launchVelocity, projection)
   const launchSpeed = Math.hypot(launchVector.x, launchVector.y)
   const launchDisplayLength = launchVectorDisplayLength(launchSpeed)
@@ -305,9 +311,12 @@ export function createRadialScenePresentation(
     callResult.diagnostics.theta,
     context.mechanics.vectorNormalizationThreshold,
   )
+  const projectedCubeWidth =
+    context.cube.dimensions.width *
+    (Math.abs(projection.horizontalAxis.x) + Math.abs(projection.horizontalAxis.y))
   const bounds = createCubeAnchoredBounds(
     cubeFeet,
-    context.cube.dimensions.width,
+    projectedCubeWidth,
     context.cube.dimensions.height,
   )
   const trajectoryHorizontalCoordinates = trajectoryPoints.map(({ point }) => point.x)
@@ -328,7 +337,8 @@ export function createRadialScenePresentation(
       center: cubeCenter,
       top: cubeTop,
       bottom: cubeBottom,
-      width: context.cube.dimensions.width,
+      width: projectedCubeWidth,
+      minimumWidth: context.cube.dimensions.width,
       height: context.cube.dimensions.height,
     },
     attackerFeet,

@@ -37,7 +37,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  translateAttacker: [delta: Vec3]
+  translateAttackerPreservingCubeBearing: [delta: Vec3]
   translateCube: [delta: Vec3]
   updateAimPoint: [point: Vec3]
   reset: []
@@ -89,27 +89,13 @@ const view = computed(() => {
     maxY: viewport.height - visual.handleRadius,
   })
   const aimArrowEnd = toSvg(scene.aimArrowEnd)
-  const targetBearingEnd = toSvg(scene.targetBearingEnd)
   const launchEnd = toSvg(scene.launchEnd)
   const launchBodyEnd = {
     x: cubeCenter.x + (launchEnd.x - cubeCenter.x) * 0.9,
     y: cubeCenter.y + (launchEnd.y - cubeCenter.y) * 0.9,
   }
-  const calls = scene.calls.map((call) => {
-    const baseEnd = toSvg(call.baseEnd)
-    const rotatedEnd = toSvg(call.rotatedEnd)
-    const addedVelocityEnd = toSvg(call.addedVelocityDisplayEnd)
-
-    return {
-      ...call,
-      baseEnd,
-      rotatedEnd,
-      addedVelocityEnd,
-      baseBodyEnd: shortenLine(cubeCenter, baseEnd, 0.91),
-      rotatedBodyEnd: shortenLine(cubeCenter, rotatedEnd, 0.91),
-      addedVelocityBodyEnd: shortenLine(cubeCenter, addedVelocityEnd, 0.9),
-    }
-  })
+  const backwardVelocityEnd = toSvg(scene.backwardVelocityEnd)
+  const backwardVelocityBodyEnd = shortenLine(cubeCenter, backwardVelocityEnd, 0.92)
   const trajectory = scene.trajectory.map((sample) => ({
     ...sample,
     point: toSvg(sample.point),
@@ -119,10 +105,8 @@ const view = computed(() => {
     (sample) => sample.tick > 0 && sample.tick !== finalTrajectoryTick,
   )
   const trajectoryEnd = scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
-  const aimErrorLabelPoint =
-    scene.aimErrorLabelPoint === null ? null : toSvg(scene.aimErrorLabelPoint)
-  const directionAdjustmentLabelPoint =
-    scene.directionAdjustmentLabelPoint === null ? null : toSvg(scene.directionAdjustmentLabelPoint)
+  const launchOffsetLabelPoint =
+    scene.launchOffsetLabelPoint === null ? null : toSvg(scene.launchOffsetLabelPoint)
   const axisXStart = toSvg({ x: cameraBounds.value.minX, y: scene.cube.center.y })
   const axisXEnd = toSvg({ x: cameraBounds.value.maxX, y: scene.cube.center.y })
   const axisZStart = toSvg({ x: scene.cube.center.x, y: cameraBounds.value.minY })
@@ -143,14 +127,11 @@ const view = computed(() => {
   const metrics = {
     x: 18,
     aimErrorY: 24,
-    directionAdjustmentY: 41,
+    launchOffsetY: 41,
     blockY: 58,
     archetypeY: 75,
     aimErrorDegrees: ((scene.aimErrorRadians * 180) / Math.PI).toFixed(1),
-    directionAdjustmentDegrees: (
-      (scene.horizontalDirectionAdjustmentRadians * 180) /
-      Math.PI
-    ).toFixed(1),
+    launchOffsetDegrees: ((scene.launchOffsetRadians * 180) / Math.PI).toFixed(1),
   }
 
   return {
@@ -162,20 +143,14 @@ const view = computed(() => {
     attackerCenter,
     aimPoint,
     aimArrowEnd,
-    targetBearingEnd,
     launchEnd,
     launchBodyEnd,
     launchLabel,
-    calls,
     trajectoryTicks,
     trajectoryEnd,
-    aimErrorLabelPoint,
-    aimErrorArc: scene.aimErrorArc
-      .map(toSvg)
-      .map((point) => `${point.x},${point.y}`)
-      .join(' '),
-    directionAdjustmentLabelPoint,
-    directionAdjustmentArc: scene.directionAdjustmentArc
+    backwardVelocityBodyEnd,
+    launchOffsetLabelPoint,
+    launchOffsetArc: scene.launchOffsetArc
       .map(toSvg)
       .map((point) => `${point.x},${point.y}`)
       .join(' '),
@@ -210,6 +185,36 @@ function shortenLine(start: PlanePoint, end: PlanePoint, factor: number): PlaneP
   return {
     x: start.x + (end.x - start.x) * factor,
     y: start.y + (end.y - start.y) * factor,
+  }
+}
+
+function keepCentersSeparate(
+  candidate: PlanePoint,
+  obstacle: PlanePoint,
+  minimumDistance: number,
+  fallbackDirection: PlanePoint,
+): PlanePoint {
+  const delta = { x: candidate.x - obstacle.x, y: candidate.y - obstacle.y }
+  const distance = Math.hypot(delta.x, delta.y)
+
+  if (distance >= minimumDistance) {
+    return candidate
+  }
+
+  const fallbackLength = Math.hypot(fallbackDirection.x, fallbackDirection.y)
+  const direction =
+    distance > 1e-9
+      ? { x: delta.x / distance, y: delta.y / distance }
+      : fallbackLength > 1e-9
+        ? {
+            x: fallbackDirection.x / fallbackLength,
+            y: fallbackDirection.y / fallbackLength,
+          }
+        : { x: 0, y: -1 }
+
+  return {
+    x: obstacle.x + direction.x * minimumDistance,
+    y: obstacle.y + direction.y * minimumDistance,
   }
 }
 
@@ -353,10 +358,25 @@ function continueDrag(event: PointerEvent): void {
     }
     case 'attacker':
     case 'cube': {
-      const translation = { x: delta.x, y: 0, z: delta.y }
+      const currentScene = view.value.scene
+      const minimumDistance = (currentScene.cube.width + currentScene.attacker.width) / 2
+      const movingCenter =
+        drag.kind === 'attacker' ? currentScene.attacker.center : currentScene.cube.center
+      const obstacleCenter =
+        drag.kind === 'attacker' ? currentScene.cube.center : currentScene.attacker.center
+      const candidate = { x: movingCenter.x + delta.x, y: movingCenter.y + delta.y }
+      const target = keepCentersSeparate(candidate, obstacleCenter, minimumDistance, {
+        x: movingCenter.x - obstacleCenter.x,
+        y: movingCenter.y - obstacleCenter.y,
+      })
+      const translation = {
+        x: target.x - movingCenter.x,
+        y: 0,
+        z: target.y - movingCenter.y,
+      }
 
       if (drag.kind === 'attacker') {
-        emit('translateAttacker', translation)
+        emit('translateAttackerPreservingCubeBearing', translation)
       } else {
         emit('translateCube', translation)
       }
@@ -417,10 +437,23 @@ function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
       z: target.y,
     })
   } else {
-    const translation = { x: delta.x, y: 0, z: delta.y }
+    const scene = view.value.scene
+    const minimumDistance = (scene.cube.width + scene.attacker.width) / 2
+    const movingCenter = kind === 'attacker' ? scene.attacker.center : scene.cube.center
+    const obstacleCenter = kind === 'attacker' ? scene.cube.center : scene.attacker.center
+    const candidate = { x: movingCenter.x + delta.x, y: movingCenter.y + delta.y }
+    const target = keepCentersSeparate(candidate, obstacleCenter, minimumDistance, {
+      x: movingCenter.x - obstacleCenter.x,
+      y: movingCenter.y - obstacleCenter.y,
+    })
+    const translation = {
+      x: target.x - movingCenter.x,
+      y: 0,
+      z: target.y - movingCenter.y,
+    }
 
     if (kind === 'attacker') {
-      emit('translateAttacker', translation)
+      emit('translateAttackerPreservingCubeBearing', translation)
     } else {
       emit('translateCube', translation)
     }
@@ -489,6 +522,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           +
         </CdxButton>
       </div>
+      <div class="topdown-overlay topdown-overlay--reset">
+        <CdxButton size="small" weight="quiet" @click="emit('reset')">
+          {{ t('sulfurCube.controls.reset') }}
+        </CdxButton>
+      </div>
 
       <svg
         ref="svgElement"
@@ -527,17 +565,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
             <path class="marker-blue" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
           </marker>
           <marker
-            id="topdown-yellow-arrow"
-            markerWidth="8"
-            markerHeight="6"
-            refX="7"
-            refY="3"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path class="marker-yellow" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
-          </marker>
-          <marker
             id="topdown-green-arrow"
             markerWidth="8"
             markerHeight="6"
@@ -562,14 +589,16 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
             <tspan>{{ t('sulfurCube.topDown.horizontalAimErrorLabel') }}&#160;=&#160;</tspan>
             <tspan class="topdown-metric-value topdown-metric-value--aim">
-              {{ view.metrics.aimErrorDegrees }}°
+              {{ view.metrics.aimErrorDegrees }}
             </tspan>
+            <tspan>&#160;°</tspan>
           </text>
-          <text :x="view.metrics.x" :y="view.metrics.directionAdjustmentY">
-            <tspan>{{ t('sulfurCube.topDown.directionAdjustmentLabel') }}&#160;=&#160;</tspan>
+          <text :x="view.metrics.x" :y="view.metrics.launchOffsetY">
+            <tspan>{{ t('sulfurCube.topDown.launchOffsetLabel') }}&#160;=&#160;</tspan>
             <tspan class="topdown-metric-value topdown-metric-value--adjustment">
-              {{ view.metrics.directionAdjustmentDegrees }}°
+              {{ view.metrics.launchOffsetDegrees }}
             </tspan>
+            <tspan>&#160;°</tspan>
           </text>
           <text :x="view.metrics.x" :y="view.metrics.blockY">
             <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
@@ -616,7 +645,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
             :y2="view.axisZEnd.y"
           />
           <text :x="viewport.width - 12" :y="view.axisXEnd.y - 7" text-anchor="end">+X</text>
-          <text :x="view.axisZEnd.x + 8" :y="14">+Z</text>
+          <text :x="view.axisZEnd.x + 8" :y="24">+Z</text>
         </g>
 
         <template v-for="sample in view.trajectoryTicks" :key="sample.tick">
@@ -647,11 +676,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
         />
 
         <line
-          class="topdown-target-bearing"
-          :x1="view.attackerCenter.x"
-          :y1="view.attackerCenter.y"
-          :x2="view.targetBearingEnd.x"
-          :y2="view.targetBearingEnd.y"
+          class="topdown-feet-axis"
+          :x1="view.cubeCenter.x"
+          :y1="view.cubeCenter.y"
+          :x2="view.attackerCenter.x"
+          :y2="view.attackerCenter.y"
         />
         <line
           class="topdown-aim"
@@ -661,67 +690,26 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           :y2="view.aimArrowEnd.y"
           marker-end="url(#topdown-blue-arrow)"
         />
-        <polyline v-if="view.aimErrorArc" class="topdown-aim-error" :points="view.aimErrorArc" />
-        <text
-          v-if="view.aimErrorLabelPoint"
-          class="topdown-aim-error-label"
-          :x="view.aimErrorLabelPoint.x"
-          :y="view.aimErrorLabelPoint.y"
-          text-anchor="middle"
-        >
-          Δ={{ ((view.scene.aimErrorRadians * 180) / Math.PI).toFixed(1) }}°
-        </text>
-
-        <g
-          v-for="call in view.calls"
-          :key="call.index"
-          class="topdown-call"
-          :class="{ 'topdown-call--secondary': call.index > 0 }"
-        >
-          <line
-            class="topdown-call-base"
-            :x1="view.cubeCenter.x"
-            :y1="view.cubeCenter.y"
-            :x2="call.baseBodyEnd.x"
-            :y2="call.baseBodyEnd.y"
-            marker-end="url(#topdown-yellow-arrow)"
-          >
-            <title>{{ t('sulfurCube.topDown.callBaseTitle', { call: call.index + 1 }) }}</title>
-          </line>
-          <line
-            class="topdown-call-rotated"
-            :x1="view.cubeCenter.x"
-            :y1="view.cubeCenter.y"
-            :x2="call.rotatedBodyEnd.x"
-            :y2="call.rotatedBodyEnd.y"
-            marker-end="url(#topdown-blue-arrow)"
-          >
-            <title>{{ t('sulfurCube.topDown.callRotatedTitle', { call: call.index + 1 }) }}</title>
-          </line>
-          <line
-            v-if="view.calls.length > 1"
-            class="topdown-call-added"
-            :x1="view.cubeCenter.x"
-            :y1="view.cubeCenter.y"
-            :x2="call.addedVelocityBodyEnd.x"
-            :y2="call.addedVelocityBodyEnd.y"
-            marker-end="url(#topdown-green-arrow)"
-          />
-        </g>
-
+        <line
+          class="topdown-backward-velocity"
+          :x1="view.cubeCenter.x"
+          :y1="view.cubeCenter.y"
+          :x2="view.backwardVelocityBodyEnd.x"
+          :y2="view.backwardVelocityBodyEnd.y"
+        />
         <polyline
-          v-if="view.directionAdjustmentArc"
-          class="topdown-direction-adjustment"
-          :points="view.directionAdjustmentArc"
+          v-if="view.launchOffsetArc"
+          class="topdown-launch-offset"
+          :points="view.launchOffsetArc"
         />
         <text
-          v-if="view.directionAdjustmentLabelPoint"
-          class="topdown-direction-adjustment-label"
-          :x="view.directionAdjustmentLabelPoint.x"
-          :y="view.directionAdjustmentLabelPoint.y"
+          v-if="view.launchOffsetLabelPoint"
+          class="topdown-launch-offset-label"
+          :x="view.launchOffsetLabelPoint.x"
+          :y="view.launchOffsetLabelPoint.y"
           text-anchor="middle"
         >
-          1.6 × Δ
+          {{ view.metrics.launchOffsetDegrees }}°
         </text>
 
         <rect
@@ -842,31 +830,24 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
       </svg>
     </div>
 
-    <div class="topdown-legend-row">
-      <div class="topdown-legend" aria-hidden="true">
-        <span><i class="topdown-swatch topdown-swatch--player" />{{
-            t('sulfurCube.scene.legendPlayer')
-          }}</span>
-        <span><i class="topdown-swatch topdown-swatch--cube" />{{
-            t('sulfurCube.scene.legendSulfurCube')
-          }}</span>
-        <span><i class="topdown-swatch topdown-swatch--aim" />{{ t('sulfurCube.scene.aim') }}</span>
-        <span><i class="topdown-swatch topdown-swatch--bearing" />{{
-            t('sulfurCube.topDown.targetBearing')
-          }}</span>
-        <span><i class="topdown-swatch topdown-swatch--base" />{{
-            t('sulfurCube.topDown.baseDirection')
-          }}</span>
-        <span><i class="topdown-swatch topdown-swatch--rotated" />{{
-            t('sulfurCube.topDown.rotatedDirection')
-          }}</span>
-        <span><i class="topdown-swatch topdown-swatch--launch" />{{
-            t('sulfurCube.topDown.velocityAndTrajectory')
-          }}</span>
-      </div>
-      <CdxButton size="small" weight="quiet" @click="emit('reset')">
-        {{ t('sulfurCube.controls.reset') }}
-      </CdxButton>
+    <div class="topdown-legend" aria-hidden="true">
+      <span>
+        <i class="topdown-swatch topdown-swatch--player" />
+        {{ t('sulfurCube.scene.legendPlayer') }}
+      </span>
+      <span>
+        <i class="topdown-swatch topdown-swatch--cube" />
+        {{ t('sulfurCube.scene.legendSulfurCube') }}
+      </span>
+      <span><i class="topdown-swatch topdown-swatch--aim" />{{ t('sulfurCube.scene.aim') }}</span>
+      <span>
+        <i class="topdown-swatch topdown-swatch--axis" />
+        {{ t('sulfurCube.topDown.playerCubeAxis') }}
+      </span>
+      <span>
+        <i class="topdown-swatch topdown-swatch--launch" />
+        {{ t('sulfurCube.topDown.velocityAndTrajectory') }}
+      </span>
     </div>
 
     <figcaption>
@@ -887,9 +868,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
   );
   --topdown-cube: #f2a900;
   --topdown-aim: #00a3d7;
-  --topdown-base: #f2a900;
   --topdown-launch: #00a000;
-  --topdown-trajectory: color-mix(in srgb, #00a000 48%, transparent);
+  --topdown-trajectory: #67b94b;
   --topdown-adjustment: #d33682;
   --topdown-grab-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
     8 7;
@@ -944,6 +924,11 @@ figcaption {
 .topdown-overlay :deep(.cdx-button) {
   min-width: 1.75rem;
   padding: 0 0.35rem;
+}
+.topdown-overlay--reset {
+  top: auto;
+  right: 0.5rem;
+  bottom: 0.5rem;
 }
 .topdown-svg {
   display: block;
@@ -1000,59 +985,34 @@ figcaption {
   font-weight: 700;
   pointer-events: none;
 }
-.topdown-target-bearing {
+.topdown-feet-axis {
   stroke: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
   stroke-width: var(--topdown-stroke-thin);
   stroke-dasharray: var(--topdown-dash);
   pointer-events: none;
 }
-.topdown-aim,
-.topdown-call-rotated {
+.topdown-aim {
   stroke: var(--topdown-aim);
 }
 .topdown-aim {
   stroke-width: var(--topdown-stroke-regular);
 }
-.topdown-aim-error {
-  fill: none;
-  stroke: var(--topdown-aim);
-  stroke-width: var(--topdown-stroke-thin);
-}
-.topdown-aim-error-label {
-  fill: #007aa3;
-  font-size: var(--topdown-small-font-size);
-}
-.topdown-direction-adjustment {
+.topdown-launch-offset {
   fill: none;
   stroke: var(--topdown-adjustment);
   stroke-width: var(--topdown-stroke-thin);
   pointer-events: none;
 }
-.topdown-direction-adjustment-label {
+.topdown-launch-offset-label {
   fill: var(--topdown-adjustment);
   font-size: var(--topdown-small-font-size);
-  font-weight: 700;
   pointer-events: none;
 }
-.topdown-call {
-  opacity: 0.88;
-  pointer-events: none;
-}
-.topdown-call--secondary {
-  opacity: 0.58;
-}
-.topdown-call-base,
-.topdown-call-rotated,
-.topdown-call-added {
-  fill: none;
-  stroke-width: var(--topdown-stroke-thin);
-  stroke-dasharray: var(--topdown-dash);
-}
-.topdown-call-base {
-  stroke: var(--topdown-base);
-}
-.topdown-call-added {
+.topdown-backward-velocity {
   stroke: var(--topdown-launch);
+  stroke-width: var(--topdown-stroke-thin);
+  opacity: 0.7;
+  pointer-events: none;
 }
 .topdown-cube {
   fill: var(--topdown-cube);
@@ -1082,11 +1042,11 @@ figcaption {
   pointer-events: none;
 }
 .topdown-trajectory-tick {
-  fill: var(--topdown-trajectory);
+  fill: color-mix(in srgb, var(--topdown-trajectory) 44%, transparent);
   pointer-events: none;
 }
 .topdown-trajectory-tick--contact {
-  fill: color-mix(in srgb, var(--topdown-launch) 72%, transparent);
+  fill: color-mix(in srgb, var(--topdown-launch) 82%, transparent);
 }
 .topdown-trajectory-end {
   fill: none;
@@ -1099,9 +1059,6 @@ figcaption {
 }
 .marker-blue {
   fill: var(--topdown-aim);
-}
-.marker-yellow {
-  fill: var(--topdown-base);
 }
 .marker-green {
   fill: var(--topdown-launch);
@@ -1134,20 +1091,13 @@ figcaption {
   font-weight: 700;
   pointer-events: none;
 }
-.topdown-legend-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  margin: 0.5rem auto 0;
-}
 .topdown-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 1rem;
   color: var(--topdown-muted);
   font-size: 0.875rem;
+  margin: 0.5rem auto 0;
 }
 .topdown-legend > span {
   display: inline-flex;
@@ -1163,16 +1113,14 @@ figcaption {
 .topdown-swatch--player {
   background: var(--topdown-ink);
 }
-.topdown-swatch--cube,
-.topdown-swatch--base {
+.topdown-swatch--cube {
   background: var(--topdown-cube);
 }
-.topdown-swatch--aim,
-.topdown-swatch--rotated {
+.topdown-swatch--aim {
   border-color: var(--topdown-aim);
   background: var(--topdown-aim);
 }
-.topdown-swatch--bearing {
+.topdown-swatch--axis {
   border-color: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
   background: transparent;
 }

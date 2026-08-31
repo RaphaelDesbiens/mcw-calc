@@ -3,18 +3,37 @@ import type { PlanePoint, RadialProjection } from './types'
 
 const defaultHorizontalAxis: Vec2 = { x: 0, y: 1 }
 
+export type RadialAttackerSide = -1 | 1
+
+function canonicalZero(value: number): number {
+  return value === 0 ? 0 : value
+}
+
 export function createRadialProjection(
   cubeFeetPosition: Vec3,
   attackerFeetPosition: Vec3,
   minimumHorizontalLength = 1e-9,
+  attackerSide: RadialAttackerSide = -1,
+  fallbackHorizontalAxis: Vec2 = defaultHorizontalAxis,
 ): RadialProjection {
-  const horizontalX = cubeFeetPosition.x - attackerFeetPosition.x
-  const horizontalZ = cubeFeetPosition.z - attackerFeetPosition.z
+  const horizontalX = attackerFeetPosition.x - cubeFeetPosition.x
+  const horizontalZ = attackerFeetPosition.z - cubeFeetPosition.z
   const horizontalLength = Math.hypot(horizontalX, horizontalZ)
+  const fallbackLength = Math.hypot(fallbackHorizontalAxis.x, fallbackHorizontalAxis.y)
+  const fallback =
+    fallbackLength < minimumHorizontalLength
+      ? defaultHorizontalAxis
+      : {
+          x: fallbackHorizontalAxis.x / fallbackLength,
+          y: fallbackHorizontalAxis.y / fallbackLength,
+        }
   const horizontalAxis =
     horizontalLength < minimumHorizontalLength
-      ? defaultHorizontalAxis
-      : { x: horizontalX / horizontalLength, y: horizontalZ / horizontalLength }
+      ? fallback
+      : {
+          x: canonicalZero((horizontalX / horizontalLength) * attackerSide),
+          y: canonicalZero((horizontalZ / horizontalLength) * attackerSide),
+        }
 
   return {
     origin: { ...cubeFeetPosition },
@@ -27,15 +46,17 @@ export function projectPointToRadialPlane(point: Vec3, projection: RadialProject
   const deltaZ = point.z - projection.origin.z
 
   return {
-    x: deltaX * projection.horizontalAxis.x + deltaZ * projection.horizontalAxis.y,
-    y: point.y - projection.origin.y,
+    x: canonicalZero(deltaX * projection.horizontalAxis.x + deltaZ * projection.horizontalAxis.y),
+    y: canonicalZero(point.y - projection.origin.y),
   }
 }
 
 export function projectVectorToRadialPlane(vector: Vec3, projection: RadialProjection): PlanePoint {
   return {
-    x: vector.x * projection.horizontalAxis.x + vector.z * projection.horizontalAxis.y,
-    y: vector.y,
+    x: canonicalZero(
+      vector.x * projection.horizontalAxis.x + vector.z * projection.horizontalAxis.y,
+    ),
+    y: canonicalZero(vector.y),
   }
 }
 

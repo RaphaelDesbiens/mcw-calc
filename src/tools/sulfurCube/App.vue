@@ -22,6 +22,7 @@ import {
   resetAttackerEyeToStandingPresetInFormState,
   translateAttackerForFeetFormEdit,
   translateAttackerInFormState,
+  translateAttackerPreservingCubeBearingInFormState,
   translateCubeInFormState,
   updateAimPointInFormState,
 } from './components/formState'
@@ -241,6 +242,10 @@ function translateAttacker(delta: Vec3): void {
   updateFormState(translateAttackerInFormState(formState.value, delta))
 }
 
+function translateAttackerPreservingCubeBearing(delta: Vec3): void {
+  updateFormState(translateAttackerPreservingCubeBearingInFormState(formState.value, delta))
+}
+
 function translateCube(delta: Vec3): void {
   updateFormState(translateCubeInFormState(formState.value, delta))
 }
@@ -399,7 +404,7 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
           :selected-archetype-label="selectedCubeVisual.archetypeLabel"
           :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
           @update-aim-point="updateAimPoint"
-          @translate-attacker="translateAttacker"
+          @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
           @translate-cube="translateCube"
           @reset="reset"
         />
@@ -535,22 +540,21 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
 .interaction-grid--regular {
   grid-template-areas:
     'scene scene'
-    'horizontal horizontal'
-    'controls power'
+    'horizontal power'
+    'controls readout'
     'trace trace'
-    'readout readout'
     'details details';
-  grid-template-columns: minmax(18rem, 0.8fr) minmax(22rem, 1.2fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .interaction-grid--compact {
   grid-template-areas:
     'power scene'
-    'horizontal horizontal'
-    'controls readout'
+    'horizontal readout'
+    'controls controls'
     'trace trace'
     'details details';
-  grid-template-columns: minmax(18rem, 0.85fr) minmax(22rem, 1.15fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .interaction-grid__controls {
@@ -563,8 +567,6 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
 
 .interaction-grid__horizontal {
   grid-area: horizontal;
-  width: min(100%, 44rem);
-  justify-self: center;
 }
 
 .interaction-grid__power {

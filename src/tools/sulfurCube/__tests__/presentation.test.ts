@@ -5,6 +5,7 @@ import {
   resetAttackerEyeToStandingPresetInFormState,
   translateAttackerForFeetFormEdit,
   translateAttackerInFormState,
+  translateAttackerPreservingCubeBearingInFormState,
   translateCubeInFormState,
   updateAimPointInFormState,
 } from '../components/formState'
@@ -30,6 +31,7 @@ import {
   topDownAimArcRadius,
   topDownDirectionAdjustmentArcRadius,
   topDownDirectionVectorLength,
+  topDownLaunchOffsetArcRadius,
 } from '../presentation/topDown'
 import {
   clampPointToBoundsFromOrigin,
@@ -67,6 +69,26 @@ describe('radial-plane presentation', () => {
     const projection = createRadialProjection({ x: 1, y: 0, z: 2 }, { x: 1, y: 3, z: 2 })
 
     expect(projection.horizontalAxis).toEqual({ x: 0, y: 1 })
+  })
+
+  it('keeps an explicit radial side while the world-space player crosses the cube', () => {
+    const leftProjection = createRadialProjection(
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 2 },
+      1e-9,
+      -1,
+    )
+    const crossedProjection = createRadialProjection(
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: -0.5 },
+      1e-9,
+      1,
+      leftProjection.horizontalAxis,
+    )
+
+    expect(projectPointToRadialPlane({ x: 0, y: 0, z: 2 }, leftProjection).x).toBe(-2)
+    expect(projectPointToRadialPlane({ x: 0, y: 0, z: -0.5 }, crossedProjection).x).toBe(0.5)
+    expect(crossedProjection.horizontalAxis).toEqual(leftProjection.horizontalAxis)
   })
 
   it('round-trips a projected point while preserving its lateral offset', () => {
@@ -277,6 +299,19 @@ describe('radial scene presentation', () => {
     expect(scene.aimLateralOffset).toBeCloseTo(-0.4, 12)
   })
 
+  it('widens the radial cube projection at diagonal X/Z orientations', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const evaluation = evaluateDiagnosticInputs({
+      ...inputs,
+      attackerFeetPosition: { x: 2, y: inputs.attackerFeetPosition.y, z: 2 },
+      attackerEyePosition: { x: 2, y: inputs.attackerEyePosition.y, z: 2 },
+    })
+    const scene = createRadialScenePresentation(evaluation)
+
+    expect(scene.cube.minimumWidth).toBeCloseTo(0.98, 12)
+    expect(scene.cube.width).toBeCloseTo(scene.cube.minimumWidth * Math.SQRT2, 12)
+  })
+
   it('stops drawing at settlement while preserving the requested maximum length', () => {
     const evaluation = evaluateDiagnosticInputs({
       ...getDiagnosticPreset('M1').inputs,
@@ -370,7 +405,14 @@ describe('top-down scene presentation', () => {
         scene.aimArrowEnd.x - scene.attacker.center.x,
         scene.aimArrowEnd.y - scene.attacker.center.y,
       ),
-    ).toBeCloseTo(aimArrowLength, 12)
+    ).toBeCloseTo(
+      aimArrowLength *
+        Math.hypot(
+          evaluation.callResult.diagnostics.normalizedLookDirection.x,
+          evaluation.callResult.diagnostics.normalizedLookDirection.z,
+        ),
+      12,
+    )
     expect(scene.aimErrorArc).toHaveLength(21)
     for (const point of [scene.aimErrorArc[0], scene.aimErrorArc[scene.aimErrorArc.length - 1]]) {
       expect(
@@ -389,6 +431,15 @@ describe('top-down scene presentation', () => {
       expect(
         Math.hypot(point!.x - scene.cube.center.x, point!.y - scene.cube.center.y),
       ).toBeCloseTo(topDownDirectionAdjustmentArcRadius, 12)
+    }
+    expect(scene.launchOffsetArc).toHaveLength(21)
+    for (const point of [
+      scene.launchOffsetArc[0],
+      scene.launchOffsetArc[scene.launchOffsetArc.length - 1],
+    ]) {
+      expect(
+        Math.hypot(point!.x - scene.cube.center.x, point!.y - scene.cube.center.y),
+      ).toBeCloseTo(topDownLaunchOffsetArcRadius, 12)
     }
     expect(scene.reach).toBe(evaluation.reach)
     expect(
@@ -465,6 +516,39 @@ describe('scene interaction form updates', () => {
     expect(updated.attackerFeetPosition).toEqual({ x: 0.25, y: -0.5, z: 2.5 })
     expect(updated.attackerEyePosition).toEqual({ x: 0.25, y: 1.12, z: 2.5 })
     expect(updated.aimPoint).toEqual({ x: 0.25, y: -0.01, z: 1.48 })
+  })
+
+  it('rotates horizontal aim with a top-down attacker move while preserving aim error', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const moved = parseDiagnosticFormState(
+      translateAttackerPreservingCubeBearingInFormState(createDiagnosticFormState(inputs), {
+        x: 2.6,
+        y: 0,
+        z: -2.6,
+      }),
+    )
+    const signedAimError = (candidate: typeof inputs): number => {
+      const bearing = {
+        x: candidate.cubeFeetPosition.x - candidate.attackerFeetPosition.x,
+        z: candidate.cubeFeetPosition.z - candidate.attackerFeetPosition.z,
+      }
+      const look = {
+        x: candidate.aimPoint.x - candidate.attackerEyePosition.x,
+        z: candidate.aimPoint.z - candidate.attackerEyePosition.z,
+      }
+
+      return Math.atan2(
+        look.x * bearing.z - look.z * bearing.x,
+        look.x * bearing.x + look.z * bearing.z,
+      )
+    }
+
+    expect(moved.attackerFeetPosition).toEqual({ x: 2.6, y: 0, z: -1.1 })
+    expect(signedAimError(moved)).toBeCloseTo(signedAimError(inputs), 4)
+    expect(moved.aimPoint.y - moved.attackerEyePosition.y).toBeCloseTo(
+      inputs.aimPoint.y - inputs.attackerEyePosition.y,
+      12,
+    )
   })
 
   it('changes only the aim coordinates when the aim handle moves', () => {

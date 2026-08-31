@@ -158,6 +158,72 @@ export function translateAttackerInFormState(
   })
 }
 
+/**
+ * Moves the attacker in X/Z while preserving the signed horizontal angle between
+ * their look direction and the attacker-to-cube feet axis. This is a top-down
+ * interaction rule only; it does not participate in mechanics evaluation.
+ */
+export function translateAttackerPreservingCubeBearingInFormState(
+  state: DiagnosticFormState,
+  delta: Vec3,
+): DiagnosticFormState {
+  const inputs = parseDiagnosticFormState(state)
+  const oldBearing = {
+    x: inputs.cubeFeetPosition.x - inputs.attackerFeetPosition.x,
+    z: inputs.cubeFeetPosition.z - inputs.attackerFeetPosition.z,
+  }
+  const newFeet = {
+    x: inputs.attackerFeetPosition.x + delta.x,
+    y: inputs.attackerFeetPosition.y + delta.y,
+    z: inputs.attackerFeetPosition.z + delta.z,
+  }
+  const newBearing = {
+    x: inputs.cubeFeetPosition.x - newFeet.x,
+    z: inputs.cubeFeetPosition.z - newFeet.z,
+  }
+  const oldBearingLength = Math.hypot(oldBearing.x, oldBearing.z)
+  const newBearingLength = Math.hypot(newBearing.x, newBearing.z)
+
+  if (oldBearingLength < 1e-9 || newBearingLength < 1e-9) {
+    return translateAttackerInFormState(state, delta)
+  }
+
+  const rotation = Math.atan2(
+    oldBearing.x * newBearing.z - oldBearing.z * newBearing.x,
+    oldBearing.x * newBearing.x + oldBearing.z * newBearing.z,
+  )
+  const cosine = Math.cos(rotation)
+  const sine = Math.sin(rotation)
+  const lookOffset = {
+    x: inputs.aimPoint.x - inputs.attackerEyePosition.x,
+    z: inputs.aimPoint.z - inputs.attackerEyePosition.z,
+  }
+  const newEyes = {
+    x: inputs.attackerEyePosition.x + delta.x,
+    y: inputs.attackerEyePosition.y + delta.y,
+    z: inputs.attackerEyePosition.z + delta.z,
+  }
+
+  return createDiagnosticFormState({
+    ...inputs,
+    attackerFeetPosition: {
+      x: interactionNumber(newFeet.x),
+      y: interactionNumber(newFeet.y),
+      z: interactionNumber(newFeet.z),
+    },
+    attackerEyePosition: {
+      x: interactionNumber(newEyes.x),
+      y: interactionNumber(newEyes.y),
+      z: interactionNumber(newEyes.z),
+    },
+    aimPoint: {
+      x: interactionNumber(newEyes.x + lookOffset.x * cosine - lookOffset.z * sine),
+      y: interactionNumber(inputs.aimPoint.y + delta.y),
+      z: interactionNumber(newEyes.z + lookOffset.x * sine + lookOffset.z * cosine),
+    },
+  })
+}
+
 export function translateAttackerForFeetFormEdit(
   currentState: DiagnosticFormState,
   nextState: DiagnosticFormState,

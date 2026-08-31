@@ -13,6 +13,7 @@ import { aimArrowLength, launchVectorDisplayLength, maximumRenderedTrajectoryTic
 export const topDownDirectionVectorLength = 2.25
 export const topDownAimArcRadius = 1.15
 export const topDownDirectionAdjustmentArcRadius = 0.82
+export const topDownLaunchOffsetArcRadius = 0.82
 export const topDownSceneCameraHalfWidth = 6
 export const topDownSceneCameraHalfHeight = 4.75
 
@@ -45,6 +46,10 @@ export interface TopDownScenePresentation {
   readonly directionAdjustmentArc: readonly PlanePoint[]
   readonly directionAdjustmentLabelPoint: PlanePoint | null
   readonly horizontalDirectionAdjustmentRadians: number
+  readonly backwardVelocityEnd: PlanePoint
+  readonly launchOffsetArc: readonly PlanePoint[]
+  readonly launchOffsetLabelPoint: PlanePoint | null
+  readonly launchOffsetRadians: number
   readonly reach: ClearRayEntityReachResult
   readonly calls: readonly TopDownCallDirectionPresentation[]
   readonly launchEnd: PlanePoint
@@ -56,6 +61,47 @@ export interface TopDownScenePresentation {
   }[]
   readonly trajectoryEndMarker: PlanePoint | null
   readonly trajectoryStatus: 'settled' | 'truncated'
+}
+
+function createAnglePresentation(
+  origin: PlanePoint,
+  start: HorizontalVector,
+  end: HorizontalVector,
+  radius: number,
+  minimumLength: number,
+): {
+  readonly arc: readonly PlanePoint[]
+  readonly label: PlanePoint | null
+  readonly angle: number
+} {
+  const startLength = Math.hypot(start.x, start.z)
+  const endLength = Math.hypot(end.x, end.z)
+
+  if (startLength < minimumLength || endLength < minimumLength) {
+    return { arc: [], label: null, angle: 0 }
+  }
+
+  const angle = Math.atan2(start.x * end.z - start.z * end.x, start.x * end.x + start.z * end.z)
+  const startAngle = Math.atan2(start.z, start.x)
+  const sampleCount = 20
+  const arc = Array.from({ length: sampleCount + 1 }, (_, index) => {
+    const sampleAngle = startAngle + (angle * index) / sampleCount
+
+    return {
+      x: origin.x + Math.cos(sampleAngle) * radius,
+      y: origin.y + Math.sin(sampleAngle) * radius,
+    }
+  })
+  const labelAngle = startAngle + angle / 2
+
+  return {
+    arc,
+    label: {
+      x: origin.x + Math.cos(labelAngle) * (radius + 0.24),
+      y: origin.y + Math.sin(labelAngle) * (radius + 0.24),
+    },
+    angle,
+  }
 }
 
 function createDirectionAdjustmentPresentation(
@@ -112,6 +158,17 @@ function addScaledHorizontalVector(
   return {
     x: origin.x + (vector.x / length) * displayLength,
     y: origin.y + (vector.z / length) * displayLength,
+  }
+}
+
+function addProjectedHorizontalVector(
+  origin: PlanePoint,
+  vector: HorizontalVector,
+  scale: number,
+): PlanePoint {
+  return {
+    x: origin.x + vector.x * scale,
+    y: origin.y + vector.z * scale,
   }
 }
 
@@ -194,12 +251,7 @@ export function createTopDownScenePresentation(
     x: evaluation.callResult.diagnostics.eyeToCenterDirection.x,
     z: evaluation.callResult.diagnostics.eyeToCenterDirection.z,
   }
-  const aimArrowEnd = addScaledHorizontalVector(
-    attackerCenter,
-    lookHorizontal,
-    aimArrowLength,
-    minimumLength,
-  )
+  const aimArrowEnd = addProjectedHorizontalVector(attackerCenter, lookHorizontal, aimArrowLength)
   const targetBearingEnd = addScaledHorizontalVector(
     attackerCenter,
     targetHorizontal,
@@ -255,6 +307,24 @@ export function createTopDownScenePresentation(
     launchDisplayLength,
     minimumLength,
   )
+  const backwardVelocity = { x: -horizontalLaunch.x, z: -horizontalLaunch.z }
+  const backwardVelocityEnd = addScaledHorizontalVector(
+    cubeCenter,
+    backwardVelocity,
+    topDownDirectionVectorLength,
+    minimumLength,
+  )
+  const cubeToAttacker = {
+    x: context.attacker.feetPosition.x - context.cube.feetPosition.x,
+    z: context.attacker.feetPosition.z - context.cube.feetPosition.z,
+  }
+  const launchOffset = createAnglePresentation(
+    cubeCenter,
+    cubeToAttacker,
+    backwardVelocity,
+    topDownLaunchOffsetArcRadius,
+    minimumLength,
+  )
   const trajectory = [
     {
       tick: 0,
@@ -289,6 +359,10 @@ export function createTopDownScenePresentation(
     directionAdjustmentArc: primaryDirectionAdjustment.arc,
     directionAdjustmentLabelPoint: primaryDirectionAdjustment.label,
     horizontalDirectionAdjustmentRadians: evaluation.callResult.diagnostics.horizontalRotationAngle,
+    backwardVelocityEnd,
+    launchOffsetArc: launchOffset.arc,
+    launchOffsetLabelPoint: launchOffset.label,
+    launchOffsetRadians: launchOffset.angle,
     reach: evaluation.reach,
     calls,
     launchEnd,

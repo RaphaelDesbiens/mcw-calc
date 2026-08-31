@@ -209,6 +209,16 @@ const currentLockedArchetypeLabel = computed(() =>
 const matchingArchetypeLabels = computed(() =>
   props.resolution.candidateIds.map(humanizeIdentifier).join(', '),
 )
+const selectedBlockSummary = computed(() =>
+  props.modelValue.mode === 'custom'
+    ? t('sulfurCube.scene.customBlockSelection')
+    : humanizeIdentifier(props.modelValue.selectedBlockId),
+)
+const selectedArchetypeSummary = computed(() =>
+  props.modelValue.mode === 'custom'
+    ? t('sulfurCube.properties.mode.custom')
+    : matchingArchetypeLabels.value,
+)
 
 const lockedPropertyRows = computed(() => {
   const values = props.resolution.values
@@ -392,6 +402,17 @@ function hideBlockTooltip(): void {
         placement="right"
       />
     </div>
+
+    <p class="property-controls__selection-summary">
+      <span>
+        <strong>{{ t('sulfurCube.scene.selectedBlockLabel') }}:</strong>
+        {{ selectedBlockSummary }}
+      </span>
+      <span>
+        <strong>{{ t('sulfurCube.scene.archetypeLabel') }}:</strong>
+        {{ selectedArchetypeSummary }}
+      </span>
+    </p>
 
     <CdxToggleButtonGroup
       :model-value="modelValue.mode"
@@ -662,6 +683,15 @@ function hideBlockTooltip(): void {
 .property-controls__heading h4 {
   margin: 0;
   font-size: 1.125rem;
+}
+
+.property-controls__selection-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  color: var(--color-subtle, #54595d);
+  font-size: 0.875rem;
 }
 
 .property-controls__custom-help,

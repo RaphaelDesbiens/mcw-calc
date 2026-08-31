@@ -183,12 +183,12 @@ const view = computed(() => {
           :label="t('sulfurCube.power.caveatLabel')"
           placement="right"
         />
-        <span class="power-space__static-badge">{{ t('sulfurCube.power.nonInteractive') }}</span>
       </div>
       <p>{{ t('sulfurCube.power.subtitle') }}</p>
     </div>
 
     <div class="power-space__frame">
+      <span class="power-space__static-badge">{{ t('sulfurCube.power.nonInteractive') }}</span>
       <svg
         class="power-space__svg"
         :viewBox="`0 0 ${viewport.width} ${viewport.height}`"
@@ -386,7 +386,10 @@ const view = computed(() => {
 }
 
 .power-space__static-badge {
-  margin-left: auto;
+  position: absolute;
+  z-index: 1;
+  top: 0.4rem;
+  right: 0.4rem;
   border: 1px solid var(--border-color-subtle, #c8ccd1);
   border-radius: 999px;
   padding: 0.1rem 0.45rem;
@@ -409,6 +412,7 @@ figcaption {
 }
 
 .power-space__frame {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--power-border);
   border-radius: 4px;
