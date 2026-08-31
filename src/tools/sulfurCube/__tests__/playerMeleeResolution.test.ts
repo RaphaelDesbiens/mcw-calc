@@ -72,7 +72,7 @@ describe('primary player melee attack resolution', () => {
     if (effect.kind !== 'sulfurCubeKnockbackCall') return
 
     expect(ordinary.providerId).toBe('nonProjectileSourcePosition')
-    expect(ordinary.call.horizontalBaseDirection).toEqual({ x: 0, y: 1.5 })
+    expect(ordinary.call.horizontalBaseDirection).toEqual({ x: 0, z: 1.5 })
     expect(ordinary.call.scaling).toEqual({ kind: 'ordinaryDamage' })
     expect(effect.providerId).toBe('callerYaw')
     expect(effect.call.scaling).toEqual({
@@ -82,7 +82,7 @@ describe('primary player melee attack resolution', () => {
     expect(Math.abs(effect.call.horizontalBaseDirection.x - 0.3651668)).toBeLessThan(
       javaFixtureTolerance,
     )
-    expect(Math.abs(effect.call.horizontalBaseDirection.y - 0.9309421)).toBeLessThan(
+    expect(Math.abs(effect.call.horizontalBaseDirection.z - 0.9309421)).toBeLessThan(
       javaFixtureTolerance,
     )
     expect(effect.call.damageArgument).toBe(ordinary.call.damageArgument)

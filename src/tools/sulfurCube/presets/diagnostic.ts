@@ -275,7 +275,7 @@ export function evaluateDiagnosticInputs(
       damageArgument: inputs.damageArgument,
       horizontalBaseDirection: {
         x: inputs.attackerFeetPosition.x - inputs.cubeFeetPosition.x,
-        y: inputs.attackerFeetPosition.z - inputs.cubeFeetPosition.z,
+        z: inputs.attackerFeetPosition.z - inputs.cubeFeetPosition.z,
       },
       scaling: { kind: 'ordinaryDamage' },
     },

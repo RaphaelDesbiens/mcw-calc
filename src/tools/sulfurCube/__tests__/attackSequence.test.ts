@@ -41,7 +41,7 @@ describe('ordered sulfur cube attack sequences', () => {
   it('feeds each resulting velocity into the next independent call', () => {
     const secondCall: KnockbackCall = {
       damageArgument: 4,
-      horizontalBaseDirection: { x: 1, y: 0 },
+      horizontalBaseDirection: { x: 1, z: 0 },
       scaling: { kind: 'extraKnockbackEffect', powerArgument: 2 },
     }
     const sequence = applySulfurCubeAttackSequence(
@@ -55,14 +55,14 @@ describe('ordered sulfur cube attack sequences', () => {
     expect(sequence.callResults[1].input.existingVelocity).toEqual(
       sequence.callResults[0].resultingVelocity,
     )
-    expect(sequence.callResults[0].input.call.horizontalBaseDirection).toEqual({ x: 0, y: 1.5 })
-    expect(sequence.callResults[1].input.call.horizontalBaseDirection).toEqual({ x: 1, y: 0 })
+    expect(sequence.callResults[0].input.call.horizontalBaseDirection).toEqual({ x: 0, z: 1.5 })
+    expect(sequence.callResults[1].input.call.horizontalBaseDirection).toEqual({ x: 1, z: 0 })
   })
 
   it('keeps the trace ordered when calls are reversed', () => {
     const secondCall: KnockbackCall = {
       damageArgument: 4,
-      horizontalBaseDirection: { x: 1, y: 0 },
+      horizontalBaseDirection: { x: 1, z: 0 },
       scaling: { kind: 'ordinaryDamage' },
     }
     const forward = applySulfurCubeAttackSequence(

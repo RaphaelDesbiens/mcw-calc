@@ -166,7 +166,7 @@ export function createFixtureInputs(fixture: DirectMeleeExperimentFixture) {
     damageArgument: fixture.damageArgument,
     horizontalBaseDirection: {
       x: fixture.attackerFeetPosition.x - cubeFeetPosition.x,
-      y: fixture.attackerFeetPosition.z - cubeFeetPosition.z,
+      z: fixture.attackerFeetPosition.z - cubeFeetPosition.z,
     },
     scaling: { kind: 'ordinaryDamage' },
   }

@@ -7,6 +7,8 @@ export interface KnockbackGeometryDiagnostics extends CubeDerivedGeometry {
   readonly eyeToCenterDirection: Vec3
   readonly eyeToTopDirection: Vec3
   readonly eyeToBottomDirection: Vec3
+  readonly horizontalCross: number
+  readonly horizontalDot: number
   readonly horizontalAngleDelta: number
   readonly q: number
   readonly feetDelta: Vec3
@@ -139,6 +141,8 @@ export function deriveKnockbackGeometry(
     eyeToCenterDirection,
     eyeToTopDirection,
     eyeToBottomDirection,
+    horizontalCross,
+    horizontalDot,
     horizontalAngleDelta,
     q,
     feetDelta,

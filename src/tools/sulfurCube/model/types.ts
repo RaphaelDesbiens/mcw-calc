@@ -9,6 +9,12 @@ export interface Vec3 {
   readonly z: number
 }
 
+/** A vector in Minecraft's world-horizontal X/Z plane. */
+export interface HorizontalVector {
+  readonly x: number
+  readonly z: number
+}
+
 export interface EntityDimensions {
   readonly width: number
   readonly height: number
@@ -63,7 +69,7 @@ export type KnockbackCallScaling =
 export interface KnockbackCall {
   /** The damage value passed into this particular knockback call. */
   readonly damageArgument: number
-  readonly horizontalBaseDirection: Vec2
+  readonly horizontalBaseDirection: HorizontalVector
   readonly scaling: KnockbackCallScaling
 }
 
@@ -88,10 +94,14 @@ export interface KnockbackCallDiagnostics {
   readonly eyeToCenterDirection: Vec3
   readonly eyeToTopDirection: Vec3
   readonly eyeToBottomDirection: Vec3
+  readonly horizontalCross: number
+  readonly horizontalDot: number
   readonly horizontalAngleDelta: number
   readonly horizontalRotationAngle: number
-  readonly transformedHorizontalDirection: Vec2
-  readonly normalizedHorizontalDirection: Vec2
+  readonly originalHorizontalDirection: HorizontalVector
+  readonly transformedHorizontalDirection: HorizontalVector
+  readonly transformedHorizontalLength: number
+  readonly normalizedHorizontalDirection: HorizontalVector
   readonly q: number
   readonly transferredPowerRatio: number
   readonly h0: number

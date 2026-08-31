@@ -444,7 +444,7 @@ export function resolvePrimaryPlayerMeleeAttack(
       damageArgument,
       horizontalBaseDirection: {
         x: context.attacker.feetPosition.x - context.cube.feetPosition.x,
-        y: context.attacker.feetPosition.z - context.cube.feetPosition.z,
+        z: context.attacker.feetPosition.z - context.cube.feetPosition.z,
       },
       scaling: { kind: 'ordinaryDamage' },
     },
@@ -472,7 +472,7 @@ export function resolvePrimaryPlayerMeleeAttack(
   )
   const callerYawDirection = {
     x: numerics.sourceFloat(numerics.sin(yawRadians)),
-    y: numerics.sourceFloat(-numerics.cos(yawRadians)),
+    z: numerics.sourceFloat(-numerics.cos(yawRadians)),
   }
   const effectOperation: SulfurCubeKnockbackOperation = {
     kind: 'sulfurCubeKnockbackCall',

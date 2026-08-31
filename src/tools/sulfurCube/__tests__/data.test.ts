@@ -80,7 +80,7 @@ describe('java Edition 26.2 milestone data', () => {
     const scenario = createMilestone1Scenario(
       createStandingPlayerGeometry({ x: 0, y: 0, z: 1.5 }, { x: 0, y: -0.5, z: -1 }),
       { x: 0, y: 0, z: 0 },
-      { x: 0, y: 1.5 },
+      { x: 0, z: 1.5 },
       1,
     )
 

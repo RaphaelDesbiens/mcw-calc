@@ -48,7 +48,7 @@ function createQZeroContext(properties?: CubeMechanicsProperties): SulfurCubeKno
 
 const ordinaryCall: KnockbackCall = {
   damageArgument: 1,
-  horizontalBaseDirection: { x: 0, y: 1 },
+  horizontalBaseDirection: { x: 0, z: 1 },
   scaling: { kind: 'ordinaryDamage' },
 }
 
@@ -309,12 +309,12 @@ describe('one sulfur cube knockback call', () => {
     const context = createQZeroContext()
     const result = applySulfurCubeKnockbackCall(
       { x: 0, y: 0, z: 0 },
-      { ...ordinaryCall, horizontalBaseDirection: { x: 0, y: 0 } },
+      { ...ordinaryCall, horizontalBaseDirection: { x: 0, z: 0 } },
       context,
       standardNumerics,
     )
 
-    expect(result.diagnostics.normalizedHorizontalDirection).toEqual({ x: 0, y: 0 })
+    expect(result.diagnostics.normalizedHorizontalDirection).toEqual({ x: 0, z: 0 })
     expect(result.addedVelocity.x).toBe(-0)
     expect(result.addedVelocity.z).toBe(-0)
     expect(result.addedVelocity.y).toBeGreaterThan(0)

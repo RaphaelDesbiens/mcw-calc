@@ -4,12 +4,12 @@ import type {
   CubeLaunchProperties,
   CubeMechanicsProperties,
   FlatFloorTrajectoryAssumptions,
+  HorizontalVector,
   KnockbackCall,
   SulfurCubeKnockbackContext,
   TrajectoryAssumptions,
   UniformFloorProfile,
   UniformFloorTrajectoryAssumptions,
-  Vec2,
   Vec3,
 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
@@ -61,7 +61,7 @@ export function createMilestone1Context(
 export function createMilestone1Scenario(
   attacker: AttackerGeometry,
   cubeFeetPosition: Vec3,
-  horizontalBaseDirection: Vec2,
+  horizontalBaseDirection: HorizontalVector,
   damageArgument: number,
   numerics: NumericBackend = standardNumerics,
   properties: CubeMechanicsProperties = createBouncyCubeLaunchProperties(),

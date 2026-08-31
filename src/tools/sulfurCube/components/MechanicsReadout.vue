@@ -132,14 +132,14 @@ const geometryRows = computed<readonly ReadoutRow[]>(() => {
       symbol: 'D′',
       value: formatPair(
         values.transformedHorizontalDirection.x,
-        values.transformedHorizontalDirection.y,
+        values.transformedHorizontalDirection.z,
       ),
     },
     {
       label: t('sulfurCube.readout.normalizedDirection'),
       value: formatPair(
         values.normalizedHorizontalDirection.x,
-        values.normalizedHorizontalDirection.y,
+        values.normalizedHorizontalDirection.z,
       ),
     },
   ]

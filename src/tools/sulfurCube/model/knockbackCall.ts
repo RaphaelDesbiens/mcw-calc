@@ -1,13 +1,20 @@
 import type { NumericBackend } from '../numerics/types'
 import type {
+  HorizontalVector,
   KnockbackCall,
   KnockbackCallResult,
   SulfurCubeKnockbackContext,
-  Vec2,
   Vec3,
 } from './types'
 import { deriveKnockbackGeometry } from './geometry'
-import { addVec3, normalizeVec2, rotateVec2, scaleVec2 } from './vectors'
+import {
+  addVec3,
+  lengthHorizontalVector,
+  normalizeHorizontalVector,
+  rotateHorizontalVector,
+  rotateVec2,
+  scaleVec2,
+} from './vectors'
 
 function assertFiniteNumber(value: number, name: string): void {
   if (!Number.isFinite(value)) {
@@ -15,9 +22,9 @@ function assertFiniteNumber(value: number, name: string): void {
   }
 }
 
-function assertFiniteVec2(vector: Vec2, name: string): void {
+function assertFiniteHorizontalVector(vector: HorizontalVector, name: string): void {
   assertFiniteNumber(vector.x, `${name}.x`)
-  assertFiniteNumber(vector.y, `${name}.y`)
+  assertFiniteNumber(vector.z, `${name}.z`)
 }
 
 function assertFiniteVec3(vector: Vec3, name: string): void {
@@ -26,8 +33,8 @@ function assertFiniteVec3(vector: Vec3, name: string): void {
   assertFiniteNumber(vector.z, `${name}.z`)
 }
 
-function cloneVec2(vector: Vec2): Vec2 {
-  return { x: vector.x, y: vector.y }
+function cloneHorizontalVector(vector: HorizontalVector): HorizontalVector {
+  return { x: vector.x, z: vector.z }
 }
 
 function cloneVec3(vector: Vec3): Vec3 {
@@ -37,7 +44,7 @@ function cloneVec3(vector: Vec3): Vec3 {
 function cloneCall(call: KnockbackCall): KnockbackCall {
   return {
     damageArgument: call.damageArgument,
-    horizontalBaseDirection: cloneVec2(call.horizontalBaseDirection),
+    horizontalBaseDirection: cloneHorizontalVector(call.horizontalBaseDirection),
     scaling:
       call.scaling.kind === 'ordinaryDamage'
         ? { kind: 'ordinaryDamage' }
@@ -83,7 +90,7 @@ export function applySulfurCubeKnockbackCall(
 ): KnockbackCallResult {
   assertFiniteVec3(existingVelocity, 'existingVelocity')
   assertFiniteNumber(call.damageArgument, 'call.damageArgument')
-  assertFiniteVec2(call.horizontalBaseDirection, 'call.horizontalBaseDirection')
+  assertFiniteHorizontalVector(call.horizontalBaseDirection, 'call.horizontalBaseDirection')
 
   if (call.damageArgument < 0) {
     throw new RangeError('call.damageArgument must not be negative')
@@ -112,17 +119,21 @@ export function applySulfurCubeKnockbackCall(
   )
   const originalHorizontalDirection = {
     x: numerics.sourceFloat(call.horizontalBaseDirection.x),
-    y: numerics.sourceFloat(call.horizontalBaseDirection.y),
+    z: numerics.sourceFloat(call.horizontalBaseDirection.z),
   }
   const horizontalRotationAngle = numerics.sourceFloat(
     geometry.horizontalAngleDelta * numerics.sourceFloat(context.mechanics.horizontalHitAngleScale),
   )
-  const transformedHorizontalDirection = rotateVec2(
+  const transformedHorizontalDirection = rotateHorizontalVector(
     originalHorizontalDirection,
     horizontalRotationAngle,
     numerics,
   )
-  const normalizedHorizontalDirection = normalizeVec2(
+  const transformedHorizontalLength = lengthHorizontalVector(
+    transformedHorizontalDirection,
+    numerics,
+  )
+  const normalizedHorizontalDirection = normalizeHorizontalVector(
     transformedHorizontalDirection,
     numerics,
     vectorNormalizationThreshold,
@@ -188,7 +199,7 @@ export function applySulfurCubeKnockbackCall(
   const addedVelocity = {
     x: -normalizedHorizontalDirection.x * horizontalResult,
     y: verticalResult,
-    z: -normalizedHorizontalDirection.y * horizontalResult,
+    z: -normalizedHorizontalDirection.z * horizontalResult,
   }
   const resultingVelocity = addVec3(existingVelocity, addedVelocity)
 
@@ -206,9 +217,13 @@ export function applySulfurCubeKnockbackCall(
       eyeToCenterDirection: geometry.eyeToCenterDirection,
       eyeToTopDirection: geometry.eyeToTopDirection,
       eyeToBottomDirection: geometry.eyeToBottomDirection,
+      horizontalCross: geometry.horizontalCross,
+      horizontalDot: geometry.horizontalDot,
       horizontalAngleDelta: geometry.horizontalAngleDelta,
       horizontalRotationAngle,
+      originalHorizontalDirection,
       transformedHorizontalDirection,
+      transformedHorizontalLength,
       normalizedHorizontalDirection,
       q: geometry.q,
       transferredPowerRatio,
