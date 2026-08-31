@@ -1,0 +1,1199 @@
+<script setup lang="ts">
+import type { Vec3 } from '../model/types'
+import type { PlanePoint, WorldBounds, WorldToSvgTransform } from '../presentation/types'
+import type { DiagnosticEvaluation } from '../presets/diagnostic'
+import { CdxButton } from '@wikimedia/codex'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { createTopDownScenePresentation } from '../presentation/topDown'
+import {
+  clampPointToBoundsFromOrigin,
+  createViewportWorldBounds,
+  createWorldToSvgTransform,
+  scaleWorldBoundsAroundPoint,
+  translateWorldBounds,
+} from '../presentation/worldToSvg'
+import InfoTooltip from './InfoTooltip.vue'
+
+type ObjectDragKind = 'aim' | 'attacker' | 'cube'
+type DragKind = ObjectDragKind | 'camera'
+type SceneSize = 'regular' | 'compact'
+
+interface DragState {
+  readonly kind: DragKind
+  readonly pointerId: number
+  readonly startPointer: PlanePoint
+  readonly startTarget: PlanePoint
+  readonly startBounds: WorldBounds
+  readonly transform: WorldToSvgTransform
+}
+
+const props = defineProps<{
+  evaluation: DiagnosticEvaluation
+  sceneSize: SceneSize
+  selectedBlockLabel: string
+  selectedArchetypeLabel: string
+  selectedBlockSpriteUrl: string | null
+}>()
+
+const emit = defineEmits<{
+  translateAttacker: [delta: Vec3]
+  translateCube: [delta: Vec3]
+  updateAimPoint: [point: Vec3]
+  reset: []
+}>()
+
+const { t } = useI18n()
+const svgElement = ref<SVGSVGElement | null>(null)
+const dragState = ref<DragState | null>(null)
+const viewport = {
+  width: 960,
+  height: 480,
+  padding: { top: 36, right: 44, bottom: 44, left: 48 },
+} as const
+const initialScene = createTopDownScenePresentation(props.evaluation)
+const initialTransformScale = createWorldToSvgTransform(initialScene.bounds, viewport).scale
+const initialCameraWidth = initialScene.bounds.maxX - initialScene.bounds.minX
+const minimumCameraWidth = initialCameraWidth / 4
+const maximumCameraWidth = initialCameraWidth * 8
+const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
+
+const view = computed(() => {
+  const scene = createTopDownScenePresentation(props.evaluation)
+  const transform = createWorldToSvgTransform(cameraBounds.value, viewport)
+  const toSvg = transform.toSvg
+  const cubeCenter = toSvg(scene.cube.center)
+  const attackerCenter = toSvg(scene.attacker.center)
+  const halfCubeWidth = scene.cube.width / 2
+  const halfAttackerWidth = scene.attacker.width / 2
+  const cubeTopLeft = toSvg({
+    x: scene.cube.center.x - halfCubeWidth,
+    y: scene.cube.center.y + halfCubeWidth,
+  })
+  const attackerTopLeft = toSvg({
+    x: scene.attacker.center.x - halfAttackerWidth,
+    y: scene.attacker.center.y + halfAttackerWidth,
+  })
+  const zoomFactor = transform.scale / initialTransformScale
+  const visual = {
+    handleRadius: 3 * zoomFactor,
+    hitAreaRadius: Math.max(18, 18 * zoomFactor),
+    trajectoryRadius: 2.1 * zoomFactor,
+    endMarkerArm: 5 * zoomFactor,
+    labelOffset: 12 * zoomFactor,
+  }
+  const aimPoint = clampPointToBoundsFromOrigin(attackerCenter, toSvg(scene.aimPoint), {
+    minX: visual.handleRadius,
+    maxX: viewport.width - visual.handleRadius,
+    minY: visual.handleRadius,
+    maxY: viewport.height - visual.handleRadius,
+  })
+  const aimArrowEnd = toSvg(scene.aimArrowEnd)
+  const targetBearingEnd = toSvg(scene.targetBearingEnd)
+  const launchEnd = toSvg(scene.launchEnd)
+  const launchBodyEnd = {
+    x: cubeCenter.x + (launchEnd.x - cubeCenter.x) * 0.9,
+    y: cubeCenter.y + (launchEnd.y - cubeCenter.y) * 0.9,
+  }
+  const calls = scene.calls.map((call) => {
+    const baseEnd = toSvg(call.baseEnd)
+    const rotatedEnd = toSvg(call.rotatedEnd)
+    const addedVelocityEnd = toSvg(call.addedVelocityDisplayEnd)
+
+    return {
+      ...call,
+      baseEnd,
+      rotatedEnd,
+      addedVelocityEnd,
+      baseBodyEnd: shortenLine(cubeCenter, baseEnd, 0.91),
+      rotatedBodyEnd: shortenLine(cubeCenter, rotatedEnd, 0.91),
+      addedVelocityBodyEnd: shortenLine(cubeCenter, addedVelocityEnd, 0.9),
+    }
+  })
+  const trajectory = scene.trajectory.map((sample) => ({
+    ...sample,
+    point: toSvg(sample.point),
+  }))
+  const finalTrajectoryTick = trajectory[trajectory.length - 1]?.tick ?? 0
+  const trajectoryTicks = trajectory.filter(
+    (sample) => sample.tick > 0 && sample.tick !== finalTrajectoryTick,
+  )
+  const trajectoryEnd = scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
+  const aimErrorLabelPoint =
+    scene.aimErrorLabelPoint === null ? null : toSvg(scene.aimErrorLabelPoint)
+  const directionAdjustmentLabelPoint =
+    scene.directionAdjustmentLabelPoint === null ? null : toSvg(scene.directionAdjustmentLabelPoint)
+  const axisXStart = toSvg({ x: cameraBounds.value.minX, y: scene.cube.center.y })
+  const axisXEnd = toSvg({ x: cameraBounds.value.maxX, y: scene.cube.center.y })
+  const axisZStart = toSvg({ x: scene.cube.center.x, y: cameraBounds.value.minY })
+  const axisZEnd = toSvg({ x: scene.cube.center.x, y: cameraBounds.value.maxY })
+  const launchLabel = {
+    x: launchEnd.x + (launchEnd.x >= cubeCenter.x ? 12 : -12) * zoomFactor,
+    y: launchEnd.y - 10 * zoomFactor,
+    anchor: launchEnd.x >= cubeCenter.x ? 'start' : 'end',
+  }
+  const visualStyle = {
+    '--topdown-font-size': `${13 * zoomFactor}px`,
+    '--topdown-small-font-size': `${11 * zoomFactor}px`,
+    '--topdown-stroke-thin': `${1.35 * zoomFactor}px`,
+    '--topdown-stroke-regular': `${2 * zoomFactor}px`,
+    '--topdown-stroke-bold': `${3.2 * zoomFactor}px`,
+    '--topdown-dash': `${6 * zoomFactor}px ${5 * zoomFactor}px`,
+  }
+  const metrics = {
+    x: 18,
+    aimErrorY: 24,
+    directionAdjustmentY: 41,
+    blockY: 58,
+    archetypeY: 75,
+    aimErrorDegrees: ((scene.aimErrorRadians * 180) / Math.PI).toFixed(1),
+    directionAdjustmentDegrees: (
+      (scene.horizontalDirectionAdjustmentRadians * 180) /
+      Math.PI
+    ).toFixed(1),
+  }
+
+  return {
+    scene,
+    transform,
+    visual,
+    visualStyle,
+    cubeCenter,
+    attackerCenter,
+    aimPoint,
+    aimArrowEnd,
+    targetBearingEnd,
+    launchEnd,
+    launchBodyEnd,
+    launchLabel,
+    calls,
+    trajectoryTicks,
+    trajectoryEnd,
+    aimErrorLabelPoint,
+    aimErrorArc: scene.aimErrorArc
+      .map(toSvg)
+      .map((point) => `${point.x},${point.y}`)
+      .join(' '),
+    directionAdjustmentLabelPoint,
+    directionAdjustmentArc: scene.directionAdjustmentArc
+      .map(toSvg)
+      .map((point) => `${point.x},${point.y}`)
+      .join(' '),
+    metrics,
+    reachWarning: { x: viewport.width - 18, y: viewport.height - 18 },
+    axisXStart,
+    axisXEnd,
+    axisZStart,
+    axisZEnd,
+    cubeRect: {
+      x: cubeTopLeft.x,
+      y: cubeTopLeft.y,
+      width: scene.cube.width * transform.scale,
+      height: scene.cube.width * transform.scale,
+    },
+    cubeSprite: {
+      x: cubeCenter.x - (scene.cube.width * transform.scale) / 4,
+      y: cubeCenter.y - (scene.cube.width * transform.scale) / 4,
+      width: (scene.cube.width * transform.scale) / 2,
+      height: (scene.cube.width * transform.scale) / 2,
+    },
+    attackerRect: {
+      x: attackerTopLeft.x,
+      y: attackerTopLeft.y,
+      width: scene.attacker.width * transform.scale,
+      height: scene.attacker.width * transform.scale,
+    },
+  }
+})
+
+function shortenLine(start: PlanePoint, end: PlanePoint, factor: number): PlanePoint {
+  return {
+    x: start.x + (end.x - start.x) * factor,
+    y: start.y + (end.y - start.y) * factor,
+  }
+}
+
+function pointerToSvg(event: MouseEvent): PlanePoint | null {
+  const element = svgElement.value
+
+  if (element === null) {
+    return null
+  }
+
+  const rectangle = element.getBoundingClientRect()
+
+  if (rectangle.width === 0 || rectangle.height === 0) {
+    return null
+  }
+
+  return {
+    x: ((event.clientX - rectangle.left) / rectangle.width) * viewport.width,
+    y: ((event.clientY - rectangle.top) / rectangle.height) * viewport.height,
+  }
+}
+
+function zoomAtSvgPoint(anchorSvg: PlanePoint, requestedFactor: number): void {
+  const currentWidth = cameraBounds.value.maxX - cameraBounds.value.minX
+  const targetWidth = Math.min(
+    maximumCameraWidth,
+    Math.max(minimumCameraWidth, currentWidth * requestedFactor),
+  )
+  const factor = targetWidth / currentWidth
+
+  cameraBounds.value = scaleWorldBoundsAroundPoint(
+    cameraBounds.value,
+    view.value.transform.toWorld(anchorSvg),
+    factor,
+  )
+}
+
+function zoomCamera(factor: number): void {
+  zoomAtSvgPoint({ x: viewport.width / 2, y: viewport.height / 2 }, factor)
+}
+
+function zoomWithWheel(event: WheelEvent): void {
+  const pointer = pointerToSvg(event)
+
+  if (pointer === null) {
+    return
+  }
+
+  const deltaUnit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : viewport.height
+  const deltaPixels =
+    event.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? event.deltaY : event.deltaY * deltaUnit
+  const exponent = Math.min(0.35, Math.max(-0.35, deltaPixels * 0.0012))
+
+  zoomAtSvgPoint(pointer, Math.exp(exponent))
+}
+
+function startDrag(kind: DragKind, event: PointerEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (event.button !== 0) {
+    return
+  }
+
+  const pointer = pointerToSvg(event)
+
+  if (pointer === null) {
+    return
+  }
+
+  const currentView = view.value
+  const pointerWorld = currentView.transform.toWorld(pointer)
+  let target: PlanePoint
+
+  switch (kind) {
+    case 'aim':
+      target = currentView.transform.toWorld(currentView.aimPoint)
+      break
+    case 'attacker':
+      target = currentView.scene.attacker.center
+      break
+    case 'cube':
+      target = currentView.scene.cube.center
+      break
+    case 'camera':
+      target = pointerWorld
+      break
+  }
+
+  const targetElement = event.currentTarget as SVGGraphicsElement
+
+  if (kind !== 'camera') {
+    targetElement.focus()
+  }
+
+  targetElement.setPointerCapture(event.pointerId)
+  dragState.value = {
+    kind,
+    pointerId: event.pointerId,
+    startPointer: pointerWorld,
+    startTarget: target,
+    startBounds: cameraBounds.value,
+    transform: currentView.transform,
+  }
+}
+
+function continueDrag(event: PointerEvent): void {
+  const drag = dragState.value
+
+  if (drag === null || drag.pointerId !== event.pointerId) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  const pointer = pointerToSvg(event)
+
+  if (pointer === null) {
+    return
+  }
+
+  const pointerWorld = drag.transform.toWorld(pointer)
+  const delta = {
+    x: pointerWorld.x - drag.startPointer.x,
+    y: pointerWorld.y - drag.startPointer.y,
+  }
+
+  switch (drag.kind) {
+    case 'aim': {
+      const target = clampPointToBoundsFromOrigin(
+        view.value.scene.attacker.center,
+        { x: drag.startTarget.x + delta.x, y: drag.startTarget.y + delta.y },
+        createViewportWorldBounds(drag.transform, view.value.visual.handleRadius),
+      )
+      emit('updateAimPoint', {
+        x: target.x,
+        y: props.evaluation.inputs.aimPoint.y,
+        z: target.y,
+      })
+      break
+    }
+    case 'attacker':
+    case 'cube': {
+      const translation = { x: delta.x, y: 0, z: delta.y }
+
+      if (drag.kind === 'attacker') {
+        emit('translateAttacker', translation)
+      } else {
+        emit('translateCube', translation)
+      }
+      dragState.value = { ...drag, startPointer: pointerWorld }
+      break
+    }
+    case 'camera':
+      cameraBounds.value = translateWorldBounds(drag.startBounds, {
+        x: -delta.x,
+        y: -delta.y,
+      })
+      break
+  }
+}
+
+function endDrag(event: PointerEvent): void {
+  if (dragState.value?.pointerId === event.pointerId) {
+    event.preventDefault()
+    event.stopPropagation()
+    dragState.value = null
+  }
+}
+
+function keyboardDelta(event: KeyboardEvent): PlanePoint | null {
+  const step = event.shiftKey ? 0.05 : 0.25
+
+  switch (event.key) {
+    case 'ArrowLeft':
+      return { x: -step, y: 0 }
+    case 'ArrowRight':
+      return { x: step, y: 0 }
+    case 'ArrowUp':
+      return { x: 0, y: step }
+    case 'ArrowDown':
+      return { x: 0, y: -step }
+    default:
+      return null
+  }
+}
+
+function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
+  const delta = keyboardDelta(event)
+
+  if (delta === null) {
+    return
+  }
+
+  if (kind === 'aim') {
+    const visibleAimPoint = view.value.transform.toWorld(view.value.aimPoint)
+    const target = clampPointToBoundsFromOrigin(
+      view.value.scene.attacker.center,
+      { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
+      createViewportWorldBounds(view.value.transform, view.value.visual.handleRadius),
+    )
+    emit('updateAimPoint', {
+      x: target.x,
+      y: props.evaluation.inputs.aimPoint.y,
+      z: target.y,
+    })
+  } else {
+    const translation = { x: delta.x, y: 0, z: delta.y }
+
+    if (kind === 'attacker') {
+      emit('translateAttacker', translation)
+    } else {
+      emit('translateCube', translation)
+    }
+  }
+
+  event.preventDefault()
+}
+
+function clearHandleFocus(event: PointerEvent): void {
+  const target = event.target
+
+  if (target instanceof Element && target.closest('.topdown-interactive-handle') !== null) {
+    return
+  }
+
+  const activeElement = document.activeElement
+
+  if (
+    activeElement instanceof SVGElement &&
+    activeElement.classList.contains('topdown-interactive-handle')
+  ) {
+    activeElement.blur()
+  }
+}
+
+onMounted(() => document.addEventListener('pointerdown', clearHandleFocus))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFocus))
+</script>
+
+<template>
+  <figure
+    class="topdown-figure"
+    :class="`topdown-figure--${sceneSize}`"
+    aria-labelledby="sulfur-cube-topdown-heading"
+  >
+    <div class="topdown-heading">
+      <div class="topdown-heading__title">
+        <h3 id="sulfur-cube-topdown-heading">{{ t('sulfurCube.topDown.title') }}</h3>
+        <InfoTooltip
+          :text="t('sulfurCube.topDown.help')"
+          :label="t('sulfurCube.topDown.helpLabel')"
+          placement="right"
+        />
+      </div>
+      <p>{{ t('sulfurCube.topDown.subtitle') }}</p>
+    </div>
+
+    <div class="topdown-frame">
+      <div class="topdown-overlay">
+        <CdxButton
+          size="small"
+          weight="quiet"
+          :aria-label="t('sulfurCube.scene.zoomOut')"
+          :title="t('sulfurCube.scene.zoomOut')"
+          @click="zoomCamera(1.35)"
+        >
+          −
+        </CdxButton>
+        <CdxButton
+          size="small"
+          weight="quiet"
+          :aria-label="t('sulfurCube.scene.zoomIn')"
+          :title="t('sulfurCube.scene.zoomIn')"
+          @click="zoomCamera(0.74)"
+        >
+          +
+        </CdxButton>
+      </div>
+
+      <svg
+        ref="svgElement"
+        class="topdown-svg"
+        :class="{
+          'topdown-svg--panning': dragState?.kind === 'camera',
+          'topdown-svg--dragging-object': dragState !== null && dragState.kind !== 'camera',
+        }"
+        :style="view.visualStyle"
+        :viewBox="`0 0 ${viewport.width} ${viewport.height}`"
+        role="group"
+        aria-labelledby="sulfur-cube-topdown-svg-title"
+        aria-describedby="sulfur-cube-topdown-svg-description"
+        @pointermove="continueDrag"
+        @pointerup="endDrag"
+        @pointercancel="endDrag"
+        @pointerleave="endDrag"
+        @wheel.prevent="zoomWithWheel"
+        @dragstart.prevent
+      >
+        <title id="sulfur-cube-topdown-svg-title">{{ t('sulfurCube.topDown.svgTitle') }}</title>
+        <desc id="sulfur-cube-topdown-svg-description">
+          {{ t('sulfurCube.topDown.svgDescription') }}
+        </desc>
+
+        <defs>
+          <marker
+            id="topdown-blue-arrow"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="marker-blue" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
+          </marker>
+          <marker
+            id="topdown-yellow-arrow"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="marker-yellow" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
+          </marker>
+          <marker
+            id="topdown-green-arrow"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="marker-green" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
+          </marker>
+        </defs>
+
+        <rect
+          class="topdown-background"
+          width="100%"
+          height="100%"
+          rx="8"
+          @pointerdown="startDrag('camera', $event)"
+        />
+
+        <g class="topdown-metrics" aria-hidden="true">
+          <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
+            <tspan>{{ t('sulfurCube.topDown.horizontalAimErrorLabel') }}&#160;=&#160;</tspan>
+            <tspan class="topdown-metric-value topdown-metric-value--aim">
+              {{ view.metrics.aimErrorDegrees }}°
+            </tspan>
+          </text>
+          <text :x="view.metrics.x" :y="view.metrics.directionAdjustmentY">
+            <tspan>{{ t('sulfurCube.topDown.directionAdjustmentLabel') }}&#160;=&#160;</tspan>
+            <tspan class="topdown-metric-value topdown-metric-value--adjustment">
+              {{ view.metrics.directionAdjustmentDegrees }}°
+            </tspan>
+          </text>
+          <text :x="view.metrics.x" :y="view.metrics.blockY">
+            <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
+            <tspan class="topdown-metric-value topdown-metric-value--cube">
+              {{ selectedBlockLabel }}
+            </tspan>
+          </text>
+          <text :x="view.metrics.x" :y="view.metrics.archetypeY">
+            <tspan>{{ t('sulfurCube.scene.archetypeLabel') }}&#160;=&#160;</tspan>
+            <tspan class="topdown-metric-value topdown-metric-value--cube">
+              {{ selectedArchetypeLabel }}
+            </tspan>
+          </text>
+        </g>
+
+        <text
+          v-if="view.scene.reach.status !== 'within_reach'"
+          class="topdown-reach-warning"
+          :x="view.reachWarning.x"
+          :y="view.reachWarning.y"
+          text-anchor="end"
+          role="status"
+        >
+          {{
+            t(
+              view.scene.reach.status === 'inside_unpickable_aabb'
+                ? 'sulfurCube.scene.reachInsideWarning'
+                : 'sulfurCube.scene.reachMissWarning',
+            )
+          }}
+        </text>
+
+        <g class="topdown-axes" aria-hidden="true">
+          <line
+            :x1="view.axisXStart.x"
+            :y1="view.axisXStart.y"
+            :x2="view.axisXEnd.x"
+            :y2="view.axisXEnd.y"
+          />
+          <line
+            :x1="view.axisZStart.x"
+            :y1="view.axisZStart.y"
+            :x2="view.axisZEnd.x"
+            :y2="view.axisZEnd.y"
+          />
+          <text :x="viewport.width - 12" :y="view.axisXEnd.y - 7" text-anchor="end">+X</text>
+          <text :x="view.axisZEnd.x + 8" :y="14">+Z</text>
+        </g>
+
+        <template v-for="sample in view.trajectoryTicks" :key="sample.tick">
+          <rect
+            v-if="sample.floorCollision"
+            class="topdown-trajectory-tick topdown-trajectory-tick--contact"
+            :x="sample.point.x - view.visual.trajectoryRadius"
+            :y="sample.point.y - view.visual.trajectoryRadius"
+            :width="view.visual.trajectoryRadius * 2"
+            :height="view.visual.trajectoryRadius * 2"
+            :transform="`rotate(45 ${sample.point.x} ${sample.point.y})`"
+          />
+          <circle
+            v-else
+            class="topdown-trajectory-tick"
+            :cx="sample.point.x"
+            :cy="sample.point.y"
+            :r="view.visual.trajectoryRadius"
+          />
+        </template>
+        <path
+          v-if="view.trajectoryEnd"
+          class="topdown-trajectory-end"
+          :class="{
+            'topdown-trajectory-end--truncated': view.scene.trajectoryStatus === 'truncated',
+          }"
+          :d="`M ${view.trajectoryEnd.x - view.visual.endMarkerArm} ${view.trajectoryEnd.y - view.visual.endMarkerArm} L ${view.trajectoryEnd.x + view.visual.endMarkerArm} ${view.trajectoryEnd.y + view.visual.endMarkerArm} M ${view.trajectoryEnd.x - view.visual.endMarkerArm} ${view.trajectoryEnd.y + view.visual.endMarkerArm} L ${view.trajectoryEnd.x + view.visual.endMarkerArm} ${view.trajectoryEnd.y - view.visual.endMarkerArm}`"
+        />
+
+        <line
+          class="topdown-target-bearing"
+          :x1="view.attackerCenter.x"
+          :y1="view.attackerCenter.y"
+          :x2="view.targetBearingEnd.x"
+          :y2="view.targetBearingEnd.y"
+        />
+        <line
+          class="topdown-aim"
+          :x1="view.attackerCenter.x"
+          :y1="view.attackerCenter.y"
+          :x2="view.aimArrowEnd.x"
+          :y2="view.aimArrowEnd.y"
+          marker-end="url(#topdown-blue-arrow)"
+        />
+        <polyline v-if="view.aimErrorArc" class="topdown-aim-error" :points="view.aimErrorArc" />
+        <text
+          v-if="view.aimErrorLabelPoint"
+          class="topdown-aim-error-label"
+          :x="view.aimErrorLabelPoint.x"
+          :y="view.aimErrorLabelPoint.y"
+          text-anchor="middle"
+        >
+          Δ={{ ((view.scene.aimErrorRadians * 180) / Math.PI).toFixed(1) }}°
+        </text>
+
+        <g
+          v-for="call in view.calls"
+          :key="call.index"
+          class="topdown-call"
+          :class="{ 'topdown-call--secondary': call.index > 0 }"
+        >
+          <line
+            class="topdown-call-base"
+            :x1="view.cubeCenter.x"
+            :y1="view.cubeCenter.y"
+            :x2="call.baseBodyEnd.x"
+            :y2="call.baseBodyEnd.y"
+            marker-end="url(#topdown-yellow-arrow)"
+          >
+            <title>{{ t('sulfurCube.topDown.callBaseTitle', { call: call.index + 1 }) }}</title>
+          </line>
+          <line
+            class="topdown-call-rotated"
+            :x1="view.cubeCenter.x"
+            :y1="view.cubeCenter.y"
+            :x2="call.rotatedBodyEnd.x"
+            :y2="call.rotatedBodyEnd.y"
+            marker-end="url(#topdown-blue-arrow)"
+          >
+            <title>{{ t('sulfurCube.topDown.callRotatedTitle', { call: call.index + 1 }) }}</title>
+          </line>
+          <line
+            v-if="view.calls.length > 1"
+            class="topdown-call-added"
+            :x1="view.cubeCenter.x"
+            :y1="view.cubeCenter.y"
+            :x2="call.addedVelocityBodyEnd.x"
+            :y2="call.addedVelocityBodyEnd.y"
+            marker-end="url(#topdown-green-arrow)"
+          />
+        </g>
+
+        <polyline
+          v-if="view.directionAdjustmentArc"
+          class="topdown-direction-adjustment"
+          :points="view.directionAdjustmentArc"
+        />
+        <text
+          v-if="view.directionAdjustmentLabelPoint"
+          class="topdown-direction-adjustment-label"
+          :x="view.directionAdjustmentLabelPoint.x"
+          :y="view.directionAdjustmentLabelPoint.y"
+          text-anchor="middle"
+        >
+          1.6 × Δ
+        </text>
+
+        <rect
+          class="topdown-cube"
+          :x="view.cubeRect.x"
+          :y="view.cubeRect.y"
+          :width="view.cubeRect.width"
+          :height="view.cubeRect.height"
+        />
+        <image
+          v-if="selectedBlockSpriteUrl"
+          class="topdown-cube-sprite"
+          :href="selectedBlockSpriteUrl"
+          :x="view.cubeSprite.x"
+          :y="view.cubeSprite.y"
+          :width="view.cubeSprite.width"
+          :height="view.cubeSprite.height"
+          preserveAspectRatio="xMidYMid meet"
+        />
+        <rect
+          class="topdown-attacker"
+          :x="view.attackerRect.x"
+          :y="view.attackerRect.y"
+          :width="view.attackerRect.width"
+          :height="view.attackerRect.height"
+        />
+
+        <line
+          class="topdown-launch"
+          :x1="view.cubeCenter.x"
+          :y1="view.cubeCenter.y"
+          :x2="view.launchBodyEnd.x"
+          :y2="view.launchBodyEnd.y"
+          marker-end="url(#topdown-green-arrow)"
+        />
+        <text
+          class="topdown-launch-label"
+          :x="view.launchLabel.x"
+          :y="view.launchLabel.y"
+          :text-anchor="view.launchLabel.anchor"
+        >
+          {{ t('sulfurCube.scene.launchVector') }}
+        </text>
+
+        <g
+          class="topdown-interactive-handle topdown-cube-handle"
+          tabindex="0"
+          role="button"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+          :aria-label="t('sulfurCube.topDown.cubeHandleAria')"
+          @pointerdown="startDrag('cube', $event)"
+          @keydown="moveHandle('cube', $event)"
+        >
+          <circle
+            class="topdown-handle-hit-area"
+            :cx="view.cubeCenter.x"
+            :cy="view.cubeCenter.y"
+            :r="view.visual.hitAreaRadius"
+          />
+          <circle
+            class="topdown-handle-marker"
+            :cx="view.cubeCenter.x"
+            :cy="view.cubeCenter.y"
+            :r="view.visual.handleRadius"
+          />
+        </g>
+        <g
+          class="topdown-interactive-handle topdown-attacker-handle"
+          tabindex="0"
+          role="button"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+          :aria-label="t('sulfurCube.topDown.attackerHandleAria')"
+          @pointerdown="startDrag('attacker', $event)"
+          @keydown="moveHandle('attacker', $event)"
+        >
+          <circle
+            class="topdown-handle-hit-area"
+            :cx="view.attackerCenter.x"
+            :cy="view.attackerCenter.y"
+            :r="view.visual.hitAreaRadius"
+          />
+          <circle
+            class="topdown-handle-marker"
+            :cx="view.attackerCenter.x"
+            :cy="view.attackerCenter.y"
+            :r="view.visual.handleRadius"
+          />
+        </g>
+        <g
+          class="topdown-interactive-handle topdown-aim-handle"
+          tabindex="0"
+          role="button"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+          :aria-label="t('sulfurCube.topDown.aimHandleAria')"
+          @pointerdown="startDrag('aim', $event)"
+          @keydown="moveHandle('aim', $event)"
+        >
+          <circle
+            class="topdown-handle-hit-area"
+            :cx="view.aimPoint.x"
+            :cy="view.aimPoint.y"
+            :r="view.visual.hitAreaRadius"
+          />
+          <circle
+            class="topdown-handle-marker"
+            :cx="view.aimPoint.x"
+            :cy="view.aimPoint.y"
+            :r="view.visual.handleRadius"
+          />
+          <text
+            :x="view.aimPoint.x"
+            :y="view.aimPoint.y - view.visual.labelOffset"
+            text-anchor="middle"
+          >
+            {{ t('sulfurCube.scene.aim') }}
+          </text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="topdown-legend-row">
+      <div class="topdown-legend" aria-hidden="true">
+        <span><i class="topdown-swatch topdown-swatch--player" />{{
+            t('sulfurCube.scene.legendPlayer')
+          }}</span>
+        <span><i class="topdown-swatch topdown-swatch--cube" />{{
+            t('sulfurCube.scene.legendSulfurCube')
+          }}</span>
+        <span><i class="topdown-swatch topdown-swatch--aim" />{{ t('sulfurCube.scene.aim') }}</span>
+        <span><i class="topdown-swatch topdown-swatch--bearing" />{{
+            t('sulfurCube.topDown.targetBearing')
+          }}</span>
+        <span><i class="topdown-swatch topdown-swatch--base" />{{
+            t('sulfurCube.topDown.baseDirection')
+          }}</span>
+        <span><i class="topdown-swatch topdown-swatch--rotated" />{{
+            t('sulfurCube.topDown.rotatedDirection')
+          }}</span>
+        <span><i class="topdown-swatch topdown-swatch--launch" />{{
+            t('sulfurCube.topDown.velocityAndTrajectory')
+          }}</span>
+      </div>
+      <CdxButton size="small" weight="quiet" @click="emit('reset')">
+        {{ t('sulfurCube.controls.reset') }}
+      </CdxButton>
+    </div>
+
+    <figcaption>
+      <p>{{ t('sulfurCube.topDown.interactionHelp') }}</p>
+    </figcaption>
+  </figure>
+</template>
+
+<style scoped>
+.topdown-figure {
+  --topdown-ink: var(--color-base, #202122);
+  --topdown-muted: var(--color-subtle, #54595d);
+  --topdown-border: var(--border-color-subtle, #c8ccd1);
+  --topdown-background: color-mix(
+    in srgb,
+    var(--color-base, #202122) 7%,
+    var(--background-color-base, #fff)
+  );
+  --topdown-cube: #f2a900;
+  --topdown-aim: #00a3d7;
+  --topdown-base: #f2a900;
+  --topdown-launch: #00a000;
+  --topdown-trajectory: color-mix(in srgb, #00a000 48%, transparent);
+  --topdown-adjustment: #d33682;
+  --topdown-grab-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
+    8 7;
+  --topdown-grabbing-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M7.5 10.5V7a1.5 1.5 0 0 1 3 0V9 5.5a1.5 1.5 0 0 1 3 0V9 6.5a1.5 1.5 0 0 1 3 0V10 8a1.5 1.5 0 0 1 3 0v5c0 4.2-2.6 7-6.5 7h-1c-2.4 0-4.3-1.4-5.4-3.4l-2-3.4a1.5 1.5 0 0 1 2.5-1.7z'/%3E%3C/svg%3E")
+    8 7;
+  --topdown-move-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
+    12 12;
+  margin: 0;
+}
+
+.topdown-heading {
+  width: 100%;
+  margin: 0 auto 0.5rem;
+}
+.topdown-heading h3,
+.topdown-heading p,
+figcaption p {
+  margin: 0;
+}
+.topdown-heading__title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.topdown-heading p,
+figcaption {
+  color: var(--topdown-muted);
+}
+.topdown-frame {
+  position: relative;
+  width: 100%;
+  max-width: 86rem;
+  margin: 0 auto;
+}
+.topdown-figure--compact .topdown-frame,
+.topdown-figure--compact .topdown-heading,
+.topdown-figure--compact .topdown-legend,
+.topdown-figure--compact figcaption {
+  width: 100%;
+}
+.topdown-overlay {
+  position: absolute;
+  z-index: 2;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  padding: 0.2rem;
+  border: 1px solid var(--topdown-border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--background-color-base, #fff) 88%, transparent);
+}
+.topdown-overlay :deep(.cdx-button) {
+  min-width: 1.75rem;
+  padding: 0 0.35rem;
+}
+.topdown-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(52vh, 34rem);
+  border: 1px solid var(--topdown-border);
+  border-radius: 8px;
+  background: var(--background-color-base, #fff);
+  cursor: var(--topdown-grab-cursor), grab;
+  touch-action: none;
+  user-select: none;
+}
+.topdown-svg--panning,
+.topdown-svg--panning * {
+  cursor: var(--topdown-grabbing-cursor), grabbing !important;
+}
+.topdown-svg--dragging-object,
+.topdown-svg--dragging-object * {
+  cursor: var(--topdown-move-cursor), move !important;
+}
+.topdown-background {
+  fill: var(--background-color-base, #fff);
+}
+.topdown-axes {
+  pointer-events: none;
+}
+.topdown-axes line {
+  stroke: color-mix(in srgb, var(--topdown-ink) 22%, transparent);
+  stroke-width: var(--topdown-stroke-thin);
+}
+.topdown-axes text {
+  fill: var(--topdown-muted);
+  font-size: var(--topdown-small-font-size);
+}
+.topdown-metrics {
+  fill: var(--topdown-ink);
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.topdown-metric-value--aim {
+  fill: #007aa3;
+}
+.topdown-metric-value--adjustment {
+  fill: var(--topdown-adjustment);
+}
+.topdown-metric-value--cube {
+  fill: #9c6900;
+}
+.topdown-reach-warning {
+  fill: var(--color-error, #b32424);
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.topdown-target-bearing {
+  stroke: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
+  stroke-width: var(--topdown-stroke-thin);
+  stroke-dasharray: var(--topdown-dash);
+  pointer-events: none;
+}
+.topdown-aim,
+.topdown-call-rotated {
+  stroke: var(--topdown-aim);
+}
+.topdown-aim {
+  stroke-width: var(--topdown-stroke-regular);
+}
+.topdown-aim-error {
+  fill: none;
+  stroke: var(--topdown-aim);
+  stroke-width: var(--topdown-stroke-thin);
+}
+.topdown-aim-error-label {
+  fill: #007aa3;
+  font-size: var(--topdown-small-font-size);
+}
+.topdown-direction-adjustment {
+  fill: none;
+  stroke: var(--topdown-adjustment);
+  stroke-width: var(--topdown-stroke-thin);
+  pointer-events: none;
+}
+.topdown-direction-adjustment-label {
+  fill: var(--topdown-adjustment);
+  font-size: var(--topdown-small-font-size);
+  font-weight: 700;
+  pointer-events: none;
+}
+.topdown-call {
+  opacity: 0.88;
+  pointer-events: none;
+}
+.topdown-call--secondary {
+  opacity: 0.58;
+}
+.topdown-call-base,
+.topdown-call-rotated,
+.topdown-call-added {
+  fill: none;
+  stroke-width: var(--topdown-stroke-thin);
+  stroke-dasharray: var(--topdown-dash);
+}
+.topdown-call-base {
+  stroke: var(--topdown-base);
+}
+.topdown-call-added {
+  stroke: var(--topdown-launch);
+}
+.topdown-cube {
+  fill: var(--topdown-cube);
+  stroke: var(--topdown-ink);
+  stroke-width: var(--topdown-stroke-thin);
+  pointer-events: none;
+}
+.topdown-attacker {
+  fill: color-mix(in srgb, var(--topdown-ink) 9%, transparent);
+  stroke: var(--topdown-ink);
+  stroke-width: var(--topdown-stroke-regular);
+  pointer-events: none;
+}
+.topdown-cube-sprite {
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.topdown-launch {
+  stroke: var(--topdown-launch);
+  stroke-width: var(--topdown-stroke-bold);
+  pointer-events: none;
+}
+.topdown-launch-label {
+  fill: var(--topdown-launch);
+  font-size: var(--topdown-font-size);
+  font-weight: 700;
+  pointer-events: none;
+}
+.topdown-trajectory-tick {
+  fill: var(--topdown-trajectory);
+  pointer-events: none;
+}
+.topdown-trajectory-tick--contact {
+  fill: color-mix(in srgb, var(--topdown-launch) 72%, transparent);
+}
+.topdown-trajectory-end {
+  fill: none;
+  stroke: var(--topdown-launch);
+  stroke-width: var(--topdown-stroke-regular);
+  pointer-events: none;
+}
+.topdown-trajectory-end--truncated {
+  opacity: 0.55;
+}
+.marker-blue {
+  fill: var(--topdown-aim);
+}
+.marker-yellow {
+  fill: var(--topdown-base);
+}
+.marker-green {
+  fill: var(--topdown-launch);
+}
+.topdown-interactive-handle {
+  color: var(--topdown-ink);
+  cursor: var(--topdown-move-cursor), move;
+  outline: none;
+}
+.topdown-handle-hit-area {
+  fill: transparent;
+}
+.topdown-handle-marker {
+  fill: var(--background-color-base, #fff);
+  stroke: var(--topdown-ink);
+  stroke-width: var(--topdown-stroke-regular);
+}
+.topdown-cube-handle {
+  color: var(--topdown-cube);
+}
+.topdown-aim-handle {
+  color: var(--topdown-aim);
+}
+.topdown-interactive-handle:focus .topdown-handle-marker {
+  fill: #d33;
+}
+.topdown-interactive-handle text {
+  fill: currentColor;
+  font-size: var(--topdown-small-font-size);
+  font-weight: 700;
+  pointer-events: none;
+}
+.topdown-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0.5rem auto 0;
+}
+.topdown-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  color: var(--topdown-muted);
+  font-size: 0.875rem;
+}
+.topdown-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.topdown-swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1px solid var(--topdown-ink);
+}
+.topdown-swatch--player {
+  background: var(--topdown-ink);
+}
+.topdown-swatch--cube,
+.topdown-swatch--base {
+  background: var(--topdown-cube);
+}
+.topdown-swatch--aim,
+.topdown-swatch--rotated {
+  border-color: var(--topdown-aim);
+  background: var(--topdown-aim);
+}
+.topdown-swatch--bearing {
+  border-color: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
+  background: transparent;
+}
+.topdown-swatch--launch {
+  border-color: var(--topdown-launch);
+  background: var(--topdown-launch);
+}
+.topdown-figure figcaption {
+  width: 100%;
+  margin: 0.4rem auto 0;
+}
+
+@media (max-width: 40rem) {
+  .topdown-frame,
+  .topdown-heading,
+  .topdown-legend,
+  .topdown-figure figcaption {
+    width: 100%;
+  }
+  .topdown-svg {
+    min-height: 18rem;
+  }
+}
+</style>

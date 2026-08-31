@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { je26_2ArchetypesById } from '../data/je26_2'
+import {
+  je26_2ArchetypeRegistryOrder,
+  je26_2ArchetypesById,
+  je26_2BlockMembershipIndex,
+} from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
 import { createMilestone1DefaultInputs, evaluateDiagnosticInputs } from '../presets/diagnostic'
 import {
   copyCurrentResolvedCubeProperties,
   createDefaultCubePropertySelectionState,
+  je26_2ArchetypeRepresentativeBlocks,
   resolveArchetype,
   resolveCubePropertySelection,
   selectCubePropertyArchetype,
@@ -66,6 +71,23 @@ describe('cube property selection modes', () => {
       },
       supported: true,
     })
+    expect(state.selectedBlockId).toBe('minecraft:carved_pumpkin')
+  })
+
+  it('assigns every archetype its stable representative block without selecting one in Custom mode', () => {
+    for (const archetypeId of je26_2ArchetypeRegistryOrder) {
+      const state = selectCubePropertyArchetype(
+        selectCubePropertyMode(createDefaultCubePropertySelectionState(), 'archetype'),
+        archetypeId,
+      )
+
+      expect(state.selectedBlockId).toBe(je26_2ArchetypeRepresentativeBlocks[archetypeId])
+      expect(je26_2BlockMembershipIndex[state.selectedBlockId]).toBeDefined()
+    }
+
+    expect(selectCubePropertyMode(createDefaultCubePropertySelectionState(), 'custom').mode).toBe(
+      'custom',
+    )
   })
 
   it('creates a detached Custom copy without mutating the source profile', () => {

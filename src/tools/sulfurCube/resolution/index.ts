@@ -75,6 +75,7 @@ export type {
 export {
   copyCurrentResolvedCubeProperties,
   createDefaultCubePropertySelectionState,
+  je26_2ArchetypeRepresentativeBlocks,
   resolveCubePropertySelection,
   selectCubePropertyArchetype,
   selectCubePropertyBlock,

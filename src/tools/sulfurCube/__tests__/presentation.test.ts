@@ -26,6 +26,12 @@ import {
   thetaLabelVerticalOffset,
 } from '../presentation/scene'
 import {
+  createTopDownScenePresentation,
+  topDownAimArcRadius,
+  topDownDirectionAdjustmentArcRadius,
+  topDownDirectionVectorLength,
+} from '../presentation/topDown'
+import {
   clampPointToBoundsFromOrigin,
   createViewportWorldBounds,
   createWorldBounds,
@@ -38,6 +44,11 @@ import {
   evaluateDiagnosticInputs,
   getDiagnosticPreset,
 } from '../presets/diagnostic'
+import {
+  createDefaultPlayerMeleeInputs,
+  deriveMinecraftYawDegreesFromAim,
+  evaluatePlayerMeleeInputs,
+} from '../presets/playerMelee'
 
 describe('radial-plane presentation', () => {
   it('projects the attacker to the left of the cube in the radial view', () => {
@@ -194,6 +205,10 @@ describe('radial scene presentation', () => {
     expect(trajectoryEnd).toEqual(finalTick)
     expect(scene.trajectoryStatus).toBe('truncated')
     expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(11)
+    expect(scene.firstBounce).toMatchObject({ status: 'reached', tick: 11 })
+    expect(scene.trajectoryDistance.horizontalDistance).toBe(
+      evaluation.trajectory.horizontalDisplacement,
+    )
   })
 
   it('expands low velocity arrows with a monotonic bounded display curve', () => {
@@ -286,6 +301,21 @@ describe('radial scene presentation', () => {
     )
   })
 
+  it('counts a source-emitted tick-one rebound as the first bounce for a downward launch', () => {
+    const inputs = { ...getDiagnosticPreset('M1').inputs, trajectoryTicks: 3 }
+    const base = evaluateDiagnosticInputs(inputs)
+    const evaluation = evaluateDiagnosticInputs(inputs, undefined, {
+      ...base.properties,
+      verticalPower: -1,
+    })
+    const scene = createRadialScenePresentation(evaluation)
+
+    expect(evaluation.launchVelocity.y).toBeLessThan(0)
+    expect(evaluation.trajectory.ticks[0]?.collision.floorCollision).toBe(true)
+    expect(evaluation.trajectory.ticks[0]?.rebound.emittedBounceEvent).toBe(true)
+    expect(scene.firstBounce).toMatchObject({ status: 'reached', tick: 1 })
+  })
+
   it('supports a fixed projection and camera while interactive objects move', () => {
     const baseInputs = getDiagnosticPreset('M1').inputs
     const baseScene = createRadialScenePresentation(evaluateDiagnosticInputs(baseInputs))
@@ -323,6 +353,84 @@ describe('radial scene presentation', () => {
       baseAttackerFeet.x,
     )
     expect(movedAimTransform.toSvg(movedAimScene.aimPoint).y).toBeLessThan(baseAimPoint.y)
+  })
+})
+
+describe('top-down scene presentation', () => {
+  it('maps X/Z aim, direction diagnostics, launch velocity, and trajectory without projection loss', () => {
+    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M2').inputs)
+    const scene = createTopDownScenePresentation(evaluation)
+    const call = scene.calls[0]!
+
+    expect(scene.cube.center).toEqual({ x: 0, y: 0 })
+    expect(scene.attacker.center).toEqual({ x: 0, y: 1.5 })
+    expect(scene.aimPoint).toEqual({ x: -0.4, y: 0.48 })
+    expect(
+      Math.hypot(
+        scene.aimArrowEnd.x - scene.attacker.center.x,
+        scene.aimArrowEnd.y - scene.attacker.center.y,
+      ),
+    ).toBeCloseTo(aimArrowLength, 12)
+    expect(scene.aimErrorArc).toHaveLength(21)
+    for (const point of [scene.aimErrorArc[0], scene.aimErrorArc[scene.aimErrorArc.length - 1]]) {
+      expect(
+        Math.hypot(point!.x - scene.attacker.center.x, point!.y - scene.attacker.center.y),
+      ).toBeCloseTo(topDownAimArcRadius, 12)
+    }
+    expect(scene.aimErrorRadians).toBe(evaluation.callResult.diagnostics.horizontalAngleDelta)
+    expect(scene.horizontalDirectionAdjustmentRadians).toBe(
+      evaluation.callResult.diagnostics.horizontalRotationAngle,
+    )
+    expect(scene.directionAdjustmentArc).toHaveLength(21)
+    for (const point of [
+      scene.directionAdjustmentArc[0],
+      scene.directionAdjustmentArc[scene.directionAdjustmentArc.length - 1],
+    ]) {
+      expect(
+        Math.hypot(point!.x - scene.cube.center.x, point!.y - scene.cube.center.y),
+      ).toBeCloseTo(topDownDirectionAdjustmentArcRadius, 12)
+    }
+    expect(scene.reach).toBe(evaluation.reach)
+    expect(
+      Math.hypot(call.baseEnd.x - scene.cube.center.x, call.baseEnd.y - scene.cube.center.y),
+    ).toBeCloseTo(topDownDirectionVectorLength, 12)
+    expect(
+      Math.hypot(call.rotatedEnd.x - scene.cube.center.x, call.rotatedEnd.y - scene.cube.center.y),
+    ).toBeCloseTo(topDownDirectionVectorLength, 12)
+    expect(scene.trajectory[0]!.point).toEqual(scene.cube.center)
+    expect(scene.trajectory[1]!.point).toEqual({
+      x: evaluation.trajectory.ticks[0]!.end.feetPosition.x,
+      y: evaluation.trajectory.ticks[0]!.end.feetPosition.z,
+    })
+  })
+
+  it('shows every ordered sulfur-cube call while the launch arrow uses final cumulative velocity', () => {
+    const inputs = getDiagnosticPreset('M2').inputs
+    const evaluation = evaluatePlayerMeleeInputs(
+      inputs,
+      {
+        ...createDefaultPlayerMeleeInputs(),
+        weaponPresetId: 'ironSword',
+        sprinting: true,
+        knockbackEnchantmentLevel: 2,
+      },
+      deriveMinecraftYawDegreesFromAim(inputs, 0),
+    )
+    const scene = createTopDownScenePresentation(evaluation)
+
+    expect(scene.calls).toHaveLength(2)
+    expect(scene.calls.map((call) => call.providerId)).toEqual([
+      'nonProjectileSourcePosition',
+      'callerYaw',
+    ])
+    const launchVector = {
+      x: scene.launchEnd.x - scene.cube.center.x,
+      z: scene.launchEnd.y - scene.cube.center.y,
+    }
+    const expected = { x: evaluation.launchVelocity.x, z: evaluation.launchVelocity.z }
+
+    expect(launchVector.x * expected.z - launchVector.z * expected.x).toBeCloseTo(0, 12)
+    expect(launchVector.x * expected.x + launchVector.z * expected.z).toBeGreaterThan(0)
   })
 })
 

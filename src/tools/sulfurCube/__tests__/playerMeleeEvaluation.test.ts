@@ -42,7 +42,7 @@ describe('full-tool primary player melee evaluation', () => {
     const existing = evaluateDiagnosticInputs(diagnosticInputs)
     const melee = evaluatePlayerMeleeInputs(diagnosticInputs, createDefaultPlayerMeleeInputs(), yaw)
 
-    expect(Math.abs(yaw)).toBe(180)
+    expect(Math.abs(yaw)).toBe(0)
     expect(melee.attackResolution.operations).toHaveLength(1)
     expect(melee.attackResolution.diagnostics.damageArgument).toBe(1)
     expect(melee.launchVelocity).toEqual(existing.launchVelocity)

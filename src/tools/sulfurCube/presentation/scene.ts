@@ -16,7 +16,7 @@ export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
 export const thetaLabelHorizontalOffset = -0.08
-export const thetaLabelVerticalOffset = -0.02
+export const thetaLabelVerticalOffset = -0.1
 export const cubeFeetLineHalfLength = 3
 
 export const radialSceneCamera = {
@@ -68,6 +68,18 @@ export interface RadialScenePresentation {
   readonly trajectoryStatus: 'settled' | 'truncated'
   readonly airborneContactCount: number
   readonly bounceEventCount: number
+  readonly firstBounce:
+    | {
+        readonly status: 'reached'
+        readonly tick: number
+        readonly horizontalDistance: number
+        readonly point: PlanePoint
+      }
+    | { readonly status: 'stays_grounded' | 'no_bounce' | 'not_reached' }
+  readonly trajectoryDistance: {
+    readonly horizontalDistance: number
+    readonly point: PlanePoint
+  }
   readonly maximumHeight: {
     readonly heightAboveFloor: number
     readonly point: PlanePoint
@@ -245,6 +257,47 @@ export function createRadialScenePresentation(
           heightAboveFloor: maximumHeightAboveFloor,
           point: projectPointToRadialPlane(maximumHeightTick.end.feetPosition, projection),
         }
+  const firstBounceTick = trajectory.ticks.find((tick) => tick.rebound.emittedBounceEvent)
+  const leftGround = trajectory.ticks.some(
+    (tick) =>
+      tick.end.feetPosition.y >
+        trajectory.assumptions.floorY + context.mechanics.vectorNormalizationThreshold ||
+      !tick.end.onGround,
+  )
+  const firstBounce =
+    firstBounceTick === undefined
+      ? ({
+          status: !leftGround
+            ? 'stays_grounded'
+            : trajectory.status === 'settled'
+              ? 'no_bounce'
+              : 'not_reached',
+        } as const)
+      : ({
+          status: 'reached',
+          tick: firstBounceTick.end.tick,
+          horizontalDistance: Math.hypot(
+            firstBounceTick.end.feetPosition.x - trajectory.initialState.feetPosition.x,
+            firstBounceTick.end.feetPosition.z - trajectory.initialState.feetPosition.z,
+          ),
+          point: projectPointToRadialPlane(
+            {
+              ...firstBounceTick.end.feetPosition,
+              y: trajectory.assumptions.floorY,
+            },
+            projection,
+          ),
+        } as const)
+  const trajectoryDistance = {
+    horizontalDistance: trajectory.horizontalDisplacement,
+    point: projectPointToRadialPlane(
+      {
+        ...trajectory.endpoint.feetPosition,
+        y: trajectory.assumptions.floorY,
+      },
+      projection,
+    ),
+  }
   const horizontalFeetReference = { x: cubeFeet.x, y: attackerFeet.y }
   const thetaPresentation = createThetaPresentation(
     attackerFeet,
@@ -300,6 +353,8 @@ export function createRadialScenePresentation(
     trajectoryStatus: trajectory.status,
     airborneContactCount: trajectory.airborneContactCount,
     bounceEventCount: trajectory.bounceEventCount,
+    firstBounce,
+    trajectoryDistance,
     maximumHeight,
     renderedTrajectoryTicks: trajectoryPoints.length - 1,
     requestedTrajectoryTicks: inputs.trajectoryTicks,

@@ -79,6 +79,21 @@ export interface CubePropertySelectionResolution {
 const defaultBlockId = 'minecraft:oak_planks'
 const defaultArchetypeId = 'minecraft:bouncy'
 
+export const je26_2ArchetypeRepresentativeBlocks = {
+  'minecraft:bouncy': 'minecraft:oak_planks',
+  'minecraft:explosive': 'minecraft:tnt',
+  'minecraft:fast_flat': 'minecraft:carved_pumpkin',
+  'minecraft:fast_sliding': 'minecraft:blue_ice',
+  'minecraft:high_resistance': 'minecraft:soul_sand',
+  'minecraft:hot': 'minecraft:magma_block',
+  'minecraft:light': 'minecraft:light_blue_wool',
+  'minecraft:regular': 'minecraft:grass_block',
+  'minecraft:slow_bouncy': 'minecraft:amethyst_block',
+  'minecraft:slow_flat': 'minecraft:cut_copper',
+  'minecraft:slow_sliding': 'minecraft:red_mushroom_block',
+  'minecraft:sticky': 'minecraft:honeycomb_block',
+} as const satisfies Record<Je26_2ArchetypeId, string>
+
 function toFormState(values: CubeLaunchProperties): CustomCubePropertyFormState {
   return {
     horizontalPower: String(values.horizontalPower),
@@ -286,6 +301,7 @@ export function selectCubePropertyArchetype(
   return {
     ...state,
     selectedArchetypeId: archetypeId,
+    selectedBlockId: je26_2ArchetypeRepresentativeBlocks[archetypeId],
     ...(state.mode === 'archetype' ? { lastLockedMode: 'archetype' as const } : {}),
   }
 }

@@ -11,6 +11,7 @@ import { CdxAccordion, CdxButton, CdxField, CdxMessage, CdxSelect } from '@wikim
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalcField from '@/components/CalcField.vue'
+import { getImageLink } from '@/utils/image'
 import AttackOperationTrace from './components/AttackOperationTrace.vue'
 import ControlsPanel from './components/ControlsPanel.vue'
 import {
@@ -27,9 +28,10 @@ import {
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
+import TopDownScene from './components/TopDownScene.vue'
 import { je26_2ArchetypeRegistryOrder, je26_2UniformFloorProfileOrder } from './data/je26_2'
 import { standardNumerics } from './numerics/standard'
-import { humanizeIdentifier } from './presentation/blockSelector'
+import { blockSpriteFileName, humanizeIdentifier } from './presentation/blockSelector'
 import { createFullSulfurCubeToolUrl } from './presentation/viewMode'
 import {
   createMilestone1DefaultInputs,
@@ -72,6 +74,25 @@ const attackerYawDegrees = ref(deriveMinecraftYawDegreesFromAim(defaultInputs, 0
 const propertySelection = ref<CubePropertySelectionState>(initialPropertySelection)
 const trajectoryTicksDefaultActive = ref(true)
 const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
+const selectedCubeVisual = computed(() => {
+  if (propertySelection.value.mode === 'custom') {
+    return {
+      blockId: null,
+      blockLabel: t('sulfurCube.scene.customBlockSelection'),
+      archetypeLabel: t('sulfurCube.properties.mode.custom'),
+      spriteUrl: null,
+    }
+  }
+
+  const blockId = propertySelection.value.selectedBlockId
+
+  return {
+    blockId,
+    blockLabel: humanizeIdentifier(blockId),
+    archetypeLabel: propertyResolution.value.candidateIds.map(humanizeIdentifier).join(' / '),
+    spriteUrl: getImageLink(`en:${blockSpriteFileName(blockId)}`),
+  }
+})
 const fullToolUrl = createFullSulfurCubeToolUrl(window.location.href)
 const compactArchetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((archetypeId) => ({
   value: archetypeId,
@@ -313,9 +334,13 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
         :show-aim-q-label="false"
         :show-comparison-help="false"
         :show-size-control="false"
+        :selected-block-label="selectedCubeVisual.blockLabel"
+        :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+        :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
         @update-aim-point="updateAimPoint"
         @translate-attacker="translateAttacker"
         @translate-cube="translateCube"
+        @reset="reset"
       />
 
       <CdxMessage v-else type="warning">
@@ -351,14 +376,33 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
           class="interaction-grid__scene"
           :evaluation="evaluation"
           :show-size-control="true"
+          :selected-block-label="selectedCubeVisual.blockLabel"
+          :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+          :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
           @update-aim-point="updateAimPoint"
           @translate-attacker="translateAttacker"
           @translate-cube="translateCube"
+          @reset="reset"
         />
 
         <CdxMessage v-else class="interaction-grid__scene" type="warning">
           {{ t('sulfurCube.invalidInputs') }}
         </CdxMessage>
+
+        <TopDownScene
+          v-if="evaluation"
+          :key="`top-down-${sceneResetVersion}`"
+          class="interaction-grid__horizontal"
+          :evaluation="evaluation"
+          :scene-size="sceneSize"
+          :selected-block-label="selectedCubeVisual.blockLabel"
+          :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+          :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+          @update-aim-point="updateAimPoint"
+          @translate-attacker="translateAttacker"
+          @translate-cube="translateCube"
+          @reset="reset"
+        />
 
         <PowerSpaceDiagram
           v-if="evaluation"
@@ -491,6 +535,7 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
 .interaction-grid--regular {
   grid-template-areas:
     'scene scene'
+    'horizontal horizontal'
     'controls power'
     'trace trace'
     'readout readout'
@@ -501,6 +546,7 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
 .interaction-grid--compact {
   grid-template-areas:
     'power scene'
+    'horizontal horizontal'
     'controls readout'
     'trace trace'
     'details details';
@@ -513,6 +559,12 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
 
 .interaction-grid__scene {
   grid-area: scene;
+}
+
+.interaction-grid__horizontal {
+  grid-area: horizontal;
+  width: min(100%, 44rem);
+  justify-self: center;
 }
 
 .interaction-grid__power {
@@ -537,12 +589,17 @@ watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajector
   .interaction-grid--compact {
     grid-template-areas:
       'scene'
+      'horizontal'
       'power'
       'controls'
       'trace'
       'readout'
       'details';
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .interaction-grid__horizontal {
+    width: 100%;
   }
 }
 

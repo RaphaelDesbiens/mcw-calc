@@ -183,6 +183,7 @@ const view = computed(() => {
           :label="t('sulfurCube.power.caveatLabel')"
           placement="right"
         />
+        <span class="power-space__static-badge">{{ t('sulfurCube.power.nonInteractive') }}</span>
       </div>
       <p>{{ t('sulfurCube.power.subtitle') }}</p>
     </div>
@@ -382,6 +383,18 @@ const view = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.power-space__static-badge {
+  margin-left: auto;
+  border: 1px solid var(--border-color-subtle, #c8ccd1);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: var(--background-color-neutral-subtle, #f8f9fa);
+  color: var(--color-subtle, #54595d);
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .power-space__heading h3,

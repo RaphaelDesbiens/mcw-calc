@@ -63,7 +63,7 @@ export const maximumTrajectoryTicks = 1000
 export const defaultUniformFloorProfileId: Je26_2UniformFloorProfileId = 'ordinary_full_block'
 
 export function createMilestone1DefaultInputs(): DiagnosticInputs {
-  const attackerFeetPosition = { x: 0, y: -0.3, z: 2.6 } as const
+  const attackerFeetPosition = { x: 0, y: -0.3, z: -2.6 } as const
   const inputs: DiagnosticInputs = {
     cubeFeetPosition: { x: 0, y: 0, z: 0 },
     attackerFeetPosition,
@@ -72,7 +72,7 @@ export function createMilestone1DefaultInputs(): DiagnosticInputs {
       y: attackerFeetPosition.y + je26_2Constants.standingPlayerEyeHeight.value,
       z: attackerFeetPosition.z,
     },
-    aimPoint: { x: 0, y: 0.4, z: -1.7 },
+    aimPoint: { x: 0, y: 0.4, z: 1.7 },
     damageArgument: 1,
     trajectoryTicks: 0,
     floorProfileId: defaultUniformFloorProfileId,

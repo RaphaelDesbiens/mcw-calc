@@ -44,6 +44,9 @@ const props = withDefaults(
     showAimQLabel?: boolean
     showComparisonHelp?: boolean
     showSizeControl?: boolean
+    selectedBlockLabel: string
+    selectedArchetypeLabel: string
+    selectedBlockSpriteUrl: string | null
   }>(),
   {
     initialZoomSteps: 0,
@@ -58,6 +61,7 @@ const emit = defineEmits<{
   translateCube: [delta: Vec3]
   'update:sceneSize': [size: SceneSize]
   updateAimPoint: [point: Vec3]
+  reset: []
 }>()
 
 const { t } = useI18n()
@@ -173,33 +177,66 @@ const view = computed(() => {
     x: launchEnd.x + (launchEnd.x >= launchStart.x ? 18 : -18) * zoomFactor,
     y: launchEnd.y - visual.launchLabelOffset,
   }
-  const launchAngle = Math.atan2(launchEnd.y - launchStart.y, launchEnd.x - launchStart.x)
-  const launchValueAngle = Math.abs(launchAngle) > Math.PI / 2 ? launchAngle + Math.PI : launchAngle
-  const launchValueAnchor = {
-    x: launchStart.x + (launchEnd.x - launchStart.x) * 0.55,
-    y: launchStart.y + (launchEnd.y - launchStart.y) * 0.55,
-  }
-  const launchValueOffset = 13 * zoomFactor
   const launchValueLabel =
     scene.launchDisplayLength <= 0
       ? null
       : {
-          x: launchValueAnchor.x + Math.sin(launchValueAngle) * launchValueOffset,
-          y: launchValueAnchor.y - Math.cos(launchValueAngle) * launchValueOffset,
-          rotation: (launchValueAngle * 180) / Math.PI,
+          x: launchLabel.x,
+          y: launchLabel.y + 13 * zoomFactor,
           value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
         }
   const sceneMetrics = {
-    x: 18 * zoomFactor,
-    speedY: 24 * zoomFactor,
-    distanceY: 44 * zoomFactor,
-    speed: t('sulfurCube.scene.speedMetric', {
-      value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
-    }),
-    distance: t('sulfurCube.scene.distanceMetric', {
-      value: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
-    }),
+    x: 18,
+    speedY: 24,
+    distanceY: 41,
+    firstBounceY: 58,
+    qY: 75,
+    thetaY: 92,
+    blockY: 109,
+    archetypeY: 126,
+    speed: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
+    distance: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
+    firstBounce:
+      scene.firstBounce.status === 'reached'
+        ? scene.firstBounce.horizontalDistance.toFixed(2)
+        : t(`sulfurCube.scene.firstBounceStatus.${scene.firstBounce.status}`),
+    q: props.evaluation.callResult.diagnostics.q.toFixed(2),
+    theta: ((props.evaluation.callResult.diagnostics.theta * 180) / Math.PI).toFixed(1),
   }
+  const sceneWallBounds = {
+    minX: 64,
+    maxX: viewport.width - 64,
+    minY: 18,
+    maxY: viewport.height - 18,
+  }
+  const createGroundLabel = (point: PlanePoint, value: string, verticalOffset: number) => {
+    const marker = clampPointToBoundsFromOrigin(cubeFeet, toSvg(point), sceneWallBounds)
+    const labelY = Math.min(viewport.height - 16, marker.y + verticalOffset)
+
+    return {
+      marker,
+      x: Math.min(viewport.width - 88, Math.max(88, marker.x)),
+      y: labelY,
+      value,
+    }
+  }
+  const firstBounceGroundLabel =
+    scene.firstBounce.status === 'reached'
+      ? createGroundLabel(
+          scene.firstBounce.point,
+          t('sulfurCube.scene.firstBounceGroundMetric', {
+            value: scene.firstBounce.horizontalDistance.toFixed(2),
+          }),
+          27,
+        )
+      : null
+  const distanceGroundLabel = createGroundLabel(
+    scene.trajectoryDistance.point,
+    t('sulfurCube.scene.distanceGroundMetric', {
+      value: scene.trajectoryDistance.horizontalDistance.toFixed(2),
+    }),
+    firstBounceGroundLabel === null ? 27 : 54,
+  )
   const maximumHeightLabel =
     scene.maximumHeight === null
       ? null
@@ -247,6 +284,12 @@ const view = computed(() => {
       width: scene.cube.width * transform.scale,
       height: scene.cube.height * transform.scale,
     },
+    cubeSprite: {
+      x: cubeCenter.x - (scene.cube.width * transform.scale) / 4,
+      y: cubeCenter.y - (scene.cube.height * transform.scale) / 4,
+      width: (scene.cube.width * transform.scale) / 2,
+      height: (scene.cube.height * transform.scale) / 2,
+    },
     attackerRect: {
       x: attackerHitboxTopLeft.x,
       y: attackerHitboxTopLeft.y,
@@ -269,6 +312,12 @@ const view = computed(() => {
     launchLabel,
     launchValueLabel,
     sceneMetrics,
+    firstBounceGroundLabel,
+    distanceGroundLabel,
+    reachWarning: {
+      x: viewport.width - 18,
+      y: viewport.height - 18,
+    },
     maximumHeightLabel,
     thetaLabel,
     thetaSquarePath,
@@ -647,6 +696,17 @@ function formatCoordinate(value: number): string {
           >
             <path class="launch-arrow" d="M 0 0 L 8 3 L 0 6 L 1.6 3 z" />
           </marker>
+          <marker
+            id="sulfur-cube-ground-arrow"
+            markerWidth="7"
+            markerHeight="6"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path class="ground-arrow" d="M 0 0 L 7 3 L 0 6 z" />
+          </marker>
         </defs>
 
         <rect
@@ -659,12 +719,103 @@ function formatCoordinate(value: number): string {
 
         <g class="scene-metrics" aria-hidden="true">
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.speedY">
-            {{ view.sceneMetrics.speed }}
+            <tspan>{{ t('sulfurCube.scene.speedLabel') }}&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--velocity">
+              {{ view.sceneMetrics.speed }}
+            </tspan>
+            <tspan>&#160;{{ t('sulfurCube.scene.blocksPerSecond') }}</tspan>
           </text>
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
-            {{ view.sceneMetrics.distance }}
+            <tspan>{{ t('sulfurCube.scene.distanceLabel') }}&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--trajectory">
+              {{ view.sceneMetrics.distance }}
+            </tspan>
+            <tspan>&#160;{{ t('sulfurCube.scene.blocks') }}</tspan>
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.firstBounceY">
+            <tspan>{{ t('sulfurCube.scene.firstBounceLabel') }}&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--trajectory">
+              {{ view.sceneMetrics.firstBounce }}
+            </tspan>
+            <tspan v-if="view.scene.firstBounce.status === 'reached'">&#160;{{
+                t('sulfurCube.scene.blocks')
+              }}</tspan>
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.qY">
+            <tspan>q&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--aim">
+              {{ view.sceneMetrics.q }}
+            </tspan>
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.thetaY">
+            <tspan>θ&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--theta">
+              {{ view.sceneMetrics.theta }}°
+            </tspan>
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.blockY">
+            <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--cube">
+              {{ selectedBlockLabel }}
+            </tspan>
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.archetypeY">
+            <tspan>{{ t('sulfurCube.scene.archetypeLabel') }}&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--cube">
+              {{ selectedArchetypeLabel }}
+            </tspan>
           </text>
         </g>
+
+        <g class="ground-metrics" aria-hidden="true">
+          <g v-if="view.firstBounceGroundLabel">
+            <line
+              :x1="view.firstBounceGroundLabel.x"
+              :y1="view.firstBounceGroundLabel.y - 10"
+              :x2="view.firstBounceGroundLabel.marker.x"
+              :y2="view.firstBounceGroundLabel.marker.y + 2"
+              marker-end="url(#sulfur-cube-ground-arrow)"
+            />
+            <text
+              :x="view.firstBounceGroundLabel.x"
+              :y="view.firstBounceGroundLabel.y"
+              text-anchor="middle"
+            >
+              {{ view.firstBounceGroundLabel.value }}
+            </text>
+          </g>
+          <line
+            :x1="view.distanceGroundLabel.x"
+            :y1="view.distanceGroundLabel.y - 10"
+            :x2="view.distanceGroundLabel.marker.x"
+            :y2="view.distanceGroundLabel.marker.y + 2"
+            marker-end="url(#sulfur-cube-ground-arrow)"
+          />
+          <text
+            :x="view.distanceGroundLabel.x"
+            :y="view.distanceGroundLabel.y"
+            text-anchor="middle"
+          >
+            {{ view.distanceGroundLabel.value }}
+          </text>
+        </g>
+
+        <text
+          v-if="view.scene.reach.status !== 'within_reach'"
+          class="scene-reach-warning-svg"
+          :x="view.reachWarning.x"
+          :y="view.reachWarning.y"
+          text-anchor="end"
+          role="status"
+        >
+          {{
+            t(
+              view.scene.reach.status === 'inside_unpickable_aabb'
+                ? 'sulfurCube.scene.reachInsideWarning'
+                : 'sulfurCube.scene.reachMissWarning',
+            )
+          }}
+        </text>
 
         <text
           v-if="view.maximumHeightLabel"
@@ -759,7 +910,7 @@ function formatCoordinate(value: number): string {
           text-anchor="middle"
           :transform="`rotate(${view.aimQLabel.rotation} ${view.aimQLabel.x} ${view.aimQLabel.y})`"
         >
-          q={{ evaluation.callResult.diagnostics.q.toFixed(2) }}
+          {{ evaluation.callResult.diagnostics.q.toFixed(2) }}
         </text>
 
         <g class="cube-shape">
@@ -769,6 +920,16 @@ function formatCoordinate(value: number): string {
             :width="view.cubeRect.width"
             :height="view.cubeRect.height"
             :rx="view.visual.cubeCornerRadius"
+          />
+          <image
+            v-if="selectedBlockSpriteUrl"
+            class="cube-block-sprite"
+            :href="selectedBlockSpriteUrl"
+            :x="view.cubeSprite.x"
+            :y="view.cubeSprite.y"
+            :width="view.cubeSprite.width"
+            :height="view.cubeSprite.height"
+            preserveAspectRatio="xMidYMid meet"
           />
           <circle :cx="view.cubeTop.x" :cy="view.cubeTop.y" :r="view.visual.cubeEndpointRadius" />
           <circle
@@ -839,7 +1000,6 @@ function formatCoordinate(value: number): string {
           :x="view.launchValueLabel.x"
           :y="view.launchValueLabel.y"
           text-anchor="middle"
-          :transform="`rotate(${view.launchValueLabel.rotation} ${view.launchValueLabel.x} ${view.launchValueLabel.y})`"
         >
           {{ view.launchValueLabel.value }}
         </text>
@@ -928,27 +1088,32 @@ function formatCoordinate(value: number): string {
       </svg>
     </div>
 
-    <div class="scene-legend" aria-hidden="true">
-      <span>
-        <i class="legend-swatch legend-swatch--player" />
-        <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
-      </span>
-      <span>
-        <i class="legend-swatch legend-swatch--cube" />
-        <span>{{ t('sulfurCube.scene.legendSulfurCube') }}</span>
-      </span>
-      <span>
-        <i class="legend-swatch legend-swatch--aim" />
-        <span>{{ t('sulfurCube.scene.aim') }}</span>
-      </span>
-      <span>
-        <i class="legend-swatch legend-swatch--theta" />
-        <span>{{ t('sulfurCube.scene.legendTheta') }}</span>
-      </span>
-      <span>
-        <i class="legend-swatch legend-swatch--launch" />
-        <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
-      </span>
+    <div class="scene-legend-row">
+      <div class="scene-legend" aria-hidden="true">
+        <span>
+          <i class="legend-swatch legend-swatch--player" />
+          <span>{{ t('sulfurCube.scene.legendPlayer') }}</span>
+        </span>
+        <span>
+          <i class="legend-swatch legend-swatch--cube" />
+          <span>{{ t('sulfurCube.scene.legendSulfurCube') }}</span>
+        </span>
+        <span>
+          <i class="legend-swatch legend-swatch--aim" />
+          <span>{{ t('sulfurCube.scene.aim') }}</span>
+        </span>
+        <span>
+          <i class="legend-swatch legend-swatch--theta" />
+          <span>{{ t('sulfurCube.scene.legendTheta') }}</span>
+        </span>
+        <span>
+          <i class="legend-swatch legend-swatch--launch" />
+          <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
+        </span>
+      </div>
+      <CdxButton size="small" weight="quiet" @click="emit('reset')">
+        {{ t('sulfurCube.controls.reset') }}
+      </CdxButton>
     </div>
 
     <figcaption>
@@ -959,19 +1124,6 @@ function formatCoordinate(value: number): string {
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
       <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>
-      <p
-        v-if="view.scene.reach.status !== 'within_reach'"
-        class="scene-reach-warning"
-        role="status"
-      >
-        {{
-          t(
-            view.scene.reach.status === 'inside_unpickable_aabb'
-              ? 'sulfurCube.scene.reachInsideWarning'
-              : 'sulfurCube.scene.reachMissWarning',
-          )
-        }}
-      </p>
       <p v-if="view.scene.trajectoryStatus === 'truncated'">
         {{
           t('sulfurCube.scene.trajectoryContinues', {
@@ -1011,7 +1163,7 @@ function formatCoordinate(value: number): string {
   --scene-theta: #d33682;
   --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #00a000;
-  --scene-trajectory: #00a000;
+  --scene-trajectory: color-mix(in srgb, #00a000 48%, transparent);
   --scene-move-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
     12 12;
   margin: 0;
@@ -1088,7 +1240,7 @@ figcaption {
 
 .scene-figure--compact .scene-frame,
 .scene-figure--compact .scene-heading,
-.scene-figure--compact .scene-legend,
+.scene-figure--compact .scene-legend-row,
 .scene-figure--compact figcaption {
   width: 100%;
 }
@@ -1146,9 +1298,29 @@ figcaption {
 
 .scene-metrics {
   fill: var(--scene-ink);
-  font-size: var(--scene-small-label-font-size);
+  font-size: 11px;
   font-weight: 700;
   pointer-events: none;
+}
+
+.scene-metric-value--velocity {
+  fill: var(--scene-launch);
+}
+
+.scene-metric-value--trajectory {
+  fill: #397f3f;
+}
+
+.scene-metric-value--aim {
+  fill: var(--scene-aim-dark);
+}
+
+.scene-metric-value--theta {
+  fill: var(--scene-theta);
+}
+
+.scene-metric-value--cube {
+  fill: #9c6900;
 }
 
 .maximum-height-label {
@@ -1158,10 +1330,27 @@ figcaption {
   pointer-events: none;
 }
 
-.scene-reach-warning {
-  color: var(--color-error, #b32424);
-  font-size: 0.8125rem;
-  line-height: 1.35;
+.scene-reach-warning-svg {
+  fill: var(--color-error, #b32424);
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.ground-metrics {
+  fill: #397f3f;
+  stroke: #397f3f;
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.ground-metrics line {
+  stroke-width: 1px;
+}
+
+.ground-arrow {
+  fill: #397f3f;
 }
 
 .reference-geometry line {
@@ -1232,6 +1421,11 @@ figcaption {
   fill: #202122;
 }
 
+.cube-block-sprite {
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
 .cube-shape text {
   fill: var(--scene-cube-dark);
   font-weight: 700;
@@ -1285,7 +1479,7 @@ figcaption {
 .trajectory-tick {
   fill: var(--scene-trajectory);
   stroke: none;
-  opacity: 0.62;
+  opacity: 0.72;
 }
 
 .trajectory-tick--contact {
@@ -1347,13 +1541,20 @@ figcaption {
   stroke: var(--scene-cube-dark);
 }
 
+.scene-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: calc(100% - 4cm);
+  margin-top: 0.5rem;
+  margin-inline: auto;
+}
+
 .scene-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
-  width: calc(100% - 4cm);
-  margin-top: 0.5rem;
-  margin-inline: auto;
   color: var(--scene-muted);
   font-size: 0.875em;
 }
@@ -1395,7 +1596,7 @@ figcaption {
   --scene-theta: #ff6bb3;
   --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #33d13f;
-  --scene-trajectory: #33d13f;
+  --scene-trajectory: color-mix(in srgb, #33d13f 50%, transparent);
 }
 
 :global(.dark) .open-point-symbol {
@@ -1451,7 +1652,7 @@ figcaption {
 
   .scene-frame,
   .scene-heading,
-  .scene-legend,
+  .scene-legend-row,
   figcaption,
   .scene-figure--compact .scene-frame {
     width: 92%;
