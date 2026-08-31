@@ -1,7 +1,6 @@
 export { resolveAttackConfiguration, resolvePrimaryPlayerMeleeAttack } from './attackConfiguration'
 export type {
   AttackConfiguration,
-  AttackConfigurationIssue,
   AttackResolution,
   CriticalEligibilityFailure,
   DamageSourceConfiguration,
@@ -12,11 +11,13 @@ export type {
   OmittedVelocityOperationDiagnostic,
   PlayerCriticalEligibilityState,
   PlayerMeleeAttackDiagnostics,
+  PlayerMeleeDamageSourceConfiguration,
   PlayerMeleeMechanicsParameters,
   PrimaryPlayerMeleeAttackConfiguration,
   SuccessfulAttackResolution,
   UnsupportedAttackResolution,
 } from './attackConfiguration'
+export type { AttackConfigurationIssue } from './attackValidation'
 export { foldAttributeModifiers, je26_2AttributeDefinitions } from './attributes'
 export { matchBlockDefinitions, resolveBlock, resolveJe26_2Block } from './blockResolution'
 export type {
@@ -55,6 +56,22 @@ export type {
   UnsupportedDirectionProviderConfiguration,
   UnsupportedDirectionProviderResolution,
 } from './directionProvider'
+export { resolvePlayerOwnedBowArrowAttack } from './playerOwnedBowArrow'
+export type {
+  InvalidPlayerOwnedBowArrowAttackResolution,
+  NoOperationPlayerOwnedBowArrowAttackResolution,
+  PlayerOwnedArrowDamageSourceConfiguration,
+  PlayerOwnedBowArrowAttackConfiguration,
+  PlayerOwnedBowArrowAttackDiagnostics,
+  PlayerOwnedBowArrowAttackResolution,
+  PlayerOwnedBowArrowAvailability,
+  PlayerOwnedBowArrowAvailabilityIssue,
+  PlayerOwnedBowArrowMechanicsParameters,
+  PlayerOwnedBowArrowOmittedOperationDiagnostic,
+  PlayerOwnedBowArrowProjectileKind,
+  ResolvedPlayerOwnedBowArrowShot,
+  SuccessfulPlayerOwnedBowArrowAttackResolution,
+} from './playerOwnedBowArrow'
 export {
   copyCurrentResolvedCubeProperties,
   createDefaultCubePropertySelectionState,

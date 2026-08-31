@@ -39,6 +39,7 @@ export {
   je26_2KnockbackMechanics,
   je26_2OrdinaryPlayerMeleeReach,
   je26_2PlayerMeleeMechanics,
+  je26_2PlayerOwnedBowArrowMechanics,
 } from './constants'
 export {
   je26_2UniformFloorProfileDefinitions,

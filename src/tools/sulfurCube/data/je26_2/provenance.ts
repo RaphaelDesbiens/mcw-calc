@@ -85,6 +85,45 @@ export const provenance = {
     notes:
       'Ordinary Survival entity reach is a strict 3-block eye-ray entry test. ProjectileUtil.java local lines 109-145 supplies pick-radius and inside-picking behavior; AABB.java local lines 294-399 supplies the 1e-7 clipping tolerance; absorbed SulfurCube.canBePickedFromInside returns false at local lines 923-930. Block and competing-entity occlusion are not evaluated by the current clear-scene diagnostic.',
   },
+  playerBowArrowShot: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/item/BowItem.java',
+    locator: 'releaseUsing and getPowerForTime (local lines 26-82)',
+    notes:
+      'Defines the source-float draw curve, 0.1 release gate, nominal launch speed and full-draw critical flag. Current impact motion remains a separately sampled projectile value.',
+  },
+  playerBowArrowDamage: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath:
+      'versions/26.2/decompiled/src/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java',
+    locator: 'onHitEntity (local lines 425-505)',
+    notes:
+      'Defines impact-speed sampling, Power-modified stored base damage, ceiling, explicit critical random addition, int-to-float damageArgument, owner-backed arrow damage source and post-success operation order.',
+  },
+  playerBowArrowPunch: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath:
+      'versions/26.2/decompiled/src/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java',
+    locator: 'doKnockback (local lines 520-530)',
+    notes:
+      'Punch is a separate additive push after accepted arrow damage. The copied firing weapon supplies K; current horizontal projectile motion supplies direction; the complete push is omitted when that direction normalizes to zero.',
+  },
+  playerBowArrowEnchantments: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'extractedData',
+    sourcePath: 'versions/26.2/extracted/data/minecraft/enchantment/power.json',
+    locator:
+      'Power effect, supported bow item and maximum level; Punch uses the sibling punch.json definition',
+    notes:
+      'Power modifies stored damage before impact-speed multiplication. Punch supplies the later direct-push K. Item enchantment data can decode levels through 255, while ordinary Survival maxima are Power V and Punch II.',
+  },
   bouncyArchetype: {
     edition: 'Java Edition',
     version: '26.2',

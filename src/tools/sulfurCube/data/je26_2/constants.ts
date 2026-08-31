@@ -39,6 +39,21 @@ export const je26_2Constants = {
   entityRayClipTolerance: sourcedValue(1e-7, ['playerMeleeReach']),
   sulfurCubePickRadius: sourcedValue(0, ['playerMeleeReach']),
   absorbedSulfurCubeCanBePickedFromInside: sourcedValue(false, ['playerMeleeReach']),
+  bowMinimumDrawTicks: sourcedValue(3, ['playerBowArrowShot']),
+  bowDrawTimeDivisor: sourcedValue(20, ['playerBowArrowShot']),
+  bowDrawLinearFactor: sourcedValue(2, ['playerBowArrowShot']),
+  bowDrawCurveDivisor: sourcedValue(3, ['playerBowArrowShot']),
+  bowMaximumPower: sourcedValue(1, ['playerBowArrowShot']),
+  bowNominalSpeedScale: sourcedValue(3, ['playerBowArrowShot']),
+  bowArrowStoredBaseDamage: sourcedValue(2, ['playerBowArrowDamage']),
+  bowArrowMaximumIntegerDamage: sourcedValue(2147483647, ['playerBowArrowDamage']),
+  powerFirstLevelDamageAddition: sourcedValue(1, ['playerBowArrowEnchantments']),
+  powerAdditionalLevelDamageAddition: sourcedValue(0.5, ['playerBowArrowEnchantments']),
+  maximumDecodedItemEnchantmentLevel: sourcedValue(255, ['playerBowArrowEnchantments']),
+  ordinarySurvivalPowerMaximum: sourcedValue(5, ['playerBowArrowEnchantments']),
+  ordinarySurvivalPunchMaximum: sourcedValue(2, ['playerBowArrowEnchantments']),
+  punchHorizontalScale: sourcedValue(0.6, ['playerBowArrowPunch']),
+  punchVerticalAddition: sourcedValue(0.1, ['playerBowArrowPunch']),
 } as const
 
 export const je26_2CubeAttributeDefinitions = Object.freeze({
@@ -97,4 +112,22 @@ export const je26_2OrdinaryPlayerMeleeReach = Object.freeze({
   sulfurCubePickRadius: je26_2Constants.sulfurCubePickRadius.value,
   absorbedSulfurCubeCanBePickedFromInside:
     je26_2Constants.absorbedSulfurCubeCanBePickedFromInside.value,
+})
+
+export const je26_2PlayerOwnedBowArrowMechanics = Object.freeze({
+  minimumDrawTicks: je26_2Constants.bowMinimumDrawTicks.value,
+  drawTimeDivisor: je26_2Constants.bowDrawTimeDivisor.value,
+  drawLinearFactor: je26_2Constants.bowDrawLinearFactor.value,
+  drawCurveDivisor: je26_2Constants.bowDrawCurveDivisor.value,
+  maximumBowPower: je26_2Constants.bowMaximumPower.value,
+  nominalSpeedScale: je26_2Constants.bowNominalSpeedScale.value,
+  storedBaseDamage: je26_2Constants.bowArrowStoredBaseDamage.value,
+  maximumIntegerDamage: je26_2Constants.bowArrowMaximumIntegerDamage.value,
+  firstPowerLevelDamageAddition: je26_2Constants.powerFirstLevelDamageAddition.value,
+  additionalPowerLevelDamageAddition: je26_2Constants.powerAdditionalLevelDamageAddition.value,
+  maximumDecodedEnchantmentLevel: je26_2Constants.maximumDecodedItemEnchantmentLevel.value,
+  ordinarySurvivalPowerMaximum: je26_2Constants.ordinarySurvivalPowerMaximum.value,
+  ordinarySurvivalPunchMaximum: je26_2Constants.ordinarySurvivalPunchMaximum.value,
+  punchHorizontalScale: je26_2Constants.punchHorizontalScale.value,
+  punchVerticalAddition: je26_2Constants.punchVerticalAddition.value,
 })

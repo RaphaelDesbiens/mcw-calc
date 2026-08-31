@@ -5,11 +5,21 @@ import type {
   VelocityOperation,
 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
+import type { AttackConfigurationIssue } from './attackValidation'
 import type { SuccessfulDirectionProviderResolution } from './directionProvider'
+import type {
+  NoOperationPlayerOwnedBowArrowAttackResolution,
+  PlayerOwnedArrowDamageSourceConfiguration,
+  PlayerOwnedBowArrowAttackConfiguration,
+  PlayerOwnedBowArrowAttackResolution,
+  SuccessfulPlayerOwnedBowArrowAttackResolution,
+} from './playerOwnedBowArrow'
 import { je26_2PlayerMeleeMechanics } from '../data/je26_2'
+import { addFiniteIssue, validateSulfurCubeKnockbackContext } from './attackValidation'
 import { resolveDirectionProvider } from './directionProvider'
+import { resolvePlayerOwnedBowArrowAttack } from './playerOwnedBowArrow'
 
-export interface DamageSourceConfiguration {
+export interface PlayerMeleeDamageSourceConfiguration {
   readonly damageType: 'minecraft:player_attack'
   readonly directEntityRole: 'attacker'
   readonly causingEntityRole: 'attacker'
@@ -20,6 +30,10 @@ export interface DamageSourceConfiguration {
   readonly suppressesDefaultKnockback: false
   readonly defaultDirectionProviderId: 'nonProjectileSourcePosition'
 }
+
+export type DamageSourceConfiguration =
+  | PlayerMeleeDamageSourceConfiguration
+  | PlayerOwnedArrowDamageSourceConfiguration
 
 export interface PlayerCriticalEligibilityState {
   readonly fallDistancePositive: boolean
@@ -62,6 +76,7 @@ export interface DeferredPlayerAttackConfiguration {
 
 export type AttackConfiguration =
   | PrimaryPlayerMeleeAttackConfiguration
+  | PlayerOwnedBowArrowAttackConfiguration
   | DeferredPlayerAttackConfiguration
 
 export interface PlayerMeleeMechanicsParameters {
@@ -92,7 +107,7 @@ export interface OmittedVelocityOperationDiagnostic {
 }
 
 export interface PlayerMeleeAttackDiagnostics {
-  readonly damageSource: DamageSourceConfiguration
+  readonly damageSource: PlayerMeleeDamageSourceConfiguration
   readonly directionResolutions: readonly SuccessfulDirectionProviderResolution[]
   readonly attackStrength: number
   readonly attackStrengthSquared: number
@@ -121,12 +136,6 @@ export interface PlayerMeleeAttackDiagnostics {
   readonly attackerHorizontalVelocityMultiplierAfterExtraCall: number | null
   readonly attackerSprintCleared: boolean
   readonly omittedOperations: readonly OmittedVelocityOperationDiagnostic[]
-}
-
-export interface AttackConfigurationIssue {
-  readonly path: string
-  readonly code: 'nonFinite' | 'outOfRange' | 'notInteger' | 'invalidMechanics'
-  readonly message: string
 }
 
 type NonEmptyReadonlyArray<T> = readonly [T, ...T[]]
@@ -165,6 +174,8 @@ export interface InvalidAttackResolution {
 export type AttackResolution =
   | SuccessfulAttackResolution
   | NoOperationAttackResolution
+  | SuccessfulPlayerOwnedBowArrowAttackResolution
+  | NoOperationPlayerOwnedBowArrowAttackResolution
   | UnsupportedAttackResolution
   | InvalidAttackResolution
 
@@ -185,12 +196,6 @@ function cloneContext(context: SulfurCubeKnockbackContext): SulfurCubeKnockbackC
     },
     properties: { ...context.properties },
     mechanics: { ...context.mechanics },
-  }
-}
-
-function addFiniteIssue(issues: AttackConfigurationIssue[], value: number, path: string): void {
-  if (!Number.isFinite(value)) {
-    issues.push({ path, code: 'nonFinite', message: `${path} must be finite` })
   }
 }
 
@@ -249,52 +254,7 @@ function validateConfiguration(
 
   addFiniteIssue(issues, configuration.attackerYawDegrees, 'attackerYawDegrees')
 
-  const contextNumbers = {
-    'context.attacker.feetPosition.x': context.attacker.feetPosition.x,
-    'context.attacker.feetPosition.y': context.attacker.feetPosition.y,
-    'context.attacker.feetPosition.z': context.attacker.feetPosition.z,
-    'context.attacker.eyePosition.x': context.attacker.eyePosition.x,
-    'context.attacker.eyePosition.y': context.attacker.eyePosition.y,
-    'context.attacker.eyePosition.z': context.attacker.eyePosition.z,
-    'context.attacker.lookDirection.x': context.attacker.lookDirection.x,
-    'context.attacker.lookDirection.y': context.attacker.lookDirection.y,
-    'context.attacker.lookDirection.z': context.attacker.lookDirection.z,
-    'context.cube.feetPosition.x': context.cube.feetPosition.x,
-    'context.cube.feetPosition.y': context.cube.feetPosition.y,
-    'context.cube.feetPosition.z': context.cube.feetPosition.z,
-    'context.cube.dimensions.width': context.cube.dimensions.width,
-    'context.cube.dimensions.height': context.cube.dimensions.height,
-  }
-  for (const [path, value] of Object.entries(contextNumbers)) {
-    addFiniteIssue(issues, value, path)
-  }
-  for (const [name, value] of Object.entries(context.properties)) {
-    addFiniteIssue(issues, value, `context.properties.${name}`)
-  }
-  for (const [name, value] of Object.entries(context.mechanics)) {
-    addFiniteIssue(issues, value, `context.mechanics.${name}`)
-  }
-  if (context.cube.dimensions.width <= 0 || context.cube.dimensions.height <= 0) {
-    issues.push({
-      path: 'context.cube.dimensions',
-      code: 'outOfRange',
-      message: 'cube dimensions must be positive',
-    })
-  }
-  if (context.mechanics.resultClampMinimum > context.mechanics.resultClampMaximum) {
-    issues.push({
-      path: 'context.mechanics',
-      code: 'invalidMechanics',
-      message: 'result clamp minimum must not exceed its maximum',
-    })
-  }
-  if (context.mechanics.vectorNormalizationThreshold < 0) {
-    issues.push({
-      path: 'context.mechanics.vectorNormalizationThreshold',
-      code: 'invalidMechanics',
-      message: 'vector normalization threshold must not be negative',
-    })
-  }
+  issues.push(...validateSulfurCubeKnockbackContext(context))
 
   for (const [name, value] of Object.entries(mechanics)) {
     addFiniteIssue(issues, value, `mechanics.${name}`)
@@ -409,7 +369,7 @@ export function resolvePrimaryPlayerMeleeAttack(
   const combinedKnockback = sourceAdd(knockbackAfterHalving, sprintKnockbackBonus, numerics)
   const effectFactor = sourceMultiply(combinedKnockback, 0.25, numerics)
   const hasExtraCall = combinedKnockback > 0
-  const damageSource: DamageSourceConfiguration = {
+  const damageSource: PlayerMeleeDamageSourceConfiguration = {
     damageType: 'minecraft:player_attack',
     directEntityRole: 'attacker',
     causingEntityRole: 'attacker',
@@ -544,6 +504,22 @@ export function resolvePrimaryPlayerMeleeAttack(
 }
 
 export function resolveAttackConfiguration(
+  configuration: PrimaryPlayerMeleeAttackConfiguration,
+  context: SulfurCubeKnockbackContext,
+  numerics: NumericBackend,
+  mechanics?: PlayerMeleeMechanicsParameters,
+): SuccessfulAttackResolution | NoOperationAttackResolution | InvalidAttackResolution
+export function resolveAttackConfiguration(
+  configuration: PlayerOwnedBowArrowAttackConfiguration,
+  context: SulfurCubeKnockbackContext,
+  numerics: NumericBackend,
+): PlayerOwnedBowArrowAttackResolution
+export function resolveAttackConfiguration(
+  configuration: DeferredPlayerAttackConfiguration,
+  context: SulfurCubeKnockbackContext,
+  numerics: NumericBackend,
+): UnsupportedAttackResolution
+export function resolveAttackConfiguration(
   configuration: AttackConfiguration,
   context: SulfurCubeKnockbackContext,
   numerics: NumericBackend,
@@ -551,6 +527,10 @@ export function resolveAttackConfiguration(
 ): AttackResolution {
   if (configuration.family === 'primaryPlayerMelee') {
     return resolvePrimaryPlayerMeleeAttack(configuration, context, mechanics, numerics)
+  }
+
+  if (configuration.family === 'playerOwnedBowArrow') {
+    return resolvePlayerOwnedBowArrowAttack(configuration, context, numerics)
   }
 
   return {
