@@ -36,6 +36,25 @@ export {
   toResolvableCubeDefinition,
   toTrajectoryAssumptions,
 } from './cubeProperties'
+export { resolveDirectionProvider } from './directionProvider'
+export type {
+  CallerYawConfiguration,
+  DirectionProviderConfiguration,
+  DirectionProviderDiagnostics,
+  DirectionProviderFormula,
+  DirectionProviderIssue,
+  DirectionProviderMechanicsParameters,
+  DirectionProviderResolution,
+  ImplementedDirectionProviderConfiguration,
+  ImplementedPlayerDirectionProviderId,
+  InvalidDirectionProviderResolution,
+  NonProjectileSourcePositionConfiguration,
+  ProjectileMotionConfiguration,
+  ProjectilePositionConfiguration,
+  SuccessfulDirectionProviderResolution,
+  UnsupportedDirectionProviderConfiguration,
+  UnsupportedDirectionProviderResolution,
+} from './directionProvider'
 export {
   copyCurrentResolvedCubeProperties,
   createDefaultCubePropertySelectionState,

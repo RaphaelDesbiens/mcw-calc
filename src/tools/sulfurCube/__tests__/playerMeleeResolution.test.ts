@@ -86,6 +86,18 @@ describe('primary player melee attack resolution', () => {
       javaFixtureTolerance,
     )
     expect(effect.call.damageArgument).toBe(ordinary.call.damageArgument)
+    expect(resolution.diagnostics.damageSource).toMatchObject({
+      directEntityFamily: 'player',
+      causingEntityFamily: 'player',
+      resolvedSourcePositionKind: 'directEntityFeet',
+      ownerFallback: 'notApplicable',
+      suppressesDefaultKnockback: false,
+      defaultDirectionProviderId: 'nonProjectileSourcePosition',
+    })
+    expect(resolution.diagnostics.directionResolutions.map((entry) => entry.providerId)).toEqual([
+      'nonProjectileSourcePosition',
+      'callerYaw',
+    ])
     expect(ordinary.context).not.toBe(effect.context)
     expect(ordinary.context).toEqual(effect.context)
 

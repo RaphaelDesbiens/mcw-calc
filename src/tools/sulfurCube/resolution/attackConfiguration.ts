@@ -5,12 +5,20 @@ import type {
   VelocityOperation,
 } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
+import type { SuccessfulDirectionProviderResolution } from './directionProvider'
 import { je26_2PlayerMeleeMechanics } from '../data/je26_2'
+import { resolveDirectionProvider } from './directionProvider'
 
 export interface DamageSourceConfiguration {
   readonly damageType: 'minecraft:player_attack'
   readonly directEntityRole: 'attacker'
   readonly causingEntityRole: 'attacker'
+  readonly directEntityFamily: 'player'
+  readonly causingEntityFamily: 'player'
+  readonly resolvedSourcePositionKind: 'directEntityFeet'
+  readonly ownerFallback: 'notApplicable'
+  readonly suppressesDefaultKnockback: false
+  readonly defaultDirectionProviderId: 'nonProjectileSourcePosition'
 }
 
 export interface PlayerCriticalEligibilityState {
@@ -85,6 +93,7 @@ export interface OmittedVelocityOperationDiagnostic {
 
 export interface PlayerMeleeAttackDiagnostics {
   readonly damageSource: DamageSourceConfiguration
+  readonly directionResolutions: readonly SuccessfulDirectionProviderResolution[]
   readonly attackStrength: number
   readonly attackStrengthSquared: number
   readonly baseDamageScale: number
@@ -327,6 +336,16 @@ function sourceAdd(left: number, right: number, numerics: NumericBackend): numbe
   return numerics.sourceFloat(numerics.sourceFloat(left) + numerics.sourceFloat(right))
 }
 
+function requireSuccessfulDirectionResolution(
+  resolution: ReturnType<typeof resolveDirectionProvider>,
+): SuccessfulDirectionProviderResolution {
+  if (resolution.status !== 'success') {
+    throw new Error('validated player-melee direction provider did not resolve successfully')
+  }
+
+  return resolution
+}
+
 export function resolvePrimaryPlayerMeleeAttack(
   configuration: PrimaryPlayerMeleeAttackConfiguration,
   context: SulfurCubeKnockbackContext,
@@ -394,9 +413,44 @@ export function resolvePrimaryPlayerMeleeAttack(
     damageType: 'minecraft:player_attack',
     directEntityRole: 'attacker',
     causingEntityRole: 'attacker',
+    directEntityFamily: 'player',
+    causingEntityFamily: 'player',
+    resolvedSourcePositionKind: 'directEntityFeet',
+    ownerFallback: 'notApplicable',
+    suppressesDefaultKnockback: false,
+    defaultDirectionProviderId: 'nonProjectileSourcePosition',
   }
+  const ordinaryDirectionResolution = requireSuccessfulDirectionResolution(
+    resolveDirectionProvider(
+      {
+        kind: 'implemented',
+        providerId: 'nonProjectileSourcePosition',
+        sourcePosition: context.attacker.feetPosition,
+        cubeFeetPosition: context.cube.feetPosition,
+      },
+      mechanics,
+      numerics,
+    ),
+  )
+  const effectDirectionResolution = hasExtraCall
+    ? requireSuccessfulDirectionResolution(
+        resolveDirectionProvider(
+          {
+            kind: 'implemented',
+            providerId: 'callerYaw',
+            callerYawDegrees: configuration.attackerYawDegrees,
+          },
+          mechanics,
+          numerics,
+        ),
+      )
+    : null
   const diagnostics: PlayerMeleeAttackDiagnostics = {
     damageSource,
+    directionResolutions:
+      effectDirectionResolution === null
+        ? [ordinaryDirectionResolution]
+        : [ordinaryDirectionResolution, effectDirectionResolution],
     attackStrength,
     attackStrengthSquared,
     baseDamageScale,
@@ -442,10 +496,7 @@ export function resolvePrimaryPlayerMeleeAttack(
     providerId: 'nonProjectileSourcePosition',
     call: {
       damageArgument,
-      horizontalBaseDirection: {
-        x: context.attacker.feetPosition.x - context.cube.feetPosition.x,
-        z: context.attacker.feetPosition.z - context.cube.feetPosition.z,
-      },
+      horizontalBaseDirection: ordinaryDirectionResolution.horizontalBaseDirection,
       scaling: { kind: 'ordinaryDamage' },
     },
     context: cloneContext(context),
@@ -465,21 +516,15 @@ export function resolvePrimaryPlayerMeleeAttack(
     }
   }
 
-  const yawRadians = sourceMultiply(
-    configuration.attackerYawDegrees,
-    mechanics.degreesToRadians,
-    numerics,
-  )
-  const callerYawDirection = {
-    x: numerics.sourceFloat(numerics.sin(yawRadians)),
-    z: numerics.sourceFloat(-numerics.cos(yawRadians)),
+  if (effectDirectionResolution === null) {
+    throw new Error('positive combined knockback did not produce a caller-yaw direction')
   }
   const effectOperation: SulfurCubeKnockbackOperation = {
     kind: 'sulfurCubeKnockbackCall',
     providerId: 'callerYaw',
     call: {
       damageArgument,
-      horizontalBaseDirection: callerYawDirection,
+      horizontalBaseDirection: effectDirectionResolution.horizontalBaseDirection,
       scaling: { kind: 'extraKnockbackEffect', powerArgument: combinedKnockback },
     },
     context: cloneContext(context),
