@@ -36,6 +36,12 @@ interface DragState {
   readonly normalizedLookDirection: Vec3
 }
 
+interface MetricsResizeState {
+  readonly pointerId: number
+  readonly startPointer: PlanePoint
+  readonly startScale: number
+}
+
 const props = withDefaults(
   defineProps<{
     evaluation: DiagnosticEvaluation
@@ -61,6 +67,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const svgElement = ref<SVGSVGElement | null>(null)
 const dragState = ref<DragState | null>(null)
+const metricsResizeState = ref<MetricsResizeState | null>(null)
+const metricsScale = ref(1)
+const minimumMetricsScale = 0.65
+const maximumMetricsScaleLimit = 1.55
+const metricsPanel = { x: 8, y: 8, width: 350 } as const
 const viewport = {
   width: 960,
   height: 480,
@@ -88,6 +99,30 @@ const initialCameraWidth = initialScene.bounds.maxX - initialScene.bounds.minX
 const minimumCameraWidth = initialCameraWidth / 4
 const maximumCameraWidth = initialCameraWidth * 8
 const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
+const metricsPanelHeight = computed(() => {
+  const attack = props.attackSummary
+
+  if (attack?.criticalHit) return 235
+  if (attack?.sprinting) return 214
+  if (attack?.knockbackLabel) return 193
+  if (
+    attack !== null &&
+    attack !== undefined &&
+    Math.abs(attack.attackStrengthPercent - 100) > 1e-9
+  )
+    return 172
+  if (attack !== null && attack !== undefined) return 151
+  return 116
+})
+const maximumMetricsScale = computed(() =>
+  Math.min(
+    maximumMetricsScaleLimit,
+    (viewport.height - metricsPanel.y - 6) / metricsPanelHeight.value,
+  ),
+)
+const effectiveMetricsScale = computed(() =>
+  Math.min(metricsScale.value, maximumMetricsScale.value),
+)
 
 const view = computed(() => {
   const scene = createTopDownScenePresentation(props.evaluation)
@@ -353,7 +388,61 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
   }
 }
 
+function startMetricsResize(event: PointerEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (event.button !== 0) return
+
+  const pointer = pointerToSvg(event)
+
+  if (pointer === null) return
+  ;(event.currentTarget as SVGGraphicsElement).setPointerCapture(event.pointerId)
+  metricsResizeState.value = {
+    pointerId: event.pointerId,
+    startPointer: pointer,
+    startScale: effectiveMetricsScale.value,
+  }
+}
+
+function resizeMetricsWithKeyboard(event: KeyboardEvent): void {
+  const direction =
+    event.key === 'ArrowUp' || event.key === 'ArrowRight'
+      ? 1
+      : event.key === 'ArrowDown' || event.key === 'ArrowLeft'
+        ? -1
+        : 0
+
+  if (direction === 0) return
+
+  metricsScale.value = Math.min(
+    maximumMetricsScale.value,
+    Math.max(minimumMetricsScale, metricsScale.value + direction * 0.05),
+  )
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 function continueDrag(event: PointerEvent): void {
+  const resize = metricsResizeState.value
+
+  if (resize?.pointerId === event.pointerId) {
+    event.preventDefault()
+    event.stopPropagation()
+    const pointer = pointerToSvg(event)
+
+    if (pointer !== null) {
+      const diagonalDelta =
+        (pointer.x - resize.startPointer.x + pointer.y - resize.startPointer.y) /
+        (metricsPanel.width + metricsPanelHeight.value)
+      metricsScale.value = Math.min(
+        maximumMetricsScale.value,
+        Math.max(minimumMetricsScale, resize.startScale + diagonalDelta * 2),
+      )
+    }
+    return
+  }
+
   const drag = dragState.value
 
   if (drag === null || drag.pointerId !== event.pointerId) {
@@ -433,6 +522,13 @@ function continueDrag(event: PointerEvent): void {
 }
 
 function endDrag(event: PointerEvent): void {
+  if (metricsResizeState.value?.pointerId === event.pointerId) {
+    event.preventDefault()
+    event.stopPropagation()
+    metricsResizeState.value = null
+    return
+  }
+
   if (dragState.value?.pointerId === event.pointerId) {
     event.preventDefault()
     event.stopPropagation()
@@ -582,6 +678,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
         :class="{
           'topdown-svg--panning': dragState?.kind === 'camera',
           'topdown-svg--dragging-object': dragState !== null && dragState.kind !== 'camera',
+          'topdown-svg--resizing-metrics': metricsResizeState !== null,
         }"
         :style="view.visualStyle"
         :viewBox="`0 0 ${viewport.width} ${viewport.height}`"
@@ -633,76 +730,104 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           @pointerdown="startDrag('camera', $event)"
         />
 
-        <g class="topdown-metrics" aria-hidden="true">
-          <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
-            <tspan>{{ t('sulfurCube.topDown.aimErrorLabel') }}&#160;=&#160;</tspan>
-            <tspan class="topdown-metric-value topdown-metric-value--aim">
-              {{ view.metrics.aimErrorDegrees }}
-            </tspan>
-            <tspan>&#160;°</tspan>
-          </text>
-          <text :x="view.metrics.x" :y="view.metrics.launchOffsetY">
-            <tspan>
-              {{
-                t(
-                  view.scene.calls.length === 1
-                    ? 'sulfurCube.topDown.launchOffsetSingleCallLabel'
-                    : 'sulfurCube.topDown.launchOffsetLabel',
-                )
-              }}&#160;=&#160;
-            </tspan>
-            <tspan class="topdown-metric-value topdown-metric-value--launch">
-              {{ view.metrics.launchOffsetDegrees }}
-            </tspan>
-            <tspan>&#160;°</tspan>
-          </text>
-          <text :x="view.metrics.x" :y="view.metrics.blockY">
-            <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
-            <tspan class="topdown-metric-value topdown-metric-value--cube">
-              {{ selectedBlockLabel }}
-            </tspan>
-          </text>
-          <text :x="view.metrics.x" :y="view.metrics.archetypeY">
-            <tspan>{{ t('sulfurCube.scene.archetypeLabel') }}&#160;=&#160;</tspan>
-            <tspan class="topdown-metric-value topdown-metric-value--cube">
-              {{ selectedArchetypeLabel }}
-            </tspan>
-          </text>
-          <template v-if="attackSummary">
-            <text :x="view.metrics.x" :y="view.metrics.weaponY">
-              <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
-              <tspan class="topdown-metric-value topdown-metric-value--neutral">
-                {{ attackSummary.weaponLabel }}
+        <g
+          class="topdown-metrics-panel"
+          :transform="`translate(${metricsPanel.x} ${metricsPanel.y}) scale(${effectiveMetricsScale}) translate(${-metricsPanel.x} ${-metricsPanel.y})`"
+        >
+          <rect
+            class="topdown-metrics-panel__background"
+            :x="metricsPanel.x"
+            :y="metricsPanel.y"
+            :width="metricsPanel.width"
+            :height="metricsPanelHeight"
+            rx="3"
+          />
+          <g class="topdown-metrics" aria-hidden="true">
+            <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
+              <tspan>{{ t('sulfurCube.topDown.aimErrorLabel') }}&#160;=&#160;</tspan>
+              <tspan class="topdown-metric-value topdown-metric-value--aim">
+                {{ view.metrics.aimErrorDegrees }}
+              </tspan>
+              <tspan>&#160;°</tspan>
+            </text>
+            <text :x="view.metrics.x" :y="view.metrics.launchOffsetY">
+              <tspan>
+                {{
+                  t(
+                    view.scene.calls.length === 1
+                      ? 'sulfurCube.topDown.launchOffsetSingleCallLabel'
+                      : 'sulfurCube.topDown.launchOffsetLabel',
+                  )
+                }}&#160;=&#160;
+              </tspan>
+              <tspan class="topdown-metric-value topdown-metric-value--launch">
+                {{ view.metrics.launchOffsetDegrees }}
+              </tspan>
+              <tspan>&#160;°</tspan>
+            </text>
+            <text :x="view.metrics.x" :y="view.metrics.blockY">
+              <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
+              <tspan class="topdown-metric-value topdown-metric-value--cube">
+                {{ selectedBlockLabel }}
               </tspan>
             </text>
-            <text
-              v-if="Math.abs(attackSummary.attackStrengthPercent - 100) > 1e-9"
-              :x="view.metrics.x"
-              :y="view.metrics.attackStrengthY"
-            >
-              <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;=&#160;</tspan>
-              <tspan class="topdown-metric-value topdown-metric-value--neutral">
-                {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
+            <text :x="view.metrics.x" :y="view.metrics.archetypeY">
+              <tspan>{{ t('sulfurCube.scene.archetypeLabel') }}&#160;=&#160;</tspan>
+              <tspan class="topdown-metric-value topdown-metric-value--cube">
+                {{ selectedArchetypeLabel }}
               </tspan>
             </text>
-            <text
-              v-if="attackSummary.knockbackLabel"
-              :x="view.metrics.x"
-              :y="view.metrics.knockbackY"
-            >
-              {{ attackSummary.knockbackLabel }}
-            </text>
-            <text v-if="attackSummary.sprinting" :x="view.metrics.x" :y="view.metrics.sprintingY">
-              {{ t('sulfurCube.attack.sprinting') }}
-            </text>
-            <text
-              v-if="attackSummary.criticalHit"
-              :x="view.metrics.x"
-              :y="view.metrics.criticalHitY"
-            >
-              {{ t('sulfurCube.attack.criticalConditions') }}
-            </text>
-          </template>
+            <template v-if="attackSummary">
+              <text :x="view.metrics.x" :y="view.metrics.weaponY">
+                <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
+                <tspan class="topdown-metric-value topdown-metric-value--neutral">
+                  {{ attackSummary.weaponLabel }}
+                </tspan>
+              </text>
+              <text
+                v-if="Math.abs(attackSummary.attackStrengthPercent - 100) > 1e-9"
+                :x="view.metrics.x"
+                :y="view.metrics.attackStrengthY"
+              >
+                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;=&#160;</tspan>
+                <tspan class="topdown-metric-value topdown-metric-value--neutral">
+                  {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
+                </tspan>
+              </text>
+              <text
+                v-if="attackSummary.knockbackLabel"
+                :x="view.metrics.x"
+                :y="view.metrics.knockbackY"
+              >
+                {{ attackSummary.knockbackLabel }}
+              </text>
+              <text v-if="attackSummary.sprinting" :x="view.metrics.x" :y="view.metrics.sprintingY">
+                {{ t('sulfurCube.attack.sprinting') }}
+              </text>
+              <text
+                v-if="attackSummary.criticalHit"
+                :x="view.metrics.x"
+                :y="view.metrics.criticalHitY"
+              >
+                {{ t('sulfurCube.attack.criticalConditions') }}
+              </text>
+            </template>
+          </g>
+          <g
+            class="topdown-metrics-resize"
+            tabindex="0"
+            role="slider"
+            :aria-label="t('sulfurCube.scene.resizeInformation')"
+            :aria-valuemin="minimumMetricsScale"
+            :aria-valuemax="maximumMetricsScale"
+            :aria-valuenow="effectiveMetricsScale"
+            :transform="`translate(${metricsPanel.x + metricsPanel.width - 16} ${metricsPanel.y + metricsPanelHeight - 16})`"
+            @pointerdown="startMetricsResize"
+            @keydown="resizeMetricsWithKeyboard"
+          >
+            <rect width="16" height="16" rx="2" />
+            <path d="M 5 13 L 13 5 M 9 13 L 13 9 M 13 13 L 13 13" />
+          </g>
         </g>
 
         <text
@@ -1029,6 +1154,11 @@ figcaption {
 .topdown-svg--dragging-object * {
   cursor: var(--topdown-move-cursor), move !important;
 }
+
+.topdown-svg--resizing-metrics,
+.topdown-svg--resizing-metrics * {
+  cursor: nwse-resize !important;
+}
 .topdown-background {
   fill: var(--topdown-background);
 }
@@ -1044,10 +1174,41 @@ figcaption {
   font-size: var(--topdown-small-font-size);
 }
 .topdown-metrics {
-  fill: var(--topdown-ink);
+  fill: color-mix(in srgb, var(--topdown-muted) 62%, var(--topdown-background));
   font-size: 16px;
   font-weight: 700;
   pointer-events: none;
+}
+
+.topdown-metrics-panel__background {
+  fill: color-mix(in srgb, var(--topdown-background) 82%, transparent);
+  stroke: color-mix(in srgb, var(--topdown-muted) 20%, transparent);
+  stroke-width: 1px;
+  pointer-events: none;
+}
+
+.topdown-metrics-resize {
+  cursor: nwse-resize;
+  outline: none;
+}
+
+.topdown-metrics-resize rect {
+  fill: color-mix(in srgb, var(--topdown-background) 88%, transparent);
+  stroke: color-mix(in srgb, var(--topdown-muted) 45%, transparent);
+  stroke-width: 1px;
+}
+
+.topdown-metrics-resize path {
+  fill: none;
+  stroke: var(--topdown-muted);
+  stroke-linecap: round;
+  stroke-width: 1.25px;
+  pointer-events: none;
+}
+
+.topdown-metrics-resize:focus rect {
+  stroke: var(--color-progressive, #36c);
+  stroke-width: 2px;
 }
 .topdown-metric-value--aim {
   fill: #007aa3;
