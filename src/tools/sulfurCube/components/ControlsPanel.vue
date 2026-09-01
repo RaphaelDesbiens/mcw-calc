@@ -6,6 +6,7 @@ import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from
 import { CdxAccordion, CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
 import { useI18n } from 'vue-i18n'
 import { je26_2UniformFloorProfileOrder } from '../data/je26_2'
+import { sanitizeNumericInput } from '../presentation/numericInput'
 import { maximumTrajectoryTicks } from '../presets/diagnostic'
 import CubePropertyControls from './CubePropertyControls.vue'
 import InfoTooltip from './InfoTooltip.vue'
@@ -48,7 +49,10 @@ function updateField(
   field: Exclude<keyof DiagnosticFormState, 'floorProfileId'>,
   value: NumericFormValue,
 ): void {
-  emit('update:modelValue', { ...props.modelValue, [field]: value })
+  emit('update:modelValue', {
+    ...props.modelValue,
+    [field]: sanitizeNumericInput(value),
+  })
 }
 
 function updateFloor(value: string | number | null): void {

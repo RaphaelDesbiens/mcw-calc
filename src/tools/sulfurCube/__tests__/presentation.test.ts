@@ -22,6 +22,7 @@ import {
   aimArrowLength,
   createRadialScenePresentation,
   launchElevationArcRadius,
+  launchElevationLabelRadialOffset,
   launchVectorDisplayLength,
   launchVectorMaximumDisplayLength,
   thetaArcRadius,
@@ -231,6 +232,12 @@ describe('radial scene presentation', () => {
     expect(scene.launchElevationRadians).toBeCloseTo(Math.atan2(0.378, 0.165), 12)
     expect(scene.launchElevationArc).toHaveLength(21)
     expect(scene.launchElevationLabelPoint).not.toBeNull()
+    expect(
+      Math.hypot(
+        scene.launchElevationLabelPoint!.x - scene.cube.feet.x,
+        scene.launchElevationLabelPoint!.y - scene.cube.feet.y,
+      ),
+    ).toBeCloseTo(launchElevationArcRadius + launchElevationLabelRadialOffset, 12)
     expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
     expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
     expect(scene.cubeFeetLineEnd).toEqual({ x: 3, y: 0 })

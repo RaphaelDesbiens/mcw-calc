@@ -63,6 +63,7 @@ const props = withDefaults(
     selectedBlockSpriteUrl: string | null
     attackSummary?: SceneAttackSummary | null
     floorSurfaceLabel: string
+    inputsInvalid?: boolean
   }>(),
   {
     initialZoomSteps: 0,
@@ -70,6 +71,7 @@ const props = withDefaults(
     showComparisonHelp: true,
     showHeadingTitle: true,
     showSizeControl: true,
+    inputsInvalid: false,
   },
 )
 
@@ -85,8 +87,8 @@ const { t } = useI18n()
 const svgElement = ref<SVGSVGElement | null>(null)
 const dragState = ref<DragState | null>(null)
 const metricsResizeState = ref<MetricsResizeState | null>(null)
-const metricsScale = ref(1)
-const minimumMetricsScale = 0.65
+const metricsScale = ref(0.65)
+const minimumMetricsScale = 0.4
 const maximumMetricsScaleLimit = 1.55
 const metricsPanel = { x: 8, y: 8, width: 350 } as const
 const viewport = {
@@ -960,28 +962,30 @@ function formatCoordinate(value: number): string {
               <tspan class="scene-metric-value scene-metric-value--velocity">
                 {{ view.sceneMetrics.speed }}
               </tspan>
-              <tspan>&#160;{{ t('sulfurCube.scene.blocksPerSecond') }}</tspan>
+              <tspan class="scene-metric-unit">
+                &#160;{{ t('sulfurCube.scene.blocksPerSecond') }}
+              </tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.launchElevationY">
               <tspan>{{ t('sulfurCube.scene.radialLaunchAngleLabel') }}&#160;=&#160;</tspan>
               <tspan class="scene-metric-value scene-metric-value--velocity">
                 {{ view.sceneMetrics.launchElevation }}
               </tspan>
-              <tspan>&#160;°</tspan>
+              <tspan class="scene-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
               <tspan>{{ t('sulfurCube.scene.distanceLabel') }}&#160;=&#160;</tspan>
               <tspan class="scene-metric-value scene-metric-value--trajectory">
                 {{ view.sceneMetrics.distance }}
               </tspan>
-              <tspan>&#160;{{ t('sulfurCube.scene.blocks') }}</tspan>
+              <tspan class="scene-metric-unit">&#160;{{ t('sulfurCube.scene.blocks') }}</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.firstBounceY">
               <tspan>{{ t('sulfurCube.scene.firstBounceLabel') }}&#160;=&#160;</tspan>
               <tspan class="scene-metric-value scene-metric-value--trajectory">
                 {{ view.sceneMetrics.firstBounce }}
               </tspan>
-              <tspan v-if="view.sceneMetrics.firstBounceReached">
+              <tspan v-if="view.sceneMetrics.firstBounceReached" class="scene-metric-unit">
                 &#160;{{ t('sulfurCube.scene.blocks') }}
               </tspan>
             </text>
@@ -996,7 +1000,7 @@ function formatCoordinate(value: number): string {
               <tspan class="scene-metric-value scene-metric-value--theta">
                 {{ view.sceneMetrics.theta }}
               </tspan>
-              <tspan>&#160;°</tspan>
+              <tspan class="scene-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.blockY">
               <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
@@ -1434,6 +1438,18 @@ function formatCoordinate(value: number): string {
             :r="view.visual.feetPointRadius"
           />
         </g>
+
+        <g v-if="inputsInvalid" class="scene-invalid-overlay" role="status">
+          <rect width="100%" height="100%" rx="8" />
+          <text
+            :x="viewport.width / 2"
+            :y="viewport.height / 2"
+            text-anchor="middle"
+            dominant-baseline="middle"
+          >
+            {{ t('sulfurCube.scene.invalidInputs') }}
+          </text>
+        </g>
       </svg>
     </div>
 
@@ -1724,6 +1740,26 @@ figcaption {
   fill: var(--scene-ink);
 }
 
+.scene-metric-unit {
+  fill: var(--scene-ink);
+}
+
+.scene-invalid-overlay {
+  cursor: default;
+}
+
+.scene-invalid-overlay rect {
+  fill: var(--scene-background);
+  pointer-events: all;
+}
+
+.scene-invalid-overlay text {
+  fill: var(--color-error, #b32424);
+  font-size: 20px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
 .maximum-height-label {
   fill: var(--scene-trajectory-muted);
   font-size: var(--scene-minor-font-size);
@@ -1749,7 +1785,7 @@ figcaption {
 
 .launch-elevation-geometry {
   fill: var(--scene-launch);
-  font-size: var(--scene-minor-font-size);
+  font-size: calc(var(--scene-minor-font-size) * 0.85);
   font-weight: 700;
 }
 

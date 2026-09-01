@@ -31,6 +31,7 @@ import {
   blockSpriteFileName,
   humanizeIdentifier,
 } from '../presentation/blockSelector'
+import { sanitizeNumericInput } from '../presentation/numericInput'
 import {
   copyCurrentResolvedCubeProperties,
   selectCubePropertyArchetype,
@@ -301,7 +302,10 @@ function updateArchetype(value: string | number | null): void {
 }
 
 function updateCustomField(field: CustomPropertyField, value: CustomPropertyInput): void {
-  emit('update:modelValue', updateCustomCubeProperty(props.modelValue, field, value))
+  emit(
+    'update:modelValue',
+    updateCustomCubeProperty(props.modelValue, field, sanitizeNumericInput(value)),
+  )
 }
 
 function copyCurrentResolvedValues(): void {

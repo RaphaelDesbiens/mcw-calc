@@ -18,7 +18,7 @@ import type { DiagnosticEvaluation } from './presets/diagnostic'
 import type { PlayerMeleeEvaluation } from './presets/playerMelee'
 import type { CubePropertySelectionState } from './resolution'
 import { CdxAccordion, CdxButton, CdxField, CdxMessage, CdxSelect } from '@wikimedia/codex'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalcField from '@/components/CalcField.vue'
 import { getImageLink } from '@/utils/image'
@@ -216,9 +216,24 @@ const evaluation = computed<DiagnosticEvaluation | null>(() => {
   }
 })
 
+const lastValidSceneEvaluation = shallowRef<DiagnosticEvaluation | null>(null)
+
+watch(
+  evaluation,
+  (value) => {
+    if (value !== null) {
+      lastValidSceneEvaluation.value = value
+    }
+  },
+  { immediate: true },
+)
+
+const sceneEvaluation = computed(() => evaluation.value ?? lastValidSceneEvaluation.value)
+const sceneInputsInvalid = computed(() => evaluation.value === null)
+
 const visibleSectionOrder = computed(() =>
   sectionLayouts.value[sceneSize.value].filter((sectionId) => {
-    if (sectionId === 'scene' || sectionId === 'controls') {
+    if (sectionId === 'scene' || sectionId === 'topDown' || sectionId === 'controls') {
       return true
     }
 
@@ -657,10 +672,11 @@ watch(
       </div>
 
       <SulfurCubeScene
-        v-if="evaluation && compactSceneKind === 'radial'"
+        v-if="sceneEvaluation && compactSceneKind === 'radial'"
         :key="sceneResetVersion"
         v-model:scene-size="sceneSize"
-        :evaluation="evaluation"
+        :evaluation="sceneEvaluation"
+        :inputs-invalid="sceneInputsInvalid"
         :initial-zoom-steps="2"
         :show-aim-q-label="false"
         :show-comparison-help="false"
@@ -677,9 +693,10 @@ watch(
       />
 
       <TopDownScene
-        v-else-if="evaluation"
+        v-else-if="sceneEvaluation"
         :key="`compact-top-down-${sceneResetVersion}`"
-        :evaluation="evaluation"
+        :evaluation="sceneEvaluation"
+        :inputs-invalid="sceneInputsInvalid"
         scene-size="compact"
         :selected-block-label="selectedCubeVisual.blockLabel"
         :selected-archetype-label="selectedCubeVisual.archetypeLabel"
@@ -823,11 +840,12 @@ watch(
 
             <template v-else-if="sectionId === 'scene'">
               <SulfurCubeScene
-                v-if="evaluation"
+                v-if="sceneEvaluation"
                 :key="sceneResetVersion"
                 v-model:scene-size="sceneSize"
                 class="interaction-grid__scene"
-                :evaluation="evaluation"
+                :evaluation="sceneEvaluation"
+                :inputs-invalid="sceneInputsInvalid"
                 :show-heading-title="false"
                 :show-size-control="true"
                 :selected-block-label="selectedCubeVisual.blockLabel"
@@ -847,10 +865,11 @@ watch(
             </template>
 
             <TopDownScene
-              v-else-if="sectionId === 'topDown' && evaluation"
+              v-else-if="sectionId === 'topDown' && sceneEvaluation"
               :key="`top-down-${sceneResetVersion}`"
               class="interaction-grid__horizontal"
-              :evaluation="evaluation"
+              :evaluation="sceneEvaluation"
+              :inputs-invalid="sceneInputsInvalid"
               :scene-size="sceneSize"
               :selected-block-label="selectedCubeVisual.blockLabel"
               :selected-archetype-label="selectedCubeVisual.archetypeLabel"

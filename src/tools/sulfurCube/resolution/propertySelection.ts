@@ -3,6 +3,7 @@ import type { CubeLaunchProperties } from '../model/types'
 import type { BlockResolutionDiagnostic } from './blockResolution'
 import type { AttributeFoldDiagnostic, ResolvedCubeProfile } from './types'
 import { je26_2ArchetypesById, je26_2BlockMembershipIndex } from '../data/je26_2'
+import { parseNumericInput } from '../presentation/numericInput'
 import { resolveJe26_2Block } from './blockResolution'
 import { resolveArchetype, toCubeMechanicsProperties } from './cubeProperties'
 
@@ -177,9 +178,9 @@ function parseCustomValues(formState: CustomCubePropertyFormState): {
 
   for (const field of Object.keys(formState) as CustomPropertyField[]) {
     const input = formState[field]
-    const value = typeof input === 'string' && input.trim() === '' ? Number.NaN : Number(input)
+    const value = parseNumericInput(input)
 
-    if (!Number.isFinite(value)) {
+    if (value === null) {
       diagnostics.push({ kind: 'invalid_custom_number', field, input })
     } else {
       parsed[field] = value

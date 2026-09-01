@@ -203,10 +203,10 @@ describe('stage 3 diagnostic orchestration', () => {
     )
   })
 
-  it('rejects incomplete numeric fields at the form boundary', () => {
+  it('treats transient empty numeric fields as zero and rejects nonnumeric stored states', () => {
     const form = createDiagnosticFormState(getDiagnosticPreset('M1').inputs)
 
-    expect(() => parseDiagnosticFormState({ ...form, damageArgument: '' })).toThrow(/empty/)
+    expect(parseDiagnosticFormState({ ...form, damageArgument: '' }).damageArgument).toBe(0)
     expect(() => parseDiagnosticFormState({ ...form, aimY: 'not-a-number' })).toThrow(/finite/)
   })
 

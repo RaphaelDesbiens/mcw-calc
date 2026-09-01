@@ -5,6 +5,7 @@ import type { NumericFormValue, PlayerMeleeFormState } from './types'
 import { CdxCheckbox, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { parseNumericInput, sanitizeNumericInput } from '../presentation/numericInput'
 import { resolvePlayerMeleeVanillaSurvivalAvailability } from '../presets/playerMelee'
 import InfoTooltip from './InfoTooltip.vue'
 
@@ -22,13 +23,9 @@ const survivalAvailability = computed(() =>
   resolvePlayerMeleeVanillaSurvivalAvailability(props.modelValue),
 )
 const criticalHitSelectable = computed(() => {
-  const attackStrengthPercent = Number(props.modelValue.attackStrengthPercent)
+  const attackStrengthPercent = parseNumericInput(props.modelValue.attackStrengthPercent)
 
-  return (
-    Number.isFinite(attackStrengthPercent) &&
-    attackStrengthPercent > 90 &&
-    !props.modelValue.sprinting
-  )
+  return attackStrengthPercent !== null && attackStrengthPercent > 90 && !props.modelValue.sprinting
 })
 
 const weaponItems: MenuItemData[] = [
@@ -44,9 +41,9 @@ const knockbackItems: MenuItemData[] = [
 
 function update(fields: Partial<PlayerMeleeFormState>): void {
   const next = { ...props.modelValue, ...fields }
-  const attackStrengthPercent = Number(next.attackStrengthPercent)
+  const attackStrengthPercent = parseNumericInput(next.attackStrengthPercent)
 
-  if (!Number.isFinite(attackStrengthPercent) || attackStrengthPercent <= 90 || next.sprinting) {
+  if (attackStrengthPercent === null || attackStrengthPercent <= 90 || next.sprinting) {
     next.criticalHitConditions = false
   }
 
@@ -66,7 +63,7 @@ function updateKnockback(value: string | number | null): void {
 }
 
 function updateAttackStrength(value: NumericFormValue): void {
-  update({ attackStrengthPercent: value })
+  update({ attackStrengthPercent: sanitizeNumericInput(value) })
 }
 </script>
 

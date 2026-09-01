@@ -168,11 +168,6 @@ describe('cube property selection modes', () => {
     expect(resolved.diagnostics).toEqual(
       expect.arrayContaining([
         {
-          kind: 'invalid_custom_number',
-          field: 'horizontalPower',
-          input: '',
-        },
-        {
           kind: 'custom_value_out_of_range',
           field: 'knockbackResistance',
           value: 2,
@@ -195,6 +190,16 @@ describe('cube property selection modes', () => {
         },
       ]),
     )
+    expect(resolved.diagnostics).not.toContainEqual(
+      expect.objectContaining({ kind: 'invalid_custom_number', field: 'horizontalPower' }),
+    )
+  })
+
+  it('treats an empty Custom property field as zero during editing', () => {
+    let state = selectCubePropertyMode(createDefaultCubePropertySelectionState(), 'custom')
+    state = updateCustomCubeProperty(state, 'horizontalPower', '')
+
+    expect(resolveCubePropertySelection(state).values?.horizontalPower).toBe(0)
   })
 
   it('rejects identifiers outside each fixed JE 26.2 selector universe', () => {

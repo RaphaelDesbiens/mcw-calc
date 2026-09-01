@@ -51,9 +51,11 @@ const props = withDefaults(
     selectedBlockSpriteUrl: string | null
     attackSummary?: SceneAttackSummary | null
     showHeadingTitle?: boolean
+    inputsInvalid?: boolean
   }>(),
   {
     showHeadingTitle: true,
+    inputsInvalid: false,
   },
 )
 
@@ -68,8 +70,8 @@ const { t } = useI18n()
 const svgElement = ref<SVGSVGElement | null>(null)
 const dragState = ref<DragState | null>(null)
 const metricsResizeState = ref<MetricsResizeState | null>(null)
-const metricsScale = ref(1)
-const minimumMetricsScale = 0.65
+const metricsScale = ref(0.65)
+const minimumMetricsScale = 0.4
 const maximumMetricsScaleLimit = 1.55
 const metricsPanel = { x: 8, y: 8, width: 350 } as const
 const viewport = {
@@ -748,22 +750,21 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
               <tspan class="topdown-metric-value topdown-metric-value--aim">
                 {{ view.metrics.aimErrorDegrees }}
               </tspan>
-              <tspan>&#160;°</tspan>
+              <tspan class="topdown-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.metrics.x" :y="view.metrics.launchOffsetY">
-              <tspan>
-                {{
-                  t(
-                    view.scene.calls.length === 1
-                      ? 'sulfurCube.topDown.launchOffsetSingleCallLabel'
-                      : 'sulfurCube.topDown.launchOffsetLabel',
-                  )
-                }}&#160;=&#160;
-              </tspan>
+              <template v-if="view.scene.calls.length === 1">
+                <tspan>{{ t('sulfurCube.topDown.launchOffsetSingleCallBeforeMultiply') }}</tspan>
+                <tspan class="topdown-multiplication-mark">×</tspan>
+                <tspan>
+                  {{ t('sulfurCube.topDown.launchOffsetSingleCallAfterMultiply') }}&#160;=&#160;
+                </tspan>
+              </template>
+              <tspan v-else>{{ t('sulfurCube.topDown.launchOffsetLabel') }}&#160;=&#160;</tspan>
               <tspan class="topdown-metric-value topdown-metric-value--launch">
                 {{ view.metrics.launchOffsetDegrees }}
               </tspan>
-              <tspan>&#160;°</tspan>
+              <tspan class="topdown-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.metrics.x" :y="view.metrics.blockY">
               <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
@@ -1027,6 +1028,18 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
             {{ t('sulfurCube.scene.aim') }}
           </text>
         </g>
+
+        <g v-if="inputsInvalid" class="topdown-invalid-overlay" role="status">
+          <rect width="100%" height="100%" rx="4" />
+          <text
+            :x="viewport.width / 2"
+            :y="viewport.height / 2"
+            text-anchor="middle"
+            dominant-baseline="middle"
+          >
+            {{ t('sulfurCube.scene.invalidInputs') }}
+          </text>
+        </g>
       </svg>
     </div>
 
@@ -1221,6 +1234,30 @@ figcaption {
 }
 .topdown-metric-value--neutral {
   fill: var(--topdown-ink);
+}
+
+.topdown-metric-unit {
+  fill: var(--topdown-ink);
+}
+
+.topdown-multiplication-mark {
+  font-weight: 400;
+}
+
+.topdown-invalid-overlay {
+  cursor: default;
+}
+
+.topdown-invalid-overlay rect {
+  fill: var(--topdown-background);
+  pointer-events: all;
+}
+
+.topdown-invalid-overlay text {
+  fill: var(--color-error, #b32424);
+  font-size: 20px;
+  font-weight: 700;
+  pointer-events: none;
 }
 .topdown-reach-warning {
   fill: var(--color-error, #b32424);

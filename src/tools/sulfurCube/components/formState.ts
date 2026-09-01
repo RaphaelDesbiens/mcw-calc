@@ -3,6 +3,7 @@ import type { DiagnosticInputs } from '../presets/diagnostic'
 import type { PlayerMeleeInputs } from '../presets/playerMelee'
 import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { je26_2Constants } from '../data/je26_2'
+import { parseNumericInput } from '../presentation/numericInput'
 
 function stringifyNumber(value: number): string {
   return String(value)
@@ -39,13 +40,9 @@ export function parsePlayerMeleeFormState(state: PlayerMeleeFormState): PlayerMe
 }
 
 function parseNumber(value: NumericFormValue, field: string): number {
-  if (typeof value === 'string' && value.trim() === '') {
-    throw new RangeError(`${field} must not be empty`)
-  }
+  const parsed = parseNumericInput(value)
 
-  const parsed = typeof value === 'number' ? value : Number(value)
-
-  if (!Number.isFinite(parsed)) {
+  if (parsed === null) {
     throw new RangeError(`${field} must be a finite number`)
   }
 

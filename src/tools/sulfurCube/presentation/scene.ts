@@ -19,6 +19,7 @@ export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
 export const launchElevationArcRadius = 0.9
 export const launchElevationArcMinimumDisplayLength = launchElevationArcRadius + 0.25
+export const launchElevationLabelRadialOffset = 0.34
 export const thetaLabelHorizontalOffset = -0.08
 export const thetaLabelVerticalOffset = -0.1
 export const cubeFeetLineHalfLength = 3
@@ -212,8 +213,12 @@ function createLaunchElevationPresentation(
   return {
     arc,
     label: {
-      x: origin.x + Math.cos(labelAngle) * (launchElevationArcRadius + 0.22),
-      y: origin.y + Math.sin(labelAngle) * (launchElevationArcRadius + 0.22),
+      x:
+        origin.x +
+        Math.cos(labelAngle) * (launchElevationArcRadius + launchElevationLabelRadialOffset),
+      y:
+        origin.y +
+        Math.sin(labelAngle) * (launchElevationArcRadius + launchElevationLabelRadialOffset),
     },
     angle,
   }
