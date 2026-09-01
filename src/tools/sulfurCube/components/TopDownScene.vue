@@ -5,10 +5,10 @@ import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import { CdxButton } from '@wikimedia/codex'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { rotateAimInTopDownProjection } from '../presentation/aimInteraction'
 import { createTopDownScenePresentation } from '../presentation/topDown'
 import {
   clampPointToBoundsFromOrigin,
-  createViewportWorldBounds,
   createWorldToSvgTransform,
   scaleWorldBoundsAroundPoint,
   translateWorldBounds,
@@ -26,6 +26,8 @@ interface DragState {
   readonly startTarget: PlanePoint
   readonly startBounds: WorldBounds
   readonly transform: WorldToSvgTransform
+  readonly attackerEyePosition: Vec3
+  readonly normalizedLookDirection: Vec3
 }
 
 const props = withDefaults(
@@ -88,7 +90,7 @@ const view = computed(() => {
     endMarkerArm: 5 * zoomFactor,
     labelOffset: 12 * zoomFactor,
   }
-  const aimPoint = clampPointToBoundsFromOrigin(attackerCenter, toSvg(scene.aimPoint), {
+  const aimPoint = clampPointToBoundsFromOrigin(attackerCenter, toSvg(scene.aimArrowEnd), {
     minX: visual.handleRadius,
     maxX: viewport.width - visual.handleRadius,
     minY: visual.handleRadius,
@@ -100,8 +102,7 @@ const view = computed(() => {
     x: cubeCenter.x + (launchEnd.x - cubeCenter.x) * 0.9,
     y: cubeCenter.y + (launchEnd.y - cubeCenter.y) * 0.9,
   }
-  const backwardVelocityEnd = toSvg(scene.backwardVelocityEnd)
-  const backwardVelocityBodyEnd = shortenLine(cubeCenter, backwardVelocityEnd, 0.92)
+  const feetAxisBeyondCubeEnd = toSvg(scene.feetAxisBeyondCubeEnd)
   const trajectory = scene.trajectory.map((sample) => ({
     ...sample,
     point: toSvg(sample.point),
@@ -156,7 +157,7 @@ const view = computed(() => {
     launchLabel,
     trajectoryTicks,
     trajectoryEnd,
-    backwardVelocityBodyEnd,
+    feetAxisBeyondCubeEnd,
     aimErrorLabelPoint,
     aimErrorArc: scene.aimErrorArc
       .map(toSvg)
@@ -168,7 +169,7 @@ const view = computed(() => {
       .map((point) => `${point.x},${point.y}`)
       .join(' '),
     metrics,
-    reachWarning: { x: viewport.width - 18, y: viewport.height - 18 },
+    reachWarning: { x: viewport.width - 18, y: viewport.height - 34 },
     axisXStart,
     axisXEnd,
     axisZStart,
@@ -193,13 +194,6 @@ const view = computed(() => {
     },
   }
 })
-
-function shortenLine(start: PlanePoint, end: PlanePoint, factor: number): PlanePoint {
-  return {
-    x: start.x + (end.x - start.x) * factor,
-    y: start.y + (end.y - start.y) * factor,
-  }
-}
 
 function keepCentersSeparate(
   candidate: PlanePoint,
@@ -304,7 +298,7 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
 
   switch (kind) {
     case 'aim':
-      target = currentView.transform.toWorld(currentView.aimPoint)
+      target = currentView.scene.aimArrowEnd
       break
     case 'attacker':
       target = currentView.scene.attacker.center
@@ -331,6 +325,10 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
     startTarget: target,
     startBounds: cameraBounds.value,
     transform: currentView.transform,
+    attackerEyePosition: { ...props.evaluation.callResult.input.context.attacker.eyePosition },
+    normalizedLookDirection: {
+      ...props.evaluation.callResult.diagnostics.normalizedLookDirection,
+    },
   }
 }
 
@@ -357,16 +355,13 @@ function continueDrag(event: PointerEvent): void {
 
   switch (drag.kind) {
     case 'aim': {
-      const target = clampPointToBoundsFromOrigin(
-        view.value.scene.attacker.center,
-        { x: drag.startTarget.x + delta.x, y: drag.startTarget.y + delta.y },
-        createViewportWorldBounds(drag.transform, view.value.visual.handleRadius),
+      emit(
+        'updateAimPoint',
+        rotateAimInTopDownProjection(drag.attackerEyePosition, drag.normalizedLookDirection, {
+          x: drag.startTarget.x + delta.x,
+          y: drag.startTarget.y + delta.y,
+        }),
       )
-      emit('updateAimPoint', {
-        x: target.x,
-        y: props.evaluation.inputs.aimPoint.y,
-        z: target.y,
-      })
       break
     }
     case 'attacker':
@@ -438,17 +433,15 @@ function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
   }
 
   if (kind === 'aim') {
-    const visibleAimPoint = view.value.transform.toWorld(view.value.aimPoint)
-    const target = clampPointToBoundsFromOrigin(
-      view.value.scene.attacker.center,
-      { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
-      createViewportWorldBounds(view.value.transform, view.value.visual.handleRadius),
+    const visibleAimPoint = view.value.scene.aimArrowEnd
+    emit(
+      'updateAimPoint',
+      rotateAimInTopDownProjection(
+        props.evaluation.callResult.input.context.attacker.eyePosition,
+        props.evaluation.callResult.diagnostics.normalizedLookDirection,
+        { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
+      ),
     )
-    emit('updateAimPoint', {
-      x: target.x,
-      y: props.evaluation.inputs.aimPoint.y,
-      z: target.y,
-    })
   } else {
     const scene = view.value.scene
     const minimumDistance = (scene.cube.width + scene.attacker.width) / 2
@@ -595,13 +588,13 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           class="topdown-background"
           width="100%"
           height="100%"
-          rx="8"
+          rx="4"
           @pointerdown="startDrag('camera', $event)"
         />
 
         <g class="topdown-metrics" aria-hidden="true">
           <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
-            <tspan>{{ t('sulfurCube.topDown.horizontalAimErrorLabel') }}&#160;=&#160;</tspan>
+            <tspan>{{ t('sulfurCube.topDown.aimErrorLabel') }}&#160;=&#160;</tspan>
             <tspan class="topdown-metric-value topdown-metric-value--aim">
               {{ view.metrics.aimErrorDegrees }}
             </tspan>
@@ -609,7 +602,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           </text>
           <text :x="view.metrics.x" :y="view.metrics.launchOffsetY">
             <tspan>{{ t('sulfurCube.topDown.launchOffsetLabel') }}&#160;=&#160;</tspan>
-            <tspan class="topdown-metric-value topdown-metric-value--adjustment">
+            <tspan class="topdown-metric-value topdown-metric-value--launch">
               {{ view.metrics.launchOffsetDegrees }}
             </tspan>
             <tspan>&#160;°</tspan>
@@ -636,13 +629,17 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           text-anchor="end"
           role="status"
         >
-          {{
-            t(
-              view.scene.reach.status === 'inside_unpickable_aabb'
-                ? 'sulfurCube.scene.reachInsideWarning'
-                : 'sulfurCube.scene.reachMissWarning',
-            )
-          }}
+          <template v-if="view.scene.reach.status === 'inside_unpickable_aabb'">
+            {{ t('sulfurCube.scene.reachInsideWarning') }}
+          </template>
+          <template v-else>
+            <tspan class="reach-warning-main" :x="view.reachWarning.x">
+              {{ t('sulfurCube.scene.reachMissWarningMain') }}
+            </tspan>
+            <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
+              {{ t('sulfurCube.scene.reachMissWarningDetail') }}
+            </tspan>
+          </template>
         </text>
 
         <g class="topdown-axes" aria-hidden="true">
@@ -691,10 +688,10 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
 
         <line
           class="topdown-feet-axis"
-          :x1="view.cubeCenter.x"
-          :y1="view.cubeCenter.y"
-          :x2="view.attackerCenter.x"
-          :y2="view.attackerCenter.y"
+          :x1="view.attackerCenter.x"
+          :y1="view.attackerCenter.y"
+          :x2="view.feetAxisBeyondCubeEnd.x"
+          :y2="view.feetAxisBeyondCubeEnd.y"
         />
         <line
           class="topdown-aim"
@@ -714,13 +711,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
         >
           {{ view.metrics.aimErrorDegrees }}°
         </text>
-        <line
-          class="topdown-backward-velocity"
-          :x1="view.cubeCenter.x"
-          :y1="view.cubeCenter.y"
-          :x2="view.backwardVelocityBodyEnd.x"
-          :y2="view.backwardVelocityBodyEnd.y"
-        />
         <polyline
           v-if="view.launchOffsetArc"
           class="topdown-launch-offset"
@@ -870,7 +860,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
       </span>
       <span>
         <i class="topdown-swatch topdown-swatch--launch" />
-        {{ t('sulfurCube.topDown.velocityAndTrajectory') }}
+        {{ t('sulfurCube.scene.launchLegend') }}
+      </span>
+      <span>
+        <i class="topdown-swatch topdown-swatch--trajectory" />
+        {{ t('sulfurCube.scene.legendTrajectory') }}
       </span>
     </div>
 
@@ -927,6 +921,10 @@ figcaption {
   width: 100%;
   max-width: 86rem;
   margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--topdown-border);
+  border-radius: 4px;
+  background: var(--topdown-background);
 }
 .topdown-figure--compact .topdown-frame,
 .topdown-figure--compact .topdown-heading,
@@ -936,18 +934,20 @@ figcaption {
 }
 .topdown-overlay {
   position: absolute;
-  z-index: 2;
+  z-index: 1;
   top: 0.25rem;
   right: 0.25rem;
   display: flex;
   padding: 0.2rem;
-  border: 1px solid var(--topdown-border);
+  border: 1px solid color-mix(in srgb, var(--topdown-border) 65%, transparent);
   border-radius: 4px;
   background: color-mix(in srgb, var(--background-color-base, #fff) 88%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 .topdown-overlay :deep(.cdx-button) {
   min-width: 1.75rem;
   padding: 0 0.35rem;
+  font-size: 0.875rem;
 }
 .topdown-overlay--reset {
   top: auto;
@@ -959,10 +959,8 @@ figcaption {
   display: block;
   width: 100%;
   height: auto;
-  max-height: min(52vh, 34rem);
-  border: 1px solid var(--topdown-border);
-  border-radius: 8px;
-  background: var(--background-color-base, #fff);
+  border: 0;
+  background: var(--topdown-background);
   cursor: var(--topdown-grab-cursor), grab;
   touch-action: none;
   user-select: none;
@@ -976,7 +974,7 @@ figcaption {
   cursor: var(--topdown-move-cursor), move !important;
 }
 .topdown-background {
-  fill: var(--background-color-base, #fff);
+  fill: var(--topdown-background);
 }
 .topdown-axes {
   pointer-events: none;
@@ -991,15 +989,15 @@ figcaption {
 }
 .topdown-metrics {
   fill: var(--topdown-ink);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   pointer-events: none;
 }
 .topdown-metric-value--aim {
   fill: #007aa3;
 }
-.topdown-metric-value--adjustment {
-  fill: var(--topdown-adjustment);
+.topdown-metric-value--launch {
+  fill: var(--topdown-launch);
 }
 .topdown-metric-value--cube {
   fill: #9c6900;
@@ -1009,6 +1007,13 @@ figcaption {
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;
+}
+.reach-warning-main {
+  font-weight: 700;
+}
+.reach-warning-detail {
+  font-style: italic;
+  font-weight: 400;
 }
 .topdown-feet-axis {
   stroke: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
@@ -1035,19 +1040,13 @@ figcaption {
 }
 .topdown-launch-offset {
   fill: none;
-  stroke: var(--topdown-adjustment);
+  stroke: var(--topdown-launch);
   stroke-width: var(--topdown-stroke-thin);
   pointer-events: none;
 }
 .topdown-launch-offset-label {
-  fill: var(--topdown-adjustment);
+  fill: var(--topdown-launch);
   font-size: var(--topdown-small-font-size);
-  pointer-events: none;
-}
-.topdown-backward-velocity {
-  stroke: var(--topdown-launch);
-  stroke-width: var(--topdown-stroke-thin);
-  opacity: 0.7;
   pointer-events: none;
 }
 .topdown-cube {
@@ -1144,25 +1143,27 @@ figcaption {
   display: inline-block;
   width: 0.8rem;
   height: 0.8rem;
-  border: 1px solid var(--topdown-ink);
+  border: 0;
+  border-radius: 50%;
+  background: currentcolor;
 }
 .topdown-swatch--player {
-  background: var(--topdown-ink);
+  color: var(--topdown-ink);
 }
 .topdown-swatch--cube {
-  background: var(--topdown-cube);
+  color: var(--topdown-cube);
 }
 .topdown-swatch--aim {
-  border-color: var(--topdown-aim);
-  background: var(--topdown-aim);
+  color: var(--topdown-aim);
 }
 .topdown-swatch--axis {
-  border-color: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
-  background: transparent;
+  color: color-mix(in srgb, var(--topdown-ink) 48%, transparent);
 }
 .topdown-swatch--launch {
-  border-color: var(--topdown-launch);
-  background: var(--topdown-launch);
+  color: var(--topdown-launch);
+}
+.topdown-swatch--trajectory {
+  color: var(--topdown-trajectory);
 }
 .topdown-figure figcaption {
   width: 100%;
@@ -1175,9 +1176,6 @@ figcaption {
   .topdown-legend,
   .topdown-figure figcaption {
     width: 100%;
-  }
-  .topdown-svg {
-    min-height: 18rem;
   }
 }
 </style>

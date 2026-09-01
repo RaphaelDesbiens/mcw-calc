@@ -46,7 +46,7 @@ export interface TopDownScenePresentation {
   readonly directionAdjustmentArc: readonly PlanePoint[]
   readonly directionAdjustmentLabelPoint: PlanePoint | null
   readonly horizontalDirectionAdjustmentRadians: number
-  readonly backwardVelocityEnd: PlanePoint
+  readonly feetAxisBeyondCubeEnd: PlanePoint
   readonly launchOffsetArc: readonly PlanePoint[]
   readonly launchOffsetLabelPoint: PlanePoint | null
   readonly launchOffsetRadians: number
@@ -307,21 +307,20 @@ export function createTopDownScenePresentation(
     launchDisplayLength,
     minimumLength,
   )
-  const backwardVelocity = { x: -horizontalLaunch.x, z: -horizontalLaunch.z }
-  const backwardVelocityEnd = addScaledHorizontalVector(
+  const attackerToCube = {
+    x: context.cube.feetPosition.x - context.attacker.feetPosition.x,
+    z: context.cube.feetPosition.z - context.attacker.feetPosition.z,
+  }
+  const feetAxisBeyondCubeEnd = addScaledHorizontalVector(
     cubeCenter,
-    backwardVelocity,
-    topDownDirectionVectorLength,
+    attackerToCube,
+    topDownDirectionVectorLength * 1.15,
     minimumLength,
   )
-  const cubeToAttacker = {
-    x: context.attacker.feetPosition.x - context.cube.feetPosition.x,
-    z: context.attacker.feetPosition.z - context.cube.feetPosition.z,
-  }
   const launchOffset = createAnglePresentation(
     cubeCenter,
-    cubeToAttacker,
-    backwardVelocity,
+    attackerToCube,
+    horizontalLaunch,
     topDownLaunchOffsetArcRadius,
     minimumLength,
   )
@@ -359,7 +358,7 @@ export function createTopDownScenePresentation(
     directionAdjustmentArc: primaryDirectionAdjustment.arc,
     directionAdjustmentLabelPoint: primaryDirectionAdjustment.label,
     horizontalDirectionAdjustmentRadians: evaluation.callResult.diagnostics.horizontalRotationAngle,
-    backwardVelocityEnd,
+    feetAxisBeyondCubeEnd,
     launchOffsetArc: launchOffset.arc,
     launchOffsetLabelPoint: launchOffset.label,
     launchOffsetRadians: launchOffset.angle,

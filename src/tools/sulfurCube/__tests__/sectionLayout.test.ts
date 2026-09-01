@@ -12,18 +12,18 @@ describe('sulfur cube section layout', () => {
     expect(defaultSulfurCubeSectionLayouts.regular).toEqual([
       'scene',
       'topDown',
-      'power',
       'controls',
       'readout',
+      'power',
       'trace',
       'details',
     ])
     expect(defaultSulfurCubeSectionLayouts.compact).toEqual([
-      'power',
       'scene',
       'topDown',
-      'readout',
       'controls',
+      'readout',
+      'power',
       'trace',
       'details',
     ])
@@ -33,14 +33,14 @@ describe('sulfur cube section layout', () => {
     expect(sulfurCubeSectionWidth('scene', 'regular')).toBe('full')
     expect(sulfurCubeSectionWidth('scene', 'compact')).toBe('half')
     expect(sulfurCubeSectionWidth('controls', 'regular')).toBe('half')
-    expect(sulfurCubeSectionWidth('controls', 'compact')).toBe('full')
+    expect(sulfurCubeSectionWidth('controls', 'compact')).toBe('half')
 
     for (const sceneSize of ['regular', 'compact'] as const) {
       expect(sulfurCubeSectionWidth('topDown', sceneSize)).toBe('half')
       expect(sulfurCubeSectionWidth('power', sceneSize)).toBe('half')
       expect(sulfurCubeSectionWidth('readout', sceneSize)).toBe('half')
-      expect(sulfurCubeSectionWidth('trace', sceneSize)).toBe('full')
-      expect(sulfurCubeSectionWidth('details', sceneSize)).toBe('full')
+      expect(sulfurCubeSectionWidth('trace', sceneSize)).toBe('half')
+      expect(sulfurCubeSectionWidth('details', sceneSize)).toBe('half')
     }
   })
 
@@ -58,10 +58,10 @@ describe('sulfur cube section layout', () => {
     ])
     expect(moveSulfurCubeSection(order, 'scene', 'readout', 'after')).toEqual([
       'topDown',
-      'power',
       'controls',
       'readout',
       'scene',
+      'power',
       'trace',
       'details',
     ])

@@ -77,7 +77,8 @@ const initialPropertySelection = isCompactView
   : defaultPropertySelection
 
 const { t } = useI18n()
-const sceneSize = ref<'regular' | 'compact'>(isCompactView ? 'compact' : 'regular')
+const sceneSize = ref<'regular' | 'compact'>('compact')
+const compactSceneKind = ref<'radial' | 'topDown'>('radial')
 const sceneResetVersion = ref(0)
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
 const playerMeleeState = ref<PlayerMeleeFormState>(
@@ -86,7 +87,7 @@ const playerMeleeState = ref<PlayerMeleeFormState>(
 const attackerYawDegrees = ref(deriveMinecraftYawDegreesFromAim(defaultInputs, 0))
 const propertySelection = ref<CubePropertySelectionState>(initialPropertySelection)
 const trajectoryTicksDefaultActive = ref(true)
-const sectionLayoutStorageKey = 'mcwCalc:sulfurCube:sectionLayouts:v1'
+const sectionLayoutStorageKey = 'mcwCalc:sulfurCube:sectionLayouts:v2'
 
 function loadSectionLayouts(): SulfurCubeSectionLayouts {
   try {
@@ -379,6 +380,11 @@ function reset(): void {
   sceneResetVersion.value += 1
 }
 
+function switchCompactScene(): void {
+  compactSceneKind.value = compactSceneKind.value === 'radial' ? 'topDown' : 'radial'
+  reset()
+}
+
 function refreshDefaultTrajectoryTicks(): void {
   if (!trajectoryTicksDefaultActive.value) {
     return
@@ -535,6 +541,15 @@ watch(
         <CdxButton @click="reset">
           {{ t('sulfurCube.controls.reset') }}
         </CdxButton>
+        <CdxButton @click="switchCompactScene">
+          {{
+            t(
+              compactSceneKind === 'radial'
+                ? 'sulfurCube.compact.showTopDown'
+                : 'sulfurCube.compact.showRadial',
+            )
+          }}
+        </CdxButton>
         <a class="compact-toolbar__full-link" :href="fullToolUrl" target="_blank" rel="noopener">
           {{ t('sulfurCube.compact.openFullTool') }}
           <span aria-hidden="true">↗</span>
@@ -542,7 +557,7 @@ watch(
       </div>
 
       <SulfurCubeScene
-        v-if="evaluation"
+        v-if="evaluation && compactSceneKind === 'radial'"
         :key="sceneResetVersion"
         v-model:scene-size="sceneSize"
         :evaluation="evaluation"
@@ -555,6 +570,20 @@ watch(
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
         @update-aim-point="updateAimPoint"
         @translate-attacker="translateAttacker"
+        @translate-cube="translateCube"
+        @reset="reset"
+      />
+
+      <TopDownScene
+        v-else-if="evaluation"
+        :key="`compact-top-down-${sceneResetVersion}`"
+        :evaluation="evaluation"
+        scene-size="compact"
+        :selected-block-label="selectedCubeVisual.blockLabel"
+        :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+        :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+        @update-aim-point="updateAimPoint"
+        @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
         @translate-cube="translateCube"
         @reset="reset"
       />
@@ -946,11 +975,19 @@ watch(
   color: var(--color-base, #202122);
   font-size: 1.05rem;
   font-weight: 700;
-  cursor: grab;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
+      12 12,
+    move;
 }
 
-.section-layout-handle:active {
-  cursor: grabbing;
+.section-layout-handle *,
+.section-layout-handle:active,
+.section-layout-handle:active * {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
+      12 12,
+    move;
 }
 
 .section-layout-handle :deep(.cdx-button__content) {

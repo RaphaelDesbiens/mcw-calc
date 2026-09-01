@@ -17,6 +17,7 @@ export const launchVectorMaximumDisplayLength = 8
 export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
+export const launchElevationArcRadius = 0.9
 export const thetaLabelHorizontalOffset = -0.08
 export const thetaLabelVerticalOffset = -0.1
 export const cubeFeetLineHalfLength = 3
@@ -65,6 +66,9 @@ export interface RadialScenePresentation {
   readonly cubeFeetLineStart: PlanePoint
   readonly cubeFeetLineEnd: PlanePoint
   readonly launchEnd: PlanePoint
+  readonly launchElevationArc: readonly PlanePoint[]
+  readonly launchElevationLabelPoint: PlanePoint | null
+  readonly launchElevationRadians: number
   readonly launchDisplayLength: number
   readonly trajectory: readonly SceneTrajectoryPoint[]
   readonly trajectoryEndMarker: PlanePoint | null
@@ -170,6 +174,45 @@ function createThetaPresentation(
   }
 }
 
+function createLaunchElevationPresentation(
+  origin: PlanePoint,
+  vector: PlanePoint,
+  minimumVectorLength: number,
+): {
+  readonly arc: readonly PlanePoint[]
+  readonly label: PlanePoint | null
+  readonly angle: number
+} {
+  const length = Math.hypot(vector.x, vector.y)
+
+  if (length < minimumVectorLength) {
+    return { arc: [], label: null, angle: 0 }
+  }
+
+  const startAngle = vector.x < 0 ? Math.PI : 0
+  const endAngle = Math.atan2(vector.y, vector.x)
+  const angle = Math.atan2(Math.sin(endAngle - startAngle), Math.cos(endAngle - startAngle))
+  const sampleCount = 20
+  const arc = Array.from({ length: sampleCount + 1 }, (_, index) => {
+    const sampleAngle = startAngle + (angle * index) / sampleCount
+
+    return {
+      x: origin.x + Math.cos(sampleAngle) * launchElevationArcRadius,
+      y: origin.y + Math.sin(sampleAngle) * launchElevationArcRadius,
+    }
+  })
+  const labelAngle = startAngle + angle / 2
+
+  return {
+    arc,
+    label: {
+      x: origin.x + Math.cos(labelAngle) * (launchElevationArcRadius + 0.22),
+      y: origin.y + Math.sin(labelAngle) * (launchElevationArcRadius + 0.22),
+    },
+    angle,
+  }
+}
+
 function createCubeAnchoredBounds(
   cubeFeet: PlanePoint,
   cubeWidth: number,
@@ -233,6 +276,11 @@ export function createRadialScenePresentation(
     cubeFeet,
     launchVector,
     launchDisplayLength,
+    context.mechanics.vectorNormalizationThreshold,
+  )
+  const launchElevationPresentation = createLaunchElevationPresentation(
+    cubeFeet,
+    launchVector,
     context.mechanics.vectorNormalizationThreshold,
   )
   const trajectoryPoints = [
@@ -354,6 +402,9 @@ export function createRadialScenePresentation(
     cubeFeetLineStart: { x: floorLineMinimumX, y: cubeFeet.y },
     cubeFeetLineEnd: { x: floorLineMaximumX, y: cubeFeet.y },
     launchEnd,
+    launchElevationArc: launchElevationPresentation.arc,
+    launchElevationLabelPoint: launchElevationPresentation.label,
+    launchElevationRadians: launchElevationPresentation.angle,
     launchDisplayLength,
     trajectory: trajectoryPoints,
     trajectoryEndMarker:

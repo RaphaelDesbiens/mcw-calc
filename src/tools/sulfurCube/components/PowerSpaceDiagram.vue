@@ -278,9 +278,11 @@ const view = computed(() => {
             :y="view.horizontalAxisEnd.y - 9"
             text-anchor="end"
           >
-            H
+            {{ t('sulfurCube.power.horizontalAxis') }}
           </text>
-          <text :x="view.verticalAxisEnd.x + 9" :y="view.verticalAxisEnd.y + 17">V</text>
+          <text :x="view.verticalAxisEnd.x + 9" :y="view.verticalAxisEnd.y + 17">
+            {{ t('sulfurCube.power.verticalAxis') }}
+          </text>
         </g>
 
         <line
@@ -462,6 +464,7 @@ figcaption {
 
 .power-axes text {
   fill: var(--power-ink);
+  font-size: 10px;
   font-weight: 700;
 }
 

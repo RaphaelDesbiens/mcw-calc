@@ -16,7 +16,7 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const numberFormatter = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 6,
+  maximumFractionDigits: 3,
   minimumFractionDigits: 0,
   useGrouping: false,
 })

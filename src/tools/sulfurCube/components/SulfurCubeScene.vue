@@ -11,11 +11,10 @@ import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import { CdxButton } from '@wikimedia/codex'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { unprojectPointFromRadialPlane } from '../presentation/radialPlane'
+import { rotateAimInRadialProjection } from '../presentation/aimInteraction'
 import { createRadialScenePresentation } from '../presentation/scene'
 import {
   clampPointToBoundsFromOrigin,
-  createViewportWorldBounds,
   createWorldToSvgTransform,
   scaleWorldBoundsAroundPoint,
   translateWorldBounds,
@@ -32,7 +31,8 @@ interface DragState {
   readonly startPointer: { readonly x: number; readonly y: number }
   readonly startTarget: { readonly x: number; readonly y: number }
   readonly startBounds: WorldBounds
-  readonly aimLateralOffset: number
+  readonly attackerEyePosition: Vec3
+  readonly normalizedLookDirection: Vec3
   readonly projection: RadialProjection
   readonly transform: WorldToSvgTransform
 }
@@ -118,7 +118,7 @@ const view = computed(() => {
   }
   const attackerFeet = toSvg(scene.attackerFeet)
   const attackerEyes = toSvg(scene.attackerEyes)
-  const unclampedAimPoint = toSvg(scene.aimPoint)
+  const unclampedAimPoint = toSvg(scene.aimArrowEnd)
   const aimArrowEnd = toSvg(scene.aimArrowEnd)
   const cubeFeet = toSvg(scene.cube.feet)
   const cubeCenter = toSvg(scene.cube.center)
@@ -137,6 +137,9 @@ const view = computed(() => {
   )
   const thetaLabel = toSvg(scene.thetaLabelPoint)
   const thetaArcPoints = scene.thetaArc.map((point) => toSvg(point))
+  const launchElevationLabel =
+    scene.launchElevationLabelPoint === null ? null : toSvg(scene.launchElevationLabelPoint)
+  const launchElevationArcPoints = scene.launchElevationArc.map((point) => toSvg(point))
   const trajectoryEndMarker =
     scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
   const zoomFactor = transform.scale / initialTransformScale
@@ -192,8 +195,9 @@ const view = computed(() => {
     firstBounceY: 58,
     qY: 75,
     thetaY: 92,
-    blockY: 109,
-    archetypeY: 126,
+    launchElevationY: 109,
+    blockY: 126,
+    archetypeY: 143,
     speed: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
     distance: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
     firstBounce:
@@ -202,6 +206,7 @@ const view = computed(() => {
         : t(`sulfurCube.scene.firstBounceStatus.${scene.firstBounce.status}`),
     q: props.evaluation.callResult.diagnostics.q.toFixed(2),
     theta: ((props.evaluation.callResult.diagnostics.theta * 180) / Math.PI).toFixed(1),
+    launchElevation: ((scene.launchElevationRadians * 180) / Math.PI).toFixed(1),
   }
   const sceneWallBounds = {
     minX: 64,
@@ -349,12 +354,16 @@ const view = computed(() => {
     distanceGroundLabel,
     reachWarning: {
       x: viewport.width - 18,
-      y: viewport.height - 18,
+      y: viewport.height - 34,
     },
     maximumHeightLabel,
     thetaLabel,
     thetaSquarePath,
     thetaArcPoints: thetaArcPoints.map((point) => `${point.x},${point.y}`).join(' '),
+    launchElevationLabel,
+    launchElevationArcPoints: launchElevationArcPoints
+      .map((point) => `${point.x},${point.y}`)
+      .join(' '),
     groundStart: toSvg(scene.cubeFeetLineStart),
     groundEnd: toSvg(scene.cubeFeetLineEnd),
     trajectory,
@@ -441,7 +450,7 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
 
   switch (kind) {
     case 'aim':
-      target = currentView.transform.toWorld(currentView.aimPoint)
+      target = currentView.scene.aimArrowEnd
       break
     case 'attacker':
       target = currentView.scene.attackerFeet
@@ -467,7 +476,10 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
     startPointer: pointerWorld,
     startTarget: target,
     startBounds: cameraBounds.value,
-    aimLateralOffset: currentView.scene.aimLateralOffset,
+    attackerEyePosition: { ...props.evaluation.callResult.input.context.attacker.eyePosition },
+    normalizedLookDirection: {
+      ...props.evaluation.callResult.diagnostics.normalizedLookDirection,
+    },
     projection: currentView.scene.projection,
     transform: currentView.transform,
   }
@@ -497,14 +509,11 @@ function continueDrag(event: PointerEvent): void {
     case 'aim':
       emit(
         'updateAimPoint',
-        unprojectPointFromRadialPlane(
-          clampPointToBoundsFromOrigin(
-            view.value.scene.attackerEyes,
-            { x: drag.startTarget.x + deltaX, y: drag.startTarget.y + deltaY },
-            createViewportWorldBounds(drag.transform, view.value.visual.aimPointRadius),
-          ),
+        rotateAimInRadialProjection(
+          drag.attackerEyePosition,
+          drag.normalizedLookDirection,
           drag.projection,
-          drag.aimLateralOffset,
+          { x: drag.startTarget.x + deltaX, y: drag.startTarget.y + deltaY },
         ),
       )
       break
@@ -607,16 +616,15 @@ function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
   const scene = view.value.scene
 
   if (kind === 'aim') {
-    const visibleAimPoint = view.value.transform.toWorld(view.value.aimPoint)
-    const target = clampPointToBoundsFromOrigin(
-      scene.attackerEyes,
-      { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
-      createViewportWorldBounds(view.value.transform, view.value.visual.aimPointRadius),
-    )
-
+    const visibleAimPoint = scene.aimArrowEnd
     emit(
       'updateAimPoint',
-      unprojectPointFromRadialPlane(target, scene.projection, scene.aimLateralOffset),
+      rotateAimInRadialProjection(
+        props.evaluation.callResult.input.context.attacker.eyePosition,
+        props.evaluation.callResult.diagnostics.normalizedLookDirection,
+        scene.projection,
+        { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
+      ),
     )
   } else {
     const nextAttackerX =
@@ -779,34 +787,36 @@ function formatCoordinate(value: number): string {
             <tspan class="scene-metric-value scene-metric-value--velocity">
               {{ view.sceneMetrics.speed }}
             </tspan>
-            <tspan>&#160;{{ t('sulfurCube.scene.blocksPerSecond') }}</tspan>
           </text>
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
             <tspan>{{ t('sulfurCube.scene.distanceLabel') }}&#160;=&#160;</tspan>
             <tspan class="scene-metric-value scene-metric-value--trajectory">
               {{ view.sceneMetrics.distance }}
             </tspan>
-            <tspan>&#160;{{ t('sulfurCube.scene.blocks') }}</tspan>
           </text>
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.firstBounceY">
             <tspan>{{ t('sulfurCube.scene.firstBounceLabel') }}&#160;=&#160;</tspan>
             <tspan class="scene-metric-value scene-metric-value--trajectory">
               {{ view.sceneMetrics.firstBounce }}
             </tspan>
-            <tspan v-if="view.scene.firstBounce.status === 'reached'">
-              &#160;{{ t('sulfurCube.scene.blocks') }}
-            </tspan>
           </text>
           <text v-if="showAimQLabel !== false" :x="view.sceneMetrics.x" :y="view.sceneMetrics.qY">
-            <tspan>q&#160;=&#160;</tspan>
+            <tspan>{{ t('sulfurCube.scene.aimFactorLabel') }}&#160;=&#160;</tspan>
             <tspan class="scene-metric-value scene-metric-value--aim">
               {{ view.sceneMetrics.q }}
             </tspan>
           </text>
           <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.thetaY">
-            <tspan>θ&#160;=&#160;</tspan>
+            <tspan>{{ t('sulfurCube.scene.heightAngleLabel') }}&#160;=&#160;</tspan>
             <tspan class="scene-metric-value scene-metric-value--theta">
               {{ view.sceneMetrics.theta }}
+            </tspan>
+            <tspan>&#160;°</tspan>
+          </text>
+          <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.launchElevationY">
+            <tspan>{{ t('sulfurCube.scene.radialLaunchAngleLabel') }}&#160;=&#160;</tspan>
+            <tspan class="scene-metric-value scene-metric-value--velocity">
+              {{ view.sceneMetrics.launchElevation }}
             </tspan>
             <tspan>&#160;°</tspan>
           </text>
@@ -865,13 +875,17 @@ function formatCoordinate(value: number): string {
           text-anchor="end"
           role="status"
         >
-          {{
-            t(
-              view.scene.reach.status === 'inside_unpickable_aabb'
-                ? 'sulfurCube.scene.reachInsideWarning'
-                : 'sulfurCube.scene.reachMissWarning',
-            )
-          }}
+          <template v-if="view.scene.reach.status === 'inside_unpickable_aabb'">
+            {{ t('sulfurCube.scene.reachInsideWarning') }}
+          </template>
+          <template v-else>
+            <tspan class="reach-warning-main" :x="view.reachWarning.x">
+              {{ t('sulfurCube.scene.reachMissWarningMain') }}
+            </tspan>
+            <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
+              {{ t('sulfurCube.scene.reachMissWarningDetail') }}
+            </tspan>
+          </template>
         </text>
 
         <text
@@ -943,6 +957,18 @@ function formatCoordinate(value: number): string {
           <path class="theta-square" :d="view.thetaSquarePath" />
           <polyline v-if="view.thetaArcPoints" class="theta-arc" :points="view.thetaArcPoints" />
           <text :x="view.thetaLabel.x" :y="view.thetaLabel.y">θ</text>
+        </g>
+
+        <g class="launch-elevation-geometry">
+          <polyline v-if="view.launchElevationArcPoints" :points="view.launchElevationArcPoints" />
+          <text
+            v-if="view.launchElevationLabel"
+            :x="view.launchElevationLabel.x"
+            :y="view.launchElevationLabel.y"
+            text-anchor="middle"
+          >
+            αᵣ
+          </text>
         </g>
 
         <g class="aim-limits">
@@ -1188,6 +1214,10 @@ function formatCoordinate(value: number): string {
         <i class="legend-swatch legend-swatch--launch" />
         <span>{{ t('sulfurCube.scene.launchLegend') }}</span>
       </span>
+      <span>
+        <i class="legend-swatch legend-swatch--trajectory" />
+        <span>{{ t('sulfurCube.scene.legendTrajectory') }}</span>
+      </span>
     </div>
 
     <figcaption>
@@ -1370,6 +1400,7 @@ figcaption {
 .trajectory-tick,
 .trajectory-end-marker,
 .theta-geometry,
+.launch-elevation-geometry,
 .aim-limits,
 .look-line,
 .aim-q-label,
@@ -1384,7 +1415,7 @@ figcaption {
 
 .scene-metrics {
   fill: var(--scene-ink);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   pointer-events: none;
 }
@@ -1421,6 +1452,27 @@ figcaption {
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;
+}
+
+.reach-warning-main {
+  font-weight: 700;
+}
+
+.reach-warning-detail {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.launch-elevation-geometry {
+  fill: var(--scene-launch);
+  font-size: var(--scene-minor-font-size);
+  font-weight: 700;
+}
+
+.launch-elevation-geometry polyline {
+  fill: none;
+  stroke: var(--scene-launch);
+  stroke-width: var(--scene-stroke-thin);
 }
 
 .ground-metrics {
@@ -1713,6 +1765,10 @@ figcaption {
 
 .legend-swatch--launch {
   color: var(--scene-launch);
+}
+
+.legend-swatch--trajectory {
+  color: var(--scene-trajectory);
 }
 
 .legend-swatch--player {

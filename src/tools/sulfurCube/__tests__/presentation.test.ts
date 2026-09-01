@@ -216,6 +216,9 @@ describe('radial scene presentation', () => {
     expect(scene.launchDisplayLength).toBeCloseTo(expectedDisplayLength, 12)
     expect(Math.hypot(scene.launchEnd.x, scene.launchEnd.y)).toBeCloseTo(expectedDisplayLength, 12)
     expect(scene.launchEnd.x / scene.launchEnd.y).toBeCloseTo(0.165 / 0.378, 12)
+    expect(scene.launchElevationRadians).toBeCloseTo(Math.atan2(0.378, 0.165), 12)
+    expect(scene.launchElevationArc).toHaveLength(21)
+    expect(scene.launchElevationLabelPoint).not.toBeNull()
     expect(scene.trajectory[0].point).toEqual(scene.cube.feet)
     expect(scene.cubeFeetLineStart).toEqual({ x: -3, y: 0 })
     expect(scene.cubeFeetLineEnd).toEqual({ x: 3, y: 0 })
@@ -433,6 +436,16 @@ describe('top-down scene presentation', () => {
       ).toBeCloseTo(topDownDirectionAdjustmentArcRadius, 12)
     }
     expect(scene.launchOffsetArc).toHaveLength(21)
+    const attackerToCube = {
+      x: scene.cube.center.x - scene.attacker.center.x,
+      y: scene.cube.center.y - scene.attacker.center.y,
+    }
+    const beyondCube = {
+      x: scene.feetAxisBeyondCubeEnd.x - scene.cube.center.x,
+      y: scene.feetAxisBeyondCubeEnd.y - scene.cube.center.y,
+    }
+
+    expect(attackerToCube.x * beyondCube.x + attackerToCube.y * beyondCube.y).toBeGreaterThan(0)
     for (const point of [
       scene.launchOffsetArc[0],
       scene.launchOffsetArc[scene.launchOffsetArc.length - 1],

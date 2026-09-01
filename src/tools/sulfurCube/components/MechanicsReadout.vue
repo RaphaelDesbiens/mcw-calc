@@ -33,7 +33,7 @@ const { t } = useI18n()
 const numberFormatter = computed(
   () =>
     new Intl.NumberFormat('en-US', {
-      maximumFractionDigits: 6,
+      maximumFractionDigits: 3,
       minimumFractionDigits: 0,
       useGrouping: false,
     }),
@@ -43,7 +43,7 @@ function formatNumber(value: number): string {
   const normalized = Object.is(value, -0) ? 0 : value
 
   if (normalized !== 0 && (Math.abs(normalized) < 0.000001 || Math.abs(normalized) >= 1000000)) {
-    return normalized.toExponential(4)
+    return normalized.toExponential(3)
   }
 
   return numberFormatter.value.format(normalized)
@@ -69,10 +69,6 @@ function formatBlocksPerSecond(valueInBlocksPerTick: number): string {
   })
 }
 
-function formatVelocityInBlocksPerSecond(x: number, y: number, z: number): string {
-  return `${formatVector(x * 20, y * 20, z * 20)} ${t('sulfurCube.readout.blocksPerSecondUnit')}`
-}
-
 function formatPair(first: number, second: number): string {
   return `(${formatNumber(first)}, ${formatNumber(second)})`
 }
@@ -82,7 +78,7 @@ function formatVector(x: number, y: number, z: number): string {
 }
 
 const summaryRows = computed<readonly ReadoutRow[]>(() => {
-  const { launchSummary, launchVelocity } = props.evaluation
+  const { launchSummary, launchVelocity, trajectory } = props.evaluation
 
   return [
     {
@@ -94,20 +90,26 @@ const summaryRows = computed<readonly ReadoutRow[]>(() => {
       value: formatBlocksPerSecond(launchSummary.horizontalSpeed),
     },
     {
+      label: t('sulfurCube.readout.verticalSpeed'),
+      value: formatBlocksPerSecond(launchVelocity.y),
+    },
+    {
       label: t('sulfurCube.readout.elevation'),
       value: formatLaunchAngle(launchSummary.elevationAngle),
     },
     {
-      label: t('sulfurCube.readout.horizontalDirection'),
-      value: formatPair(launchSummary.horizontalDirection.x, launchSummary.horizontalDirection.y),
+      label: t('sulfurCube.readout.distanceTravelled'),
+      value: t('sulfurCube.readout.blocksValue', {
+        value: formatNumber(trajectory.horizontalDisplacement),
+      }),
     },
     {
-      label: t('sulfurCube.readout.addedVelocity'),
-      value: formatVelocityInBlocksPerSecond(launchVelocity.x, launchVelocity.y, launchVelocity.z),
-    },
-    {
-      label: t('sulfurCube.readout.resultingVelocity'),
-      value: formatVelocityInBlocksPerSecond(launchVelocity.x, launchVelocity.y, launchVelocity.z),
+      label: t('sulfurCube.readout.maximumHeightAboveFloor'),
+      value: t('sulfurCube.readout.blocksValue', {
+        value: formatNumber(
+          trajectory.maximumDiscreteFeetY - trajectory.initialState.feetPosition.y,
+        ),
+      }),
     },
   ]
 })

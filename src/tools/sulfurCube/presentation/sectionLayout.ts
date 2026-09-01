@@ -19,26 +19,16 @@ export interface SulfurCubeSectionLayouts {
 }
 
 export const defaultSulfurCubeSectionLayouts: SulfurCubeSectionLayouts = {
-  regular: ['scene', 'topDown', 'power', 'controls', 'readout', 'trace', 'details'],
-  compact: ['power', 'scene', 'topDown', 'readout', 'controls', 'trace', 'details'],
+  regular: ['scene', 'topDown', 'controls', 'readout', 'power', 'trace', 'details'],
+  compact: ['scene', 'topDown', 'controls', 'readout', 'power', 'trace', 'details'],
 }
-
-const fullWidthSections = new Set<SulfurCubeSectionId>(['trace', 'details'])
 
 export function sulfurCubeSectionWidth(
   sectionId: SulfurCubeSectionId,
   sceneSize: SulfurCubeSceneSize,
 ): SulfurCubeSectionWidth {
-  if (fullWidthSections.has(sectionId)) {
-    return 'full'
-  }
-
   if (sectionId === 'scene') {
     return sceneSize === 'regular' ? 'full' : 'half'
-  }
-
-  if (sectionId === 'controls') {
-    return sceneSize === 'compact' ? 'full' : 'half'
   }
 
   return 'half'
