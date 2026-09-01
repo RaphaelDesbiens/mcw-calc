@@ -7,9 +7,15 @@ import { createPowerSpacePresentation } from '../presentation/powerSpace'
 import { createWorldToSvgTransform } from '../presentation/worldToSvg'
 import InfoTooltip from './InfoTooltip.vue'
 
-const props = defineProps<{
-  evaluation: DiagnosticEvaluation
-}>()
+const props = withDefaults(
+  defineProps<{
+    evaluation: DiagnosticEvaluation
+    showHeadingTitle?: boolean
+  }>(),
+  {
+    showHeadingTitle: true,
+  },
+)
 
 const { t } = useI18n()
 const viewport = {
@@ -174,9 +180,13 @@ const view = computed(() => {
 </script>
 
 <template>
-  <figure class="power-space" aria-labelledby="sulfur-cube-power-heading">
+  <figure
+    class="power-space"
+    :aria-labelledby="showHeadingTitle ? 'sulfur-cube-power-heading' : undefined"
+    :aria-label="showHeadingTitle ? undefined : t('sulfurCube.power.title')"
+  >
     <div class="power-space__heading">
-      <div class="power-space__title">
+      <div v-if="showHeadingTitle" class="power-space__title">
         <h3 id="sulfur-cube-power-heading">{{ t('sulfurCube.power.title') }}</h3>
         <InfoTooltip
           :text="t('sulfurCube.power.caveat')"

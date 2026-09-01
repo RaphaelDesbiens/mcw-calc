@@ -28,13 +28,19 @@ interface DragState {
   readonly transform: WorldToSvgTransform
 }
 
-const props = defineProps<{
-  evaluation: DiagnosticEvaluation
-  sceneSize: SceneSize
-  selectedBlockLabel: string
-  selectedArchetypeLabel: string
-  selectedBlockSpriteUrl: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    evaluation: DiagnosticEvaluation
+    sceneSize: SceneSize
+    selectedBlockLabel: string
+    selectedArchetypeLabel: string
+    selectedBlockSpriteUrl: string | null
+    showHeadingTitle?: boolean
+  }>(),
+  {
+    showHeadingTitle: true,
+  },
+)
 
 const emit = defineEmits<{
   translateAttackerPreservingCubeBearing: [delta: Vec3]
@@ -107,6 +113,8 @@ const view = computed(() => {
   const trajectoryEnd = scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
   const launchOffsetLabelPoint =
     scene.launchOffsetLabelPoint === null ? null : toSvg(scene.launchOffsetLabelPoint)
+  const aimErrorLabelPoint =
+    scene.aimErrorLabelPoint === null ? null : toSvg(scene.aimErrorLabelPoint)
   const axisXStart = toSvg({ x: cameraBounds.value.minX, y: scene.cube.center.y })
   const axisXEnd = toSvg({ x: cameraBounds.value.maxX, y: scene.cube.center.y })
   const axisZStart = toSvg({ x: scene.cube.center.x, y: cameraBounds.value.minY })
@@ -149,6 +157,11 @@ const view = computed(() => {
     trajectoryTicks,
     trajectoryEnd,
     backwardVelocityBodyEnd,
+    aimErrorLabelPoint,
+    aimErrorArc: scene.aimErrorArc
+      .map(toSvg)
+      .map((point) => `${point.x},${point.y}`)
+      .join(' '),
     launchOffsetLabelPoint,
     launchOffsetArc: scene.launchOffsetArc
       .map(toSvg)
@@ -487,10 +500,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
   <figure
     class="topdown-figure"
     :class="`topdown-figure--${sceneSize}`"
-    aria-labelledby="sulfur-cube-topdown-heading"
+    :aria-labelledby="showHeadingTitle ? 'sulfur-cube-topdown-heading' : undefined"
+    :aria-label="showHeadingTitle ? undefined : t('sulfurCube.topDown.title')"
   >
     <div class="topdown-heading">
-      <div class="topdown-heading__title">
+      <div v-if="showHeadingTitle" class="topdown-heading__title">
         <h3 id="sulfur-cube-topdown-heading">{{ t('sulfurCube.topDown.title') }}</h3>
         <InfoTooltip
           :text="t('sulfurCube.topDown.help')"
@@ -690,6 +704,16 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           :y2="view.aimArrowEnd.y"
           marker-end="url(#topdown-blue-arrow)"
         />
+        <polyline v-if="view.aimErrorArc" class="topdown-aim-error" :points="view.aimErrorArc" />
+        <text
+          v-if="view.aimErrorLabelPoint"
+          class="topdown-aim-error-label"
+          :x="view.aimErrorLabelPoint.x"
+          :y="view.aimErrorLabelPoint.y"
+          text-anchor="middle"
+        >
+          {{ view.metrics.aimErrorDegrees }}°
+        </text>
         <line
           class="topdown-backward-velocity"
           :x1="view.cubeCenter.x"
@@ -927,8 +951,9 @@ figcaption {
 }
 .topdown-overlay--reset {
   top: auto;
-  right: 0.5rem;
+  right: auto;
   bottom: 0.5rem;
+  left: 0.5rem;
 }
 .topdown-svg {
   display: block;
@@ -996,6 +1021,17 @@ figcaption {
 }
 .topdown-aim {
   stroke-width: var(--topdown-stroke-regular);
+}
+.topdown-aim-error {
+  fill: none;
+  stroke: var(--topdown-aim);
+  stroke-width: var(--topdown-stroke-thin);
+  pointer-events: none;
+}
+.topdown-aim-error-label {
+  fill: var(--topdown-aim);
+  font-size: var(--topdown-small-font-size);
+  pointer-events: none;
 }
 .topdown-launch-offset {
   fill: none;

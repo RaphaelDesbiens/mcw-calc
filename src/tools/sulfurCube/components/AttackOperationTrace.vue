@@ -4,9 +4,15 @@ import type { PlayerMeleeEvaluation } from '../presets/playerMelee'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const props = defineProps<{
-  evaluation: PlayerMeleeEvaluation
-}>()
+const props = withDefaults(
+  defineProps<{
+    evaluation: PlayerMeleeEvaluation
+    showTitle?: boolean
+  }>(),
+  {
+    showTitle: true,
+  },
+)
 
 const { t } = useI18n()
 const numberFormatter = new Intl.NumberFormat('en-US', {
@@ -55,8 +61,14 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
 </script>
 
 <template>
-  <section class="attack-trace" aria-labelledby="sulfur-cube-attack-trace-title">
-    <h3 id="sulfur-cube-attack-trace-title">{{ t('sulfurCube.attack.trace.title') }}</h3>
+  <section
+    class="attack-trace"
+    :aria-labelledby="showTitle ? 'sulfur-cube-attack-trace-title' : undefined"
+    :aria-label="showTitle ? undefined : t('sulfurCube.attack.trace.title')"
+  >
+    <h3 v-if="showTitle" id="sulfur-cube-attack-trace-title">
+      {{ t('sulfurCube.attack.trace.title') }}
+    </h3>
     <p class="attack-trace__intro">{{ t('sulfurCube.attack.trace.intro') }}</p>
 
     <dl class="attack-trace__summary">

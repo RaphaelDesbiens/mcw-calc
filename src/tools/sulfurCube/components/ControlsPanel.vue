@@ -11,13 +11,19 @@ import CubePropertyControls from './CubePropertyControls.vue'
 import InfoTooltip from './InfoTooltip.vue'
 import PlayerMeleeControls from './PlayerMeleeControls.vue'
 
-const props = defineProps<{
-  modelValue: DiagnosticFormState
-  propertySelection: CubePropertySelectionState
-  propertyResolution: CubePropertySelectionResolution
-  trajectoryTicksDefaultActive: boolean
-  playerMelee: PlayerMeleeFormState
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: DiagnosticFormState
+    propertySelection: CubePropertySelectionState
+    propertyResolution: CubePropertySelectionResolution
+    trajectoryTicksDefaultActive: boolean
+    playerMelee: PlayerMeleeFormState
+    showTitle?: boolean
+  }>(),
+  {
+    showTitle: true,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
@@ -55,9 +61,16 @@ function updateFloor(value: string | number | null): void {
 </script>
 
 <template>
-  <section class="controls-panel" aria-labelledby="sulfur-cube-controls-title">
-    <div class="controls-panel__heading">
-      <h3 id="sulfur-cube-controls-title" class="controls-panel__title">
+  <section
+    class="controls-panel"
+    :aria-labelledby="showTitle ? 'sulfur-cube-controls-title' : undefined"
+    :aria-label="showTitle ? undefined : t('sulfurCube.controls.title')"
+  >
+    <div
+      class="controls-panel__heading"
+      :class="{ 'controls-panel__heading--without-title': !showTitle }"
+    >
+      <h3 v-if="showTitle" id="sulfur-cube-controls-title" class="controls-panel__title">
         {{ t('sulfurCube.controls.title') }}
       </h3>
       <CdxButton @click="emit('reset')">
@@ -327,6 +340,10 @@ function updateFloor(value: string | number | null): void {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.controls-panel__heading--without-title {
+  justify-content: flex-end;
 }
 
 .field-label-with-info {

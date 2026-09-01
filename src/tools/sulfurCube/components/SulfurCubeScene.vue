@@ -44,6 +44,7 @@ const props = withDefaults(
     initialZoomSteps?: number
     showAimQLabel?: boolean
     showComparisonHelp?: boolean
+    showHeadingTitle?: boolean
     showSizeControl?: boolean
     selectedBlockLabel: string
     selectedArchetypeLabel: string
@@ -53,6 +54,7 @@ const props = withDefaults(
     initialZoomSteps: 0,
     showAimQLabel: true,
     showComparisonHelp: true,
+    showHeadingTitle: true,
     showSizeControl: true,
   },
 )
@@ -220,14 +222,17 @@ const view = computed(() => {
       Math.abs(marker.x - actualMarker.x) > 0.01 || Math.abs(marker.y - actualMarker.y) > 0.01
 
     if (isOutOfScene) {
-      const x = viewport.width - 122
+      const isBoundedOnLeft = actualMarker.x < sceneWallBounds.minX
+      const x = isBoundedOnLeft ? 80 : viewport.width - 80
 
       return {
         marker,
         x,
         y: labelY,
-        anchor: 'end' as const,
-        arrow: { x1: x + 8, y1: labelY - 4, x2: viewport.width - 14, y2: labelY - 4 },
+        anchor: isBoundedOnLeft ? ('start' as const) : ('end' as const),
+        arrow: isBoundedOnLeft
+          ? { x1: x - 8, y1: labelY - 4, x2: 18, y2: labelY - 4 }
+          : { x1: x + 8, y1: labelY - 4, x2: viewport.width - 18, y2: labelY - 4 },
         value: t(nameKey, { value }),
       }
     }
@@ -252,14 +257,14 @@ const view = computed(() => {
           scene.firstBounce.point,
           'sulfurCube.scene.firstBounceGroundMetric',
           scene.firstBounce.horizontalDistance.toFixed(2),
-          27,
+          34,
         )
       : null
   const distanceGroundLabel = createGroundLabel(
     scene.trajectoryDistance.point,
     'sulfurCube.scene.distanceGroundMetric',
     scene.trajectoryDistance.horizontalDistance.toFixed(2),
-    firstBounceGroundLabel === null ? 27 : 54,
+    firstBounceGroundLabel === null ? 34 : 64,
   )
   const maximumHeightLabel =
     scene.maximumHeight === null
@@ -647,10 +652,11 @@ function formatCoordinate(value: number): string {
   <figure
     class="scene-figure"
     :class="`scene-figure--${sceneSize}`"
-    aria-labelledby="sulfur-cube-scene-heading"
+    :aria-labelledby="showHeadingTitle ? 'sulfur-cube-scene-heading' : undefined"
+    :aria-label="showHeadingTitle ? undefined : t('sulfurCube.scene.title')"
   >
     <div class="scene-heading">
-      <div class="scene-heading__title">
+      <div v-if="showHeadingTitle" class="scene-heading__title">
         <h3 id="sulfur-cube-scene-heading">{{ t('sulfurCube.scene.title') }}</h3>
         <InfoTooltip
           :text="t('sulfurCube.scene.projectionHelp')"
@@ -1236,6 +1242,7 @@ function formatCoordinate(value: number): string {
   --scene-theta-muted: color-mix(in srgb, var(--scene-theta) 45%, transparent);
   --scene-launch: #00a000;
   --scene-trajectory: #67b94b;
+  --scene-trajectory-muted: color-mix(in srgb, var(--scene-trajectory) 44%, transparent);
   --scene-move-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
     12 12;
   margin: 0;
@@ -1285,8 +1292,9 @@ figcaption {
 
 .scene-frame__overlay--reset {
   top: auto;
-  right: 0.5rem;
+  right: auto;
   bottom: 0.5rem;
+  left: 0.5rem;
 }
 
 .scene-frame__overlay :deep(.cdx-button) {
@@ -1386,7 +1394,7 @@ figcaption {
 }
 
 .scene-metric-value--trajectory {
-  fill: #397f3f;
+  fill: var(--scene-trajectory-muted);
 }
 
 .scene-metric-value--aim {
@@ -1402,7 +1410,7 @@ figcaption {
 }
 
 .maximum-height-label {
-  fill: var(--scene-launch);
+  fill: var(--scene-trajectory-muted);
   font-size: var(--scene-minor-font-size);
   font-weight: 700;
   pointer-events: none;
@@ -1416,8 +1424,8 @@ figcaption {
 }
 
 .ground-metrics {
-  fill: var(--scene-trajectory);
-  stroke: var(--scene-trajectory);
+  fill: var(--scene-trajectory-muted);
+  stroke: var(--scene-trajectory-muted);
   font-size: 11px;
   font-weight: 400;
   pointer-events: none;
@@ -1428,7 +1436,7 @@ figcaption {
 }
 
 .ground-arrow {
-  fill: var(--scene-trajectory);
+  fill: var(--scene-trajectory-muted);
 }
 
 .reference-geometry line {
@@ -1562,7 +1570,7 @@ figcaption {
 }
 
 .trajectory-tick {
-  fill: color-mix(in srgb, var(--scene-trajectory) 44%, transparent);
+  fill: var(--scene-trajectory-muted);
   stroke: none;
   opacity: 0.72;
 }

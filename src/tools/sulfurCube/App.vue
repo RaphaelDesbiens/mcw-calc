@@ -31,6 +31,7 @@ import {
   translateCubeInFormState,
   updateAimPointInFormState,
 } from './components/formState'
+import InfoTooltip from './components/InfoTooltip.vue'
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
@@ -103,7 +104,7 @@ const sectionDropTarget = ref<{
   readonly sectionId: SulfurCubeSectionId
   readonly position: SulfurCubeSectionDropPosition
 } | null>(null)
-const sectionLayoutAnnouncement = ref('')
+const collapsedSectionIds = ref<readonly SulfurCubeSectionId[]>([])
 const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
 const selectedCubeVisual = computed(() => {
   if (propertySelection.value.mode === 'custom') {
@@ -222,12 +223,6 @@ function updateActiveSectionOrder(order: readonly SulfurCubeSectionId[]): void {
   }
 }
 
-function announceSectionMove(sectionId: SulfurCubeSectionId): void {
-  sectionLayoutAnnouncement.value = t('sulfurCube.layout.moved', {
-    section: sectionTitle(sectionId),
-  })
-}
-
 async function focusSectionHandle(sectionId: SulfurCubeSectionId): Promise<void> {
   await nextTick()
   document.querySelector<HTMLElement>(`[data-section-move-handle="${sectionId}"]`)?.focus()
@@ -270,7 +265,6 @@ function moveSectionByKeyboard(sectionId: SulfurCubeSectionId, event: KeyboardEv
   }
 
   updateActiveSectionOrder(moveSulfurCubeSection(order, sectionId, targetId, position))
-  announceSectionMove(sectionId)
   void focusSectionHandle(sectionId)
 }
 
@@ -335,7 +329,6 @@ function dropSection(sectionId: SulfurCubeSectionId, event: DragEvent): void {
   updateActiveSectionOrder(
     moveSulfurCubeSection(sectionLayouts.value[sceneSize.value], sourceId, sectionId, position),
   )
-  announceSectionMove(sourceId)
   void focusSectionHandle(sourceId)
 }
 
@@ -346,7 +339,16 @@ function endSectionDrag(): void {
 
 function resetSectionOrder(): void {
   updateActiveSectionOrder(defaultSulfurCubeSectionLayouts[sceneSize.value])
-  sectionLayoutAnnouncement.value = t('sulfurCube.layout.resetAnnouncement')
+}
+
+function isSectionCollapsed(sectionId: SulfurCubeSectionId): boolean {
+  return collapsedSectionIds.value.includes(sectionId)
+}
+
+function toggleSectionCollapsed(sectionId: SulfurCubeSectionId): void {
+  collapsedSectionIds.value = isSectionCollapsed(sectionId)
+    ? collapsedSectionIds.value.filter((candidate) => candidate !== sectionId)
+    : [...collapsedSectionIds.value, sectionId]
 }
 
 function updateFormState(value: DiagnosticFormState): void {
@@ -568,12 +570,10 @@ watch(
       </CdxMessage>
 
       <div class="section-layout-toolbar">
-        <p>{{ t('sulfurCube.layout.instructions') }}</p>
         <CdxButton size="small" weight="quiet" @click="resetSectionOrder">
           {{ t('sulfurCube.layout.reset') }}
         </CdxButton>
       </div>
-      <p class="visually-hidden" aria-live="polite">{{ sectionLayoutAnnouncement }}</p>
 
       <div class="interaction-grid">
         <section
@@ -597,112 +597,164 @@ watch(
           @drop="dropSection(sectionId, $event)"
         >
           <div class="section-layout-handle-bar">
+            <div class="section-layout-heading">
+              <CdxButton
+                class="section-layout-handle"
+                size="small"
+                weight="quiet"
+                :draggable="true"
+                :data-section-move-handle="sectionId"
+                :aria-label="
+                  t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })
+                "
+                aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
+                :title="t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })"
+                @dragstart="startSectionDrag(sectionId, $event)"
+                @dragend="endSectionDrag"
+                @keydown="moveSectionByKeyboard(sectionId, $event)"
+              >
+                <span class="section-layout-handle__grip" aria-hidden="true">⠿</span>
+                <span>{{ sectionTitle(sectionId) }}</span>
+              </CdxButton>
+              <InfoTooltip
+                v-if="sectionId === 'scene'"
+                :text="t('sulfurCube.scene.projectionHelp')"
+                :label="t('sulfurCube.scene.projectionHelpLabel')"
+                placement="right"
+              />
+              <InfoTooltip
+                v-else-if="sectionId === 'topDown'"
+                :text="t('sulfurCube.topDown.help')"
+                :label="t('sulfurCube.topDown.helpLabel')"
+                placement="right"
+              />
+              <InfoTooltip
+                v-else-if="sectionId === 'power'"
+                :text="t('sulfurCube.power.caveat')"
+                :label="t('sulfurCube.power.caveatLabel')"
+                placement="right"
+              />
+            </div>
             <CdxButton
-              class="section-layout-handle"
+              class="section-layout-collapse"
               size="small"
               weight="quiet"
-              :draggable="true"
-              :data-section-move-handle="sectionId"
-              :aria-label="t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })"
-              aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
-              :title="t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })"
-              @dragstart="startSectionDrag(sectionId, $event)"
-              @dragend="endSectionDrag"
-              @keydown="moveSectionByKeyboard(sectionId, $event)"
-            >
-              <span class="section-layout-handle__grip" aria-hidden="true">⠿</span>
-              <span>{{ sectionTitle(sectionId) }}</span>
-            </CdxButton>
-            <span class="section-layout-width">
-              {{
+              :aria-expanded="!isSectionCollapsed(sectionId)"
+              :aria-controls="`sulfur-cube-section-content-${sectionId}`"
+              :aria-label="
                 t(
-                  sulfurCubeSectionWidth(sectionId, sceneSize) === 'full'
-                    ? 'sulfurCube.layout.fullWidth'
-                    : 'sulfurCube.layout.halfWidth',
+                  isSectionCollapsed(sectionId)
+                    ? 'sulfurCube.layout.expandSection'
+                    : 'sulfurCube.layout.collapseSection',
+                  { section: sectionTitle(sectionId) },
                 )
-              }}
-            </span>
+              "
+              :title="
+                t(
+                  isSectionCollapsed(sectionId)
+                    ? 'sulfurCube.layout.expandSection'
+                    : 'sulfurCube.layout.collapseSection',
+                  { section: sectionTitle(sectionId) },
+                )
+              "
+              @click="toggleSectionCollapsed(sectionId)"
+            >
+              <span aria-hidden="true">{{ isSectionCollapsed(sectionId) ? '▸' : '▾' }}</span>
+            </CdxButton>
           </div>
 
-          <ControlsPanel
-            v-if="sectionId === 'controls'"
-            class="interaction-grid__controls"
-            :model-value="formState"
-            :property-selection="propertySelection"
-            :property-resolution="propertyResolution"
-            :player-melee="playerMeleeState"
-            :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
-            @update:model-value="updateFormStateFromControls"
-            @update:property-selection="updatePropertySelection"
-            @update:player-melee="updatePlayerMeleeState"
-            @reset-attacker-eye-standing="resetAttackerEyeStanding"
-            @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
-            @reset="reset"
-          />
+          <div
+            v-show="!isSectionCollapsed(sectionId)"
+            :id="`sulfur-cube-section-content-${sectionId}`"
+            class="section-layout-content"
+          >
+            <ControlsPanel
+              v-if="sectionId === 'controls'"
+              class="interaction-grid__controls"
+              :model-value="formState"
+              :property-selection="propertySelection"
+              :property-resolution="propertyResolution"
+              :player-melee="playerMeleeState"
+              :show-title="false"
+              :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
+              @update:model-value="updateFormStateFromControls"
+              @update:property-selection="updatePropertySelection"
+              @update:player-melee="updatePlayerMeleeState"
+              @reset-attacker-eye-standing="resetAttackerEyeStanding"
+              @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
+              @reset="reset"
+            />
 
-          <template v-else-if="sectionId === 'scene'">
-            <SulfurCubeScene
-              v-if="evaluation"
-              :key="sceneResetVersion"
-              v-model:scene-size="sceneSize"
-              class="interaction-grid__scene"
+            <template v-else-if="sectionId === 'scene'">
+              <SulfurCubeScene
+                v-if="evaluation"
+                :key="sceneResetVersion"
+                v-model:scene-size="sceneSize"
+                class="interaction-grid__scene"
+                :evaluation="evaluation"
+                :show-heading-title="false"
+                :show-size-control="true"
+                :selected-block-label="selectedCubeVisual.blockLabel"
+                :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+                :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+                @update-aim-point="updateAimPoint"
+                @translate-attacker="translateAttacker"
+                @translate-cube="translateCube"
+                @reset="reset"
+              />
+
+              <CdxMessage v-else class="interaction-grid__scene" type="warning">
+                {{ t('sulfurCube.invalidInputs') }}
+              </CdxMessage>
+            </template>
+
+            <TopDownScene
+              v-else-if="sectionId === 'topDown' && evaluation"
+              :key="`top-down-${sceneResetVersion}`"
+              class="interaction-grid__horizontal"
               :evaluation="evaluation"
-              :show-size-control="true"
+              :scene-size="sceneSize"
               :selected-block-label="selectedCubeVisual.blockLabel"
               :selected-archetype-label="selectedCubeVisual.archetypeLabel"
               :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+              :show-heading-title="false"
               @update-aim-point="updateAimPoint"
-              @translate-attacker="translateAttacker"
+              @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
               @translate-cube="translateCube"
               @reset="reset"
             />
 
-            <CdxMessage v-else class="interaction-grid__scene" type="warning">
-              {{ t('sulfurCube.invalidInputs') }}
-            </CdxMessage>
-          </template>
+            <PowerSpaceDiagram
+              v-else-if="sectionId === 'power' && evaluation"
+              class="interaction-grid__power"
+              :evaluation="evaluation"
+              :show-heading-title="false"
+            />
 
-          <TopDownScene
-            v-else-if="sectionId === 'topDown' && evaluation"
-            :key="`top-down-${sceneResetVersion}`"
-            class="interaction-grid__horizontal"
-            :evaluation="evaluation"
-            :scene-size="sceneSize"
-            :selected-block-label="selectedCubeVisual.blockLabel"
-            :selected-archetype-label="selectedCubeVisual.archetypeLabel"
-            :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
-            @update-aim-point="updateAimPoint"
-            @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
-            @translate-cube="translateCube"
-            @reset="reset"
-          />
+            <MechanicsReadout
+              v-else-if="sectionId === 'readout' && evaluation"
+              class="interaction-grid__readout"
+              :evaluation="evaluation"
+              :show-details="false"
+              :show-title="false"
+              :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
+            />
 
-          <PowerSpaceDiagram
-            v-else-if="sectionId === 'power' && evaluation"
-            class="interaction-grid__power"
-            :evaluation="evaluation"
-          />
+            <AttackOperationTrace
+              v-else-if="sectionId === 'trace' && playerMeleeEvaluation"
+              class="interaction-grid__trace"
+              :evaluation="playerMeleeEvaluation"
+              :show-title="false"
+            />
 
-          <MechanicsReadout
-            v-else-if="sectionId === 'readout' && evaluation"
-            class="interaction-grid__readout"
-            :evaluation="evaluation"
-            :show-details="false"
-            :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
-          />
-
-          <AttackOperationTrace
-            v-else-if="sectionId === 'trace' && playerMeleeEvaluation"
-            class="interaction-grid__trace"
-            :evaluation="playerMeleeEvaluation"
-          />
-
-          <MechanicsReadout
-            v-else-if="sectionId === 'details' && evaluation"
-            class="interaction-grid__details"
-            :evaluation="evaluation"
-            :show-summary="false"
-          />
+            <MechanicsReadout
+              v-else-if="sectionId === 'details' && evaluation"
+              class="interaction-grid__details"
+              :evaluation="evaluation"
+              :show-details-title="false"
+              :show-summary="false"
+            />
+          </div>
         </section>
       </div>
 
@@ -797,18 +849,8 @@ watch(
 .section-layout-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--border-color-subtle, #c8ccd1);
-  border-radius: 4px;
-  background: var(--background-color-neutral-subtle, #f8f9fa);
-  color: var(--color-subtle, #54595d);
-  font-size: 0.875rem;
-}
-
-.section-layout-toolbar p {
-  margin: 0;
+  justify-content: flex-end;
+  min-height: 2rem;
 }
 
 .section-layout-toolbar :deep(.cdx-button) {
@@ -890,11 +932,20 @@ watch(
   gap: 0.5rem;
   min-width: 0;
   border-bottom: 1px solid var(--border-color-subtle, #c8ccd1);
-  color: var(--color-subtle, #54595d);
+  color: var(--color-base, #202122);
+}
+
+.section-layout-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .section-layout-handle {
   min-width: 0;
+  color: var(--color-base, #202122);
+  font-size: 1.05rem;
+  font-weight: 700;
   cursor: grab;
 }
 
@@ -908,15 +959,18 @@ watch(
 
 .section-layout-handle__grip {
   margin-right: 0.25rem;
-  font-size: 1rem;
+  font-size: 1.05rem;
   line-height: 1;
 }
 
-.section-layout-width {
+.section-layout-collapse {
   flex: 0 0 auto;
-  padding-right: 0.25rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
+  color: var(--color-base, #202122);
+  font-size: 1rem;
+}
+
+.section-layout-content {
+  min-width: 0;
 }
 
 @media (max-width: 52rem) {
@@ -949,11 +1003,6 @@ watch(
 }
 
 @media (max-width: 40rem) {
-  .section-layout-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .compact-toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
   }

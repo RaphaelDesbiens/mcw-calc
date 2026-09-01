@@ -14,12 +14,16 @@ const props = withDefaults(
   defineProps<{
     evaluation: DiagnosticEvaluation
     showDetails?: boolean
+    showDetailsTitle?: boolean
     showSummary?: boolean
+    showTitle?: boolean
     summaryLayout?: 'grid' | 'single'
   }>(),
   {
     showDetails: true,
+    showDetailsTitle: true,
     showSummary: true,
+    showTitle: true,
     summaryLayout: 'grid',
   },
 )
@@ -338,10 +342,22 @@ const readoutSections = computed(() => [
 <template>
   <section
     class="mechanics-readout"
-    :aria-labelledby="props.showSummary ? 'sulfur-cube-results-title' : undefined"
-    :aria-label="!props.showSummary ? t('sulfurCube.readout.details') : undefined"
+    :aria-labelledby="
+      props.showSummary && props.showTitle ? 'sulfur-cube-results-title' : undefined
+    "
+    :aria-label="
+      props.showSummary && !props.showTitle
+        ? t('sulfurCube.readout.title')
+        : !props.showSummary
+          ? t('sulfurCube.readout.details')
+          : undefined
+    "
   >
-    <h3 v-if="props.showSummary" id="sulfur-cube-results-title" class="mechanics-readout__title">
+    <h3
+      v-if="props.showSummary && props.showTitle"
+      id="sulfur-cube-results-title"
+      class="mechanics-readout__title"
+    >
       {{ t('sulfurCube.readout.title') }}
     </h3>
 
@@ -356,8 +372,16 @@ const readoutSections = computed(() => [
       </div>
     </dl>
 
-    <CdxAccordion v-if="props.showDetails" heading-level="h4" separation="outline">
-      <template #title>{{ t('sulfurCube.readout.details') }}</template>
+    <CdxAccordion
+      v-if="props.showDetails"
+      :class="{ 'mechanics-readout__details--untitled': !props.showDetailsTitle }"
+      :open="props.showDetailsTitle ? undefined : true"
+      heading-level="h4"
+      separation="outline"
+    >
+      <template #title>
+        <span v-if="props.showDetailsTitle">{{ t('sulfurCube.readout.details') }}</span>
+      </template>
 
       <div class="readout-sections">
         <table v-for="section in readoutSections" :key="section.id" class="readout-table">
@@ -399,6 +423,18 @@ const readoutSections = computed(() => [
 
 .mechanics-readout__title {
   margin: 0 0 0.75rem;
+}
+
+.mechanics-readout__details--untitled {
+  border: 0;
+}
+
+.mechanics-readout__details--untitled :deep(summary) {
+  display: none;
+}
+
+.mechanics-readout__details--untitled :deep(.cdx-accordion__content) {
+  padding: 0;
 }
 
 .summary-grid {
