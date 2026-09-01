@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { MenuItemData } from '@wikimedia/codex'
-import type { DiagnosticFormState, PlayerMeleeFormState } from './components/types'
+import type {
+  DiagnosticFormState,
+  PlayerMeleeFormState,
+  SceneAttackSummary,
+  SceneResetOption,
+} from './components/types'
 import type { Je26_2ArchetypeId, Je26_2UniformFloorProfileId } from './data/je26_2'
 import type { Vec3 } from './model/types'
 import type {
@@ -135,6 +140,7 @@ const compactFloorItems: MenuItemData[] = je26_2UniformFloorProfileOrder.map((fl
   value: floorProfileId,
   label: t(`sulfurCube.floor.${floorProfileId}`),
 }))
+const selectedFloorLabel = computed(() => t(`sulfurCube.floor.${formState.value.floorProfileId}`))
 
 const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
   if (isCompactView) {
@@ -159,6 +165,32 @@ const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
     )
   } catch {
     return null
+  }
+})
+
+const sceneAttackSummary = computed<SceneAttackSummary | null>(() => {
+  const current = playerMeleeEvaluation.value
+
+  if (current === null && !isCompactView) {
+    return null
+  }
+
+  const inputs = current?.playerMeleeInputs ?? defaultPlayerMeleeInputs
+  const knockbackLabel =
+    inputs.knockbackEnchantmentLevel === 0
+      ? null
+      : t(
+          inputs.knockbackEnchantmentLevel === 1
+            ? 'sulfurCube.attack.knockback.one'
+            : 'sulfurCube.attack.knockback.two',
+        )
+
+  return {
+    weaponLabel: t(`sulfurCube.attack.weapon.${inputs.weaponPresetId}`),
+    attackStrengthPercent: inputs.attackStrength * 100,
+    knockbackLabel,
+    sprinting: inputs.sprinting,
+    criticalHit: inputs.criticalHitConditions,
   }
 })
 
@@ -372,7 +404,13 @@ function updateFormStateFromControls(value: DiagnosticFormState): void {
   formState.value = translateAttackerForFeetFormEdit(formState.value, value)
 }
 
-function reset(): void {
+function createInitialPropertySelection(): CubePropertySelectionState {
+  const selection = createDefaultCubePropertySelectionState()
+
+  return isCompactView ? selectCubePropertyMode(selection, 'archetype') : selection
+}
+
+function resetSceneInputs(): void {
   trajectoryTicksDefaultActive.value = true
   formState.value = createDiagnosticFormState(defaultInputs)
   playerMeleeState.value = createPlayerMeleeFormState(defaultPlayerMeleeInputs)
@@ -380,9 +418,71 @@ function reset(): void {
   sceneResetVersion.value += 1
 }
 
+function resetEverything(): void {
+  resetSceneInputs()
+  propertySelection.value = createInitialPropertySelection()
+}
+
 function switchCompactScene(): void {
   compactSceneKind.value = compactSceneKind.value === 'radial' ? 'topDown' : 'radial'
-  reset()
+  resetSceneInputs()
+}
+
+function resetPositionsAim(): void {
+  const defaults = createDiagnosticFormState(defaultInputs)
+
+  formState.value = {
+    ...formState.value,
+    cubeFeetX: defaults.cubeFeetX,
+    cubeFeetY: defaults.cubeFeetY,
+    cubeFeetZ: defaults.cubeFeetZ,
+    attackerFeetX: defaults.attackerFeetX,
+    attackerFeetY: defaults.attackerFeetY,
+    attackerFeetZ: defaults.attackerFeetZ,
+    attackerEyeX: defaults.attackerEyeX,
+    attackerEyeY: defaults.attackerEyeY,
+    attackerEyeZ: defaults.attackerEyeZ,
+    aimX: defaults.aimX,
+    aimY: defaults.aimY,
+    aimZ: defaults.aimZ,
+  }
+  attackerYawDegrees.value = deriveMinecraftYawDegreesFromAim(defaultInputs, 0)
+  sceneResetVersion.value += 1
+}
+
+function resetArchetype(): void {
+  propertySelection.value = createInitialPropertySelection()
+}
+
+function resetWeapon(): void {
+  playerMeleeState.value = createPlayerMeleeFormState(defaultPlayerMeleeInputs)
+}
+
+function resetFloor(): void {
+  formState.value = {
+    ...formState.value,
+    floorProfileId: defaultInputs.floorProfileId,
+  }
+}
+
+function resetOption(option: SceneResetOption): void {
+  switch (option) {
+    case 'everything':
+      resetEverything()
+      break
+    case 'positionsAim':
+      resetPositionsAim()
+      break
+    case 'archetype':
+      resetArchetype()
+      break
+    case 'weapon':
+      resetWeapon()
+      break
+    case 'floor':
+      resetFloor()
+      break
+  }
 }
 
 function refreshDefaultTrajectoryTicks(): void {
@@ -538,8 +638,8 @@ watch(
             @update:selected="updateCompactFloor"
           />
         </CdxField>
-        <CdxButton @click="reset">
-          {{ t('sulfurCube.controls.reset') }}
+        <CdxButton @click="resetEverything">
+          {{ t('sulfurCube.reset.everything') }}
         </CdxButton>
         <CdxButton @click="switchCompactScene">
           {{
@@ -568,10 +668,12 @@ watch(
         :selected-block-label="selectedCubeVisual.blockLabel"
         :selected-archetype-label="selectedCubeVisual.archetypeLabel"
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+        :attack-summary="sceneAttackSummary"
+        :floor-surface-label="selectedFloorLabel"
         @update-aim-point="updateAimPoint"
         @translate-attacker="translateAttacker"
         @translate-cube="translateCube"
-        @reset="reset"
+        @reset="resetOption"
       />
 
       <TopDownScene
@@ -582,10 +684,11 @@ watch(
         :selected-block-label="selectedCubeVisual.blockLabel"
         :selected-archetype-label="selectedCubeVisual.archetypeLabel"
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+        :attack-summary="sceneAttackSummary"
         @update-aim-point="updateAimPoint"
         @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
         @translate-cube="translateCube"
-        @reset="reset"
+        @reset="resetOption"
       />
 
       <CdxMessage v-else type="warning">
@@ -711,7 +814,11 @@ watch(
               @update:player-melee="updatePlayerMeleeState"
               @reset-attacker-eye-standing="resetAttackerEyeStanding"
               @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
-              @reset="reset"
+              @reset-everything="resetEverything"
+              @reset-positions-aim="resetPositionsAim"
+              @reset-archetype="resetArchetype"
+              @reset-weapon="resetWeapon"
+              @reset-floor="resetFloor"
             />
 
             <template v-else-if="sectionId === 'scene'">
@@ -726,10 +833,12 @@ watch(
                 :selected-block-label="selectedCubeVisual.blockLabel"
                 :selected-archetype-label="selectedCubeVisual.archetypeLabel"
                 :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+                :attack-summary="sceneAttackSummary"
+                :floor-surface-label="selectedFloorLabel"
                 @update-aim-point="updateAimPoint"
                 @translate-attacker="translateAttacker"
                 @translate-cube="translateCube"
-                @reset="reset"
+                @reset="resetOption"
               />
 
               <CdxMessage v-else class="interaction-grid__scene" type="warning">
@@ -746,11 +855,12 @@ watch(
               :selected-block-label="selectedCubeVisual.blockLabel"
               :selected-archetype-label="selectedCubeVisual.archetypeLabel"
               :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+              :attack-summary="sceneAttackSummary"
               :show-heading-title="false"
               @update-aim-point="updateAimPoint"
               @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
               @translate-cube="translateCube"
-              @reset="reset"
+              @reset="resetOption"
             />
 
             <PowerSpaceDiagram

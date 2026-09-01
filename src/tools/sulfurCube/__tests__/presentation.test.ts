@@ -9,6 +9,7 @@ import {
   translateCubeInFormState,
   updateAimPointInFormState,
 } from '../components/formState'
+import { pointOnProjectedAimAxis } from '../presentation/aimInteraction'
 import { createPowerSpacePresentation } from '../presentation/powerSpace'
 import {
   createRadialProjection,
@@ -20,6 +21,7 @@ import {
 import {
   aimArrowLength,
   createRadialScenePresentation,
+  launchElevationArcRadius,
   launchVectorDisplayLength,
   launchVectorMaximumDisplayLength,
   thetaArcRadius,
@@ -53,6 +55,16 @@ import {
 } from '../presets/playerMelee'
 
 describe('radial-plane presentation', () => {
+  it('keeps a visual aim handle on its projected axis without changing the mechanics endpoint', () => {
+    const origin = { x: 1, y: 2 }
+    const mechanicsEndpoint = { x: 4, y: 6 }
+
+    expect(pointOnProjectedAimAxis(origin, mechanicsEndpoint, 2.5)).toEqual({ x: 2.5, y: 4 })
+    expect(mechanicsEndpoint).toEqual({ x: 4, y: 6 })
+    expect(pointOnProjectedAimAxis(origin, origin, 5)).toEqual(origin)
+    expect(() => pointOnProjectedAimAxis(origin, mechanicsEndpoint, -1)).toThrow(/nonnegative/)
+  })
+
   it('projects the attacker to the left of the cube in the radial view', () => {
     const projection = createRadialProjection({ x: 2, y: 4, z: -3 }, { x: 5, y: 5, z: 1 })
 
@@ -249,6 +261,18 @@ describe('radial scene presentation', () => {
     expect(lengths[lengths.length - 1]).toBeLessThanOrEqual(launchVectorMaximumDisplayLength)
     expect(() => launchVectorDisplayLength(-1)).toThrow(/nonnegative/)
     expect(() => launchVectorDisplayLength(Number.NaN)).toThrow(/finite/)
+  })
+
+  it('hides the launch-elevation annotation when its rendered vector is too short', () => {
+    const inputs = getDiagnosticPreset('M1').inputs
+    const scene = createRadialScenePresentation(
+      evaluateDiagnosticInputs({ ...inputs, damageArgument: 0.000001 }),
+    )
+
+    expect(scene.launchDisplayLength).toBeLessThan(launchElevationArcRadius)
+    expect(scene.launchElevationArc).toEqual([])
+    expect(scene.launchElevationLabelPoint).toBeNull()
+    expect(scene.launchElevationRadians).toBeGreaterThan(0)
   })
 
   it('anchors the theta arc and label to the attacker-feet angle corner', () => {

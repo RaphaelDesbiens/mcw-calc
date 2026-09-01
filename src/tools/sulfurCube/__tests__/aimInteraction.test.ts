@@ -46,4 +46,22 @@ describe('projected aim interaction', () => {
       12,
     )
   })
+
+  it('can preserve a separate mechanics aim-point distance', () => {
+    const radialEndpoint = rotateAimInRadialProjection(
+      eye,
+      look,
+      { origin: { x: 0, y: 0, z: 0 }, horizontalAxis: { x: 1, y: 0 } },
+      { x: 0, y: 4 },
+      5,
+    )
+    const topDownEndpoint = rotateAimInTopDownProjection(eye, look, { x: 0, y: 4 }, 5)
+
+    expect(
+      Math.hypot(radialEndpoint.x - eye.x, radialEndpoint.y - eye.y, radialEndpoint.z - eye.z),
+    ).toBeCloseTo(5, 12)
+    expect(
+      Math.hypot(topDownEndpoint.x - eye.x, topDownEndpoint.y - eye.y, topDownEndpoint.z - eye.z),
+    ).toBeCloseTo(5, 12)
+  })
 })

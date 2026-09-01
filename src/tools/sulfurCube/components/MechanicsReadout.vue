@@ -79,6 +79,9 @@ function formatVector(x: number, y: number, z: number): string {
 
 const summaryRows = computed<readonly ReadoutRow[]>(() => {
   const { launchSummary, launchVelocity, trajectory } = props.evaluation
+  const firstBounceTick = trajectory.ticks.find((tick) => tick.rebound.emittedBounceEvent)
+  const firstBounceAirTimeTicks =
+    firstBounceTick === undefined ? null : firstBounceTick.end.tick - trajectory.initialState.tick
 
   return [
     {
@@ -102,6 +105,16 @@ const summaryRows = computed<readonly ReadoutRow[]>(() => {
       value: t('sulfurCube.readout.blocksValue', {
         value: formatNumber(trajectory.horizontalDisplacement),
       }),
+    },
+    {
+      label: t('sulfurCube.readout.firstBounceAirTime'),
+      value:
+        firstBounceAirTimeTicks === null
+          ? t('sulfurCube.readout.notReached')
+          : t('sulfurCube.readout.timeValue', {
+              seconds: formatNumber(firstBounceAirTimeTicks / 20),
+              ticks: firstBounceAirTimeTicks,
+            }),
     },
     {
       label: t('sulfurCube.readout.maximumHeightAboveFloor'),

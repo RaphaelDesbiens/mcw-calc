@@ -29,7 +29,11 @@ const emit = defineEmits<{
   'update:modelValue': [value: DiagnosticFormState]
   'update:propertySelection': [value: CubePropertySelectionState]
   'update:playerMelee': [value: PlayerMeleeFormState]
-  reset: []
+  resetEverything: []
+  resetPositionsAim: []
+  resetArchetype: []
+  resetWeapon: []
+  resetFloor: []
   resetAttackerEyeStanding: []
   toggleTrajectoryTicksDefault: []
 }>()
@@ -73,23 +77,33 @@ function updateFloor(value: string | number | null): void {
       <h3 v-if="showTitle" id="sulfur-cube-controls-title" class="controls-panel__title">
         {{ t('sulfurCube.controls.title') }}
       </h3>
-      <CdxButton @click="emit('reset')">
-        {{ t('sulfurCube.controls.reset') }}
+      <CdxButton @click="emit('resetEverything')">
+        {{ t('sulfurCube.reset.everything') }}
       </CdxButton>
     </div>
 
-    <CubePropertyControls
-      :model-value="propertySelection"
-      :resolution="propertyResolution"
-      @update:model-value="emit('update:propertySelection', $event)"
-    />
+    <div class="controls-group controls-group--properties">
+      <CubePropertyControls
+        :model-value="propertySelection"
+        :resolution="propertyResolution"
+        @update:model-value="emit('update:propertySelection', $event)"
+      />
+      <CdxButton class="controls-group__reset" @click="emit('resetArchetype')">
+        {{ t('sulfurCube.reset.archetype') }}
+      </CdxButton>
+    </div>
 
-    <PlayerMeleeControls
-      :model-value="playerMelee"
-      @update:model-value="emit('update:playerMelee', $event)"
-    />
+    <div class="controls-group controls-group--weapon">
+      <PlayerMeleeControls
+        :model-value="playerMelee"
+        @update:model-value="emit('update:playerMelee', $event)"
+      />
+      <CdxButton class="controls-group__reset" @click="emit('resetWeapon')">
+        {{ t('sulfurCube.reset.weapon') }}
+      </CdxButton>
+    </div>
 
-    <CdxAccordion heading-level="h4" separation="outline">
+    <CdxAccordion class="controls-group--coordinates" heading-level="h4" separation="outline">
       <template #title>
         <span class="field-label-with-info">
           {{ t('sulfurCube.controls.coordinates') }}
@@ -101,6 +115,9 @@ function updateFloor(value: string | number | null): void {
       </template>
 
       <div class="coordinate-sections">
+        <CdxButton class="controls-group__reset" @click="emit('resetPositionsAim')">
+          {{ t('sulfurCube.reset.positionsAim') }}
+        </CdxButton>
         <CdxField is-fieldset>
           <template #label>
             <span class="field-label-with-info">
@@ -273,24 +290,29 @@ function updateFloor(value: string | number | null): void {
       </div>
     </CdxAccordion>
 
-    <CdxField>
-      <template #label>
-        <span class="field-label-with-info">
-          {{ t('sulfurCube.controls.uniformFloor') }}
-          <InfoTooltip
-            :text="t('sulfurCube.controls.uniformFloorHelp')"
-            :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
-          />
-        </span>
-      </template>
-      <CdxSelect
-        :selected="modelValue.floorProfileId"
-        :menu-items="floorItems"
-        @update:selected="updateFloor"
-      />
-    </CdxField>
+    <div class="controls-group controls-group--floor">
+      <CdxField>
+        <template #label>
+          <span class="field-label-with-info">
+            {{ t('sulfurCube.controls.uniformFloor') }}
+            <InfoTooltip
+              :text="t('sulfurCube.controls.uniformFloorHelp')"
+              :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
+            />
+          </span>
+        </template>
+        <CdxSelect
+          :selected="modelValue.floorProfileId"
+          :menu-items="floorItems"
+          @update:selected="updateFloor"
+        />
+      </CdxField>
+      <CdxButton class="controls-group__reset" @click="emit('resetFloor')">
+        {{ t('sulfurCube.reset.floor') }}
+      </CdxButton>
+    </div>
 
-    <div class="trajectory-row">
+    <div class="trajectory-row controls-group--trajectory">
       <CdxField class="trajectory-row__input">
         <template #label>
           <span class="field-label-with-info">
@@ -343,7 +365,36 @@ function updateFloor(value: string | number | null): void {
 }
 
 .controls-panel__heading--without-title {
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+.controls-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.controls-group--properties {
+  order: 1;
+}
+
+.controls-group--weapon {
+  order: 2;
+}
+
+.controls-group--floor {
+  order: 3;
+}
+
+.controls-group--trajectory {
+  order: 4;
+}
+
+.controls-group--coordinates {
+  order: 5;
+}
+
+.controls-group__reset {
+  justify-self: end;
 }
 
 .field-label-with-info {

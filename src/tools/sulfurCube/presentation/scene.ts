@@ -18,6 +18,7 @@ export const launchVectorRootSpeedScale = 2.4
 export const aimArrowLength = 3
 export const thetaArcRadius = 0.78
 export const launchElevationArcRadius = 0.9
+export const launchElevationArcMinimumDisplayLength = launchElevationArcRadius + 0.25
 export const thetaLabelHorizontalOffset = -0.08
 export const thetaLabelVerticalOffset = -0.1
 export const cubeFeetLineHalfLength = 3
@@ -178,6 +179,7 @@ function createLaunchElevationPresentation(
   origin: PlanePoint,
   vector: PlanePoint,
   minimumVectorLength: number,
+  showArc: boolean,
 ): {
   readonly arc: readonly PlanePoint[]
   readonly label: PlanePoint | null
@@ -192,6 +194,10 @@ function createLaunchElevationPresentation(
   const startAngle = vector.x < 0 ? Math.PI : 0
   const endAngle = Math.atan2(vector.y, vector.x)
   const angle = Math.atan2(Math.sin(endAngle - startAngle), Math.cos(endAngle - startAngle))
+
+  if (!showArc) {
+    return { arc: [], label: null, angle }
+  }
   const sampleCount = 20
   const arc = Array.from({ length: sampleCount + 1 }, (_, index) => {
     const sampleAngle = startAngle + (angle * index) / sampleCount
@@ -282,6 +288,7 @@ export function createRadialScenePresentation(
     cubeFeet,
     launchVector,
     context.mechanics.vectorNormalizationThreshold,
+    launchDisplayLength >= launchElevationArcMinimumDisplayLength,
   )
   const trajectoryPoints = [
     {

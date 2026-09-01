@@ -2,18 +2,24 @@
 import type { Vec3 } from '../model/types'
 import type { PlanePoint, WorldBounds, WorldToSvgTransform } from '../presentation/types'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
+import type { SceneAttackSummary, SceneResetOption } from './types'
 import { CdxButton } from '@wikimedia/codex'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { rotateAimInTopDownProjection } from '../presentation/aimInteraction'
+import {
+  pointOnProjectedAimAxis,
+  rotateAimInTopDownProjection,
+} from '../presentation/aimInteraction'
 import { createTopDownScenePresentation } from '../presentation/topDown'
 import {
   clampPointToBoundsFromOrigin,
+  createViewportWorldBounds,
   createWorldToSvgTransform,
   scaleWorldBoundsAroundPoint,
   translateWorldBounds,
 } from '../presentation/worldToSvg'
 import InfoTooltip from './InfoTooltip.vue'
+import SceneResetMenu from './SceneResetMenu.vue'
 
 type ObjectDragKind = 'aim' | 'attacker' | 'cube'
 type DragKind = ObjectDragKind | 'camera'
@@ -37,6 +43,7 @@ const props = withDefaults(
     selectedBlockLabel: string
     selectedArchetypeLabel: string
     selectedBlockSpriteUrl: string | null
+    attackSummary?: SceneAttackSummary | null
     showHeadingTitle?: boolean
   }>(),
   {
@@ -48,7 +55,7 @@ const emit = defineEmits<{
   translateAttackerPreservingCubeBearing: [delta: Vec3]
   translateCube: [delta: Vec3]
   updateAimPoint: [point: Vec3]
-  reset: []
+  reset: [option: SceneResetOption]
 }>()
 
 const { t } = useI18n()
@@ -60,6 +67,22 @@ const viewport = {
   padding: { top: 36, right: 44, bottom: 44, left: 48 },
 } as const
 const initialScene = createTopDownScenePresentation(props.evaluation)
+const aimHandleDistance = ref(
+  Math.hypot(
+    initialScene.aimArrowEnd.x - initialScene.attacker.center.x,
+    initialScene.aimArrowEnd.y - initialScene.attacker.center.y,
+  ),
+)
+const aimInputDistance = computed(() => {
+  const { attacker } = props.evaluation.callResult.input.context
+  const { aimPoint } = props.evaluation.inputs
+
+  return Math.hypot(
+    aimPoint.x - attacker.eyePosition.x,
+    aimPoint.y - attacker.eyePosition.y,
+    aimPoint.z - attacker.eyePosition.z,
+  )
+})
 const initialTransformScale = createWorldToSvgTransform(initialScene.bounds, viewport).scale
 const initialCameraWidth = initialScene.bounds.maxX - initialScene.bounds.minX
 const minimumCameraWidth = initialCameraWidth / 4
@@ -86,11 +109,14 @@ const view = computed(() => {
   const visual = {
     handleRadius: 3 * zoomFactor,
     hitAreaRadius: Math.max(18, 18 * zoomFactor),
-    trajectoryRadius: 2.1 * zoomFactor,
-    endMarkerArm: 5 * zoomFactor,
     labelOffset: 12 * zoomFactor,
   }
-  const aimPoint = clampPointToBoundsFromOrigin(attackerCenter, toSvg(scene.aimArrowEnd), {
+  const aimHandlePoint = pointOnProjectedAimAxis(
+    scene.attacker.center,
+    scene.aimArrowEnd,
+    aimHandleDistance.value,
+  )
+  const aimPoint = clampPointToBoundsFromOrigin(attackerCenter, toSvg(aimHandlePoint), {
     minX: visual.handleRadius,
     maxX: viewport.width - visual.handleRadius,
     minY: visual.handleRadius,
@@ -103,15 +129,6 @@ const view = computed(() => {
     y: cubeCenter.y + (launchEnd.y - cubeCenter.y) * 0.9,
   }
   const feetAxisBeyondCubeEnd = toSvg(scene.feetAxisBeyondCubeEnd)
-  const trajectory = scene.trajectory.map((sample) => ({
-    ...sample,
-    point: toSvg(sample.point),
-  }))
-  const finalTrajectoryTick = trajectory[trajectory.length - 1]?.tick ?? 0
-  const trajectoryTicks = trajectory.filter(
-    (sample) => sample.tick > 0 && sample.tick !== finalTrajectoryTick,
-  )
-  const trajectoryEnd = scene.trajectoryEndMarker === null ? null : toSvg(scene.trajectoryEndMarker)
   const launchOffsetLabelPoint =
     scene.launchOffsetLabelPoint === null ? null : toSvg(scene.launchOffsetLabelPoint)
   const aimErrorLabelPoint =
@@ -135,10 +152,15 @@ const view = computed(() => {
   }
   const metrics = {
     x: 18,
-    aimErrorY: 24,
-    launchOffsetY: 41,
-    blockY: 58,
-    archetypeY: 75,
+    aimErrorY: 26,
+    launchOffsetY: 47,
+    blockY: 82,
+    archetypeY: 103,
+    weaponY: 138,
+    attackStrengthY: 159,
+    knockbackY: 180,
+    sprintingY: 201,
+    criticalHitY: 222,
     aimErrorDegrees: ((scene.aimErrorRadians * 180) / Math.PI).toFixed(1),
     launchOffsetDegrees: ((scene.launchOffsetRadians * 180) / Math.PI).toFixed(1),
   }
@@ -151,12 +173,11 @@ const view = computed(() => {
     cubeCenter,
     attackerCenter,
     aimPoint,
+    aimHandlePoint,
     aimArrowEnd,
     launchEnd,
     launchBodyEnd,
     launchLabel,
-    trajectoryTicks,
-    trajectoryEnd,
     feetAxisBeyondCubeEnd,
     aimErrorLabelPoint,
     aimErrorArc: scene.aimErrorArc
@@ -298,7 +319,7 @@ function startDrag(kind: DragKind, event: PointerEvent): void {
 
   switch (kind) {
     case 'aim':
-      target = currentView.scene.aimArrowEnd
+      target = currentView.aimHandlePoint
       break
     case 'attacker':
       target = currentView.scene.attacker.center
@@ -355,12 +376,23 @@ function continueDrag(event: PointerEvent): void {
 
   switch (drag.kind) {
     case 'aim': {
+      const target = clampPointToBoundsFromOrigin(
+        view.value.scene.attacker.center,
+        { x: drag.startTarget.x + delta.x, y: drag.startTarget.y + delta.y },
+        createViewportWorldBounds(drag.transform, view.value.visual.handleRadius),
+      )
+      aimHandleDistance.value = Math.hypot(
+        target.x - view.value.scene.attacker.center.x,
+        target.y - view.value.scene.attacker.center.y,
+      )
       emit(
         'updateAimPoint',
-        rotateAimInTopDownProjection(drag.attackerEyePosition, drag.normalizedLookDirection, {
-          x: drag.startTarget.x + delta.x,
-          y: drag.startTarget.y + delta.y,
-        }),
+        rotateAimInTopDownProjection(
+          drag.attackerEyePosition,
+          drag.normalizedLookDirection,
+          target,
+          aimInputDistance.value,
+        ),
       )
       break
     }
@@ -433,13 +465,24 @@ function moveHandle(kind: ObjectDragKind, event: KeyboardEvent): void {
   }
 
   if (kind === 'aim') {
-    const visibleAimPoint = view.value.scene.aimArrowEnd
+    const scene = view.value.scene
+    const visibleAimPoint = view.value.aimHandlePoint
+    const target = clampPointToBoundsFromOrigin(
+      scene.attacker.center,
+      { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
+      createViewportWorldBounds(view.value.transform, view.value.visual.handleRadius),
+    )
+    aimHandleDistance.value = Math.hypot(
+      target.x - scene.attacker.center.x,
+      target.y - scene.attacker.center.y,
+    )
     emit(
       'updateAimPoint',
       rotateAimInTopDownProjection(
         props.evaluation.callResult.input.context.attacker.eyePosition,
         props.evaluation.callResult.diagnostics.normalizedLookDirection,
-        { x: visibleAimPoint.x + delta.x, y: visibleAimPoint.y + delta.y },
+        target,
+        aimInputDistance.value,
       ),
     )
   } else {
@@ -530,9 +573,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
         </CdxButton>
       </div>
       <div class="topdown-overlay topdown-overlay--reset">
-        <CdxButton size="small" weight="quiet" @click="emit('reset')">
-          {{ t('sulfurCube.controls.reset') }}
-        </CdxButton>
+        <SceneResetMenu @select="emit('reset', $event)" />
       </div>
 
       <svg
@@ -601,7 +642,15 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
             <tspan>&#160;°</tspan>
           </text>
           <text :x="view.metrics.x" :y="view.metrics.launchOffsetY">
-            <tspan>{{ t('sulfurCube.topDown.launchOffsetLabel') }}&#160;=&#160;</tspan>
+            <tspan>
+              {{
+                t(
+                  view.scene.calls.length === 1
+                    ? 'sulfurCube.topDown.launchOffsetSingleCallLabel'
+                    : 'sulfurCube.topDown.launchOffsetLabel',
+                )
+              }}&#160;=&#160;
+            </tspan>
             <tspan class="topdown-metric-value topdown-metric-value--launch">
               {{ view.metrics.launchOffsetDegrees }}
             </tspan>
@@ -619,6 +668,41 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
               {{ selectedArchetypeLabel }}
             </tspan>
           </text>
+          <template v-if="attackSummary">
+            <text :x="view.metrics.x" :y="view.metrics.weaponY">
+              <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
+              <tspan class="topdown-metric-value topdown-metric-value--neutral">
+                {{ attackSummary.weaponLabel }}
+              </tspan>
+            </text>
+            <text
+              v-if="Math.abs(attackSummary.attackStrengthPercent - 100) > 1e-9"
+              :x="view.metrics.x"
+              :y="view.metrics.attackStrengthY"
+            >
+              <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;=&#160;</tspan>
+              <tspan class="topdown-metric-value topdown-metric-value--neutral">
+                {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
+              </tspan>
+            </text>
+            <text
+              v-if="attackSummary.knockbackLabel"
+              :x="view.metrics.x"
+              :y="view.metrics.knockbackY"
+            >
+              {{ attackSummary.knockbackLabel }}
+            </text>
+            <text v-if="attackSummary.sprinting" :x="view.metrics.x" :y="view.metrics.sprintingY">
+              {{ t('sulfurCube.attack.sprinting') }}
+            </text>
+            <text
+              v-if="attackSummary.criticalHit"
+              :x="view.metrics.x"
+              :y="view.metrics.criticalHitY"
+            >
+              {{ t('sulfurCube.attack.criticalConditions') }}
+            </text>
+          </template>
         </g>
 
         <text
@@ -637,7 +721,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
               {{ t('sulfurCube.scene.reachMissWarningMain') }}
             </tspan>
             <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
-              {{ t('sulfurCube.scene.reachMissWarningDetail') }}
+              {{
+                t('sulfurCube.scene.reachMissWarningDetail', {
+                  scene: t('sulfurCube.scene.otherRadial'),
+                })
+              }}
             </tspan>
           </template>
         </text>
@@ -658,33 +746,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           <text :x="viewport.width - 12" :y="view.axisXEnd.y - 7" text-anchor="end">+X</text>
           <text :x="view.axisZEnd.x + 8" :y="24">+Z</text>
         </g>
-
-        <template v-for="sample in view.trajectoryTicks" :key="sample.tick">
-          <rect
-            v-if="sample.floorCollision"
-            class="topdown-trajectory-tick topdown-trajectory-tick--contact"
-            :x="sample.point.x - view.visual.trajectoryRadius"
-            :y="sample.point.y - view.visual.trajectoryRadius"
-            :width="view.visual.trajectoryRadius * 2"
-            :height="view.visual.trajectoryRadius * 2"
-            :transform="`rotate(45 ${sample.point.x} ${sample.point.y})`"
-          />
-          <circle
-            v-else
-            class="topdown-trajectory-tick"
-            :cx="sample.point.x"
-            :cy="sample.point.y"
-            :r="view.visual.trajectoryRadius"
-          />
-        </template>
-        <path
-          v-if="view.trajectoryEnd"
-          class="topdown-trajectory-end"
-          :class="{
-            'topdown-trajectory-end--truncated': view.scene.trajectoryStatus === 'truncated',
-          }"
-          :d="`M ${view.trajectoryEnd.x - view.visual.endMarkerArm} ${view.trajectoryEnd.y - view.visual.endMarkerArm} L ${view.trajectoryEnd.x + view.visual.endMarkerArm} ${view.trajectoryEnd.y + view.visual.endMarkerArm} M ${view.trajectoryEnd.x - view.visual.endMarkerArm} ${view.trajectoryEnd.y + view.visual.endMarkerArm} L ${view.trajectoryEnd.x + view.visual.endMarkerArm} ${view.trajectoryEnd.y - view.visual.endMarkerArm}`"
-        />
 
         <line
           class="topdown-feet-axis"
@@ -765,7 +826,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           :y="view.launchLabel.y"
           :text-anchor="view.launchLabel.anchor"
         >
-          {{ t('sulfurCube.scene.launchVector') }}
+          {{ t('sulfurCube.topDown.launchDirection') }}
         </text>
 
         <g
@@ -860,11 +921,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
       </span>
       <span>
         <i class="topdown-swatch topdown-swatch--launch" />
-        {{ t('sulfurCube.scene.launchLegend') }}
-      </span>
-      <span>
-        <i class="topdown-swatch topdown-swatch--trajectory" />
-        {{ t('sulfurCube.scene.legendTrajectory') }}
+        {{ t('sulfurCube.topDown.launchDirection') }}
       </span>
     </div>
 
@@ -887,7 +944,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
   --topdown-cube: #f2a900;
   --topdown-aim: #00a3d7;
   --topdown-launch: #00a000;
-  --topdown-trajectory: #67b94b;
   --topdown-adjustment: #d33682;
   --topdown-grab-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
     8 7;
@@ -989,7 +1045,7 @@ figcaption {
 }
 .topdown-metrics {
   fill: var(--topdown-ink);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   pointer-events: none;
 }
@@ -1001,6 +1057,9 @@ figcaption {
 }
 .topdown-metric-value--cube {
   fill: #9c6900;
+}
+.topdown-metric-value--neutral {
+  fill: var(--topdown-ink);
 }
 .topdown-reach-warning {
   fill: var(--color-error, #b32424);
@@ -1076,22 +1135,6 @@ figcaption {
   font-weight: 700;
   pointer-events: none;
 }
-.topdown-trajectory-tick {
-  fill: color-mix(in srgb, var(--topdown-trajectory) 44%, transparent);
-  pointer-events: none;
-}
-.topdown-trajectory-tick--contact {
-  fill: color-mix(in srgb, var(--topdown-launch) 82%, transparent);
-}
-.topdown-trajectory-end {
-  fill: none;
-  stroke: var(--topdown-launch);
-  stroke-width: var(--topdown-stroke-regular);
-  pointer-events: none;
-}
-.topdown-trajectory-end--truncated {
-  opacity: 0.55;
-}
 .marker-blue {
   fill: var(--topdown-aim);
 }
@@ -1161,9 +1204,6 @@ figcaption {
 }
 .topdown-swatch--launch {
   color: var(--topdown-launch);
-}
-.topdown-swatch--trajectory {
-  color: var(--topdown-trajectory);
 }
 .topdown-figure figcaption {
   width: 100%;

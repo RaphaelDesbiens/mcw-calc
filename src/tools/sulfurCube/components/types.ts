@@ -27,3 +27,13 @@ export interface PlayerMeleeFormState {
   readonly criticalHitConditions: boolean
   readonly knockbackEnchantmentLevel: 0 | 1 | 2
 }
+
+export interface SceneAttackSummary {
+  readonly weaponLabel: string
+  readonly attackStrengthPercent: number
+  readonly knockbackLabel: string | null
+  readonly sprinting: boolean
+  readonly criticalHit: boolean
+}
+
+export type SceneResetOption = 'everything' | 'positionsAim' | 'archetype' | 'weapon' | 'floor'
