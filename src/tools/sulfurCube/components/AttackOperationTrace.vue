@@ -77,6 +77,42 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
         <dd>{{ formatNumber(diagnostics.effectiveAttackDamage) }}</dd>
       </div>
       <div>
+        <dt>{{ t('sulfurCube.attack.trace.effectiveSpeed') }}</dt>
+        <dd>{{ formatNumber(evaluation.weaponPreset.effectiveAttackSpeed.value) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.recoveryTicks') }}</dt>
+        <dd>{{ formatNumber(evaluation.weaponPreset.recoveryPeriodTicks.value) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.attackStrengthSquared') }}</dt>
+        <dd>{{ formatNumber(diagnostics.attackStrengthSquared) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.baseDamageScale') }}</dt>
+        <dd>{{ formatNumber(diagnostics.baseDamageScale) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.scaledBaseDamage') }}</dt>
+        <dd>{{ formatNumber(diagnostics.scaledBaseDamage) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.sharpnessBonus') }}</dt>
+        <dd>{{ formatNumber(diagnostics.damageEnchantmentBonus) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.scaledSharpnessBonus') }}</dt>
+        <dd>{{ formatNumber(diagnostics.magicBoost) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.baseBeforeCritical') }}</dt>
+        <dd>{{ formatNumber(diagnostics.baseDamageBeforeCritical) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.damageAfterCritical') }}</dt>
+        <dd>{{ formatNumber(diagnostics.damageAfterCritical) }}</dd>
+      </div>
+      <div>
         <dt>{{ t('sulfurCube.attack.trace.damage') }}</dt>
         <dd>{{ formatNumber(diagnostics.damageArgument) }}</dd>
       </div>
@@ -87,6 +123,26 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
       <div>
         <dt>{{ t('sulfurCube.attack.trace.critical') }}</dt>
         <dd>{{ diagnostics.critical ? t('sulfurCube.yes') : t('sulfurCube.no') }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.healthDamageApplied') }}</dt>
+        <dd>{{ diagnostics.healthDamageApplied ? t('sulfurCube.yes') : t('sulfurCube.no') }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.enchantmentKnockbackAddition') }}</dt>
+        <dd>{{ formatNumber(diagnostics.enchantmentKnockbackAddition) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.knockbackBeforeHalving') }}</dt>
+        <dd>{{ formatNumber(diagnostics.knockbackBeforeHalving) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.knockbackAfterHalving') }}</dt>
+        <dd>{{ formatNumber(diagnostics.knockbackAfterHalving) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.attack.trace.sprintKnockbackBonus') }}</dt>
+        <dd>{{ formatNumber(diagnostics.sprintKnockbackBonus) }}</dd>
       </div>
       <div>
         <dt>{{ t('sulfurCube.attack.trace.combinedKnockback') }}</dt>

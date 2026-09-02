@@ -87,6 +87,7 @@ export interface PlayerMeleeMechanicsParameters {
   readonly knockbackDivisor: number
   readonly sprintKnockbackBonus: number
   readonly knockbackPerEnchantmentLevel: number
+  readonly maximumDecodedEnchantmentLevel: number
   readonly degreesToRadians: number
 }
 
@@ -249,6 +250,15 @@ function validateConfiguration(
       path: 'knockbackEnchantmentLevel',
       code: 'outOfRange',
       message: 'knockbackEnchantmentLevel must not be negative',
+    })
+  } else if (
+    Number.isInteger(configuration.knockbackEnchantmentLevel) &&
+    configuration.knockbackEnchantmentLevel > mechanics.maximumDecodedEnchantmentLevel
+  ) {
+    issues.push({
+      path: 'knockbackEnchantmentLevel',
+      code: 'outOfRange',
+      message: `knockbackEnchantmentLevel must not exceed ${mechanics.maximumDecodedEnchantmentLevel}`,
     })
   }
 

@@ -54,10 +54,16 @@ export type {
 export {
   je26_2PlayerMeleeWeaponPresetOrder,
   je26_2PlayerMeleeWeaponPresets,
+  je26_2ToolMaterialOrder,
+  resolveJe26_2PlayerMeleeWeaponPreset,
 } from './playerMeleePresets'
 export type {
   Je26_2PlayerMeleeWeaponPreset,
   Je26_2PlayerMeleeWeaponPresetId,
+  Je26_2PlayerMeleeWeaponType,
+  Je26_2ToolMaterialId,
+  Je26_2WeaponEnchantmentAvailability,
+  PlayerMeleeWeaponChoice,
 } from './playerMeleePresets'
 export { provenance } from './provenance'
 export type { ProvenanceId, ProvenanceRecord, SourcedValue } from './provenance'

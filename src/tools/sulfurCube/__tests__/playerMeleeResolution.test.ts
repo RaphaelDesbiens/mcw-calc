@@ -207,6 +207,22 @@ describe('primary player melee attack resolution', () => {
     })
   })
 
+  it('rejects normalized Knockback levels above the decoded item-enchantment limit', () => {
+    const resolution = resolveAttackConfiguration(
+      createPrimaryPlayerMeleeConfiguration({ knockbackEnchantmentLevel: 256 }),
+      createAcceptedPlayerMeleeContext(),
+      standardNumerics,
+    )
+
+    expect(resolution.status).toBe('invalid')
+    if (resolution.status !== 'invalid') return
+    expect(resolution.issues).toContainEqual({
+      path: 'knockbackEnchantmentLevel',
+      code: 'outOfRange',
+      message: 'knockbackEnchantmentLevel must not exceed 255',
+    })
+  })
+
   it.each<DeferredPlayerAttackFamily>([
     'playerSweep',
     'playerStab',

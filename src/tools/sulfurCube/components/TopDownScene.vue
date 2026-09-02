@@ -104,9 +104,10 @@ const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
 const metricsPanelHeight = computed(() => {
   const attack = props.attackSummary
 
-  if (attack?.criticalHit) return 235
-  if (attack?.sprinting) return 214
-  if (attack?.knockbackLabel) return 193
+  if (attack?.criticalHit) return 256
+  if (attack?.sprinting) return 235
+  if (attack?.knockbackLabel) return 214
+  if (attack?.sharpnessLabel) return 193
   if (
     attack !== null &&
     attack !== undefined &&
@@ -195,9 +196,10 @@ const view = computed(() => {
     archetypeY: 103,
     weaponY: 138,
     attackStrengthY: 159,
-    knockbackY: 180,
-    sprintingY: 201,
-    criticalHitY: 222,
+    sharpnessY: 180,
+    knockbackY: 201,
+    sprintingY: 222,
+    criticalHitY: 243,
     aimErrorDegrees: ((scene.aimErrorRadians * 180) / Math.PI).toFixed(1),
     launchOffsetDegrees: ((scene.launchOffsetRadians * 180) / Math.PI).toFixed(1),
   }
@@ -794,6 +796,13 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
                 <tspan class="topdown-metric-value topdown-metric-value--neutral">
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
+              </text>
+              <text
+                v-if="attackSummary.sharpnessLabel"
+                :x="view.metrics.x"
+                :y="view.metrics.sharpnessY"
+              >
+                {{ attackSummary.sharpnessLabel }}
               </text>
               <text
                 v-if="attackSummary.knockbackLabel"

@@ -136,9 +136,10 @@ const sceneSizeButtonLabel = computed(() =>
 const metricsPanelHeight = computed(() => {
   const attack = props.attackSummary
 
-  if (attack?.criticalHit) return 340
-  if (attack?.sprinting) return 319
-  if (attack?.knockbackLabel) return 298
+  if (attack?.criticalHit) return 361
+  if (attack?.sprinting) return 340
+  if (attack?.knockbackLabel) return 319
+  if (attack?.sharpnessLabel) return 298
   if (
     attack !== null &&
     attack !== undefined &&
@@ -267,9 +268,10 @@ const view = computed(() => {
     floorY: 222,
     weaponY: 243,
     attackStrengthY: 264,
-    knockbackY: 285,
-    sprintingY: 306,
-    criticalHitY: 327,
+    sharpnessY: 285,
+    knockbackY: 306,
+    sprintingY: 327,
+    criticalHitY: 348,
     speed: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
     distance: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
     firstBounce:
@@ -1036,6 +1038,13 @@ function formatCoordinate(value: number): string {
                 <tspan class="scene-metric-value scene-metric-value--neutral">
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
+              </text>
+              <text
+                v-if="attackSummary.sharpnessLabel"
+                :x="view.sceneMetrics.x"
+                :y="view.sceneMetrics.sharpnessY"
+              >
+                {{ attackSummary.sharpnessLabel }}
               </text>
               <text
                 v-if="attackSummary.knockbackLabel"

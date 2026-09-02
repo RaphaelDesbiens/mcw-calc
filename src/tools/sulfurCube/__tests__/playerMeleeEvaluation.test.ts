@@ -8,32 +8,37 @@ import {
   evaluatePlayerMeleeInputs,
   findDefaultPlayerMeleeTrajectoryTicks,
   resolvePlayerMeleeVanillaSurvivalAvailability,
+  resolveSharpnessDamageBonus,
 } from '../presets/playerMelee'
 
 describe('full-tool primary player melee evaluation', () => {
   it('distinguishes mechanically evaluable settings from vanilla-Survival availability', () => {
     expect(
       resolvePlayerMeleeVanillaSurvivalAvailability({
-        weaponPresetId: 'bareHand',
-        knockbackEnchantmentLevel: 2,
+        weapon: { type: 'bareHand' },
+        sharpness: { enabled: false },
+        knockback: { enabled: true, level: 2 },
       }),
     ).toEqual({
+      status: 'synthetic',
       obtainable: false,
       issues: [
         {
-          code: 'unsupportedKnockbackForWeapon',
+          code: 'enchantmentWithoutItem',
+          enchantment: 'knockback',
           weaponPresetId: 'bareHand',
           selectedLevel: 2,
-          maximumLevel: 0,
+          maximumLevel: 2,
         },
       ],
     })
     expect(
       resolvePlayerMeleeVanillaSurvivalAvailability({
-        weaponPresetId: 'ironSword',
-        knockbackEnchantmentLevel: 2,
+        weapon: { type: 'sword', material: 'iron' },
+        sharpness: { enabled: false },
+        knockback: { enabled: true, level: 2 },
       }),
-    ).toEqual({ obtainable: true, issues: [] })
+    ).toEqual({ status: 'ordinarySurvival', obtainable: true, issues: [] })
   })
 
   it('preserves the existing one-call launch for the default bare-hand attack', () => {
@@ -55,9 +60,9 @@ describe('full-tool primary player melee evaluation', () => {
       diagnosticInputs,
       {
         ...createDefaultPlayerMeleeInputs(),
-        weaponPresetId: 'ironSword',
+        weapon: { type: 'sword', material: 'iron' },
         sprinting: true,
-        knockbackEnchantmentLevel: 2,
+        knockback: { enabled: true, level: 2 },
       },
       deriveMinecraftYawDegreesFromAim(diagnosticInputs, 0),
     )
@@ -90,7 +95,7 @@ describe('full-tool primary player melee evaluation', () => {
       diagnosticInputs,
       {
         ...createDefaultPlayerMeleeInputs(),
-        weaponPresetId: 'ironSword',
+        weapon: { type: 'sword', material: 'iron' },
         criticalHitConditions: true,
       },
       yaw,
@@ -99,7 +104,7 @@ describe('full-tool primary player melee evaluation', () => {
       diagnosticInputs,
       {
         ...createDefaultPlayerMeleeInputs(),
-        weaponPresetId: 'ironSword',
+        weapon: { type: 'sword', material: 'iron' },
         criticalHitConditions: true,
         sprinting: true,
       },
@@ -132,13 +137,35 @@ describe('full-tool primary player melee evaluation', () => {
     ).toBe(-37.5)
   })
 
+  it('produces and strength-scales the Sharpness bonus without critical multiplication', () => {
+    const diagnosticInputs = createMilestone1DefaultInputs()
+    const evaluation = evaluatePlayerMeleeInputs(
+      diagnosticInputs,
+      {
+        ...createDefaultPlayerMeleeInputs(),
+        weapon: { type: 'axe', material: 'netherite' },
+        attackStrength: 0.5,
+        sharpness: { enabled: true, level: 5 },
+      },
+      deriveMinecraftYawDegreesFromAim(diagnosticInputs, 0),
+    )
+
+    expect(resolveSharpnessDamageBonus({ enabled: true, level: 5 })).toBe(3)
+    expect(evaluation.attackResolution.diagnostics).toMatchObject({
+      effectiveAttackDamage: 10,
+      damageEnchantmentBonus: 3,
+      magicBoost: 1.5,
+      damageArgument: 5.5,
+    })
+  })
+
   it('finds settlement from the cumulative velocity', () => {
     const inputs = createMilestone1DefaultInputs()
     const meleeInputs = {
       ...createDefaultPlayerMeleeInputs(),
-      weaponPresetId: 'ironSword' as const,
+      weapon: { type: 'sword' as const, material: 'iron' as const },
       sprinting: true,
-      knockbackEnchantmentLevel: 2 as const,
+      knockback: { enabled: true as const, level: 2 },
     }
     const yaw = deriveMinecraftYawDegreesFromAim(inputs, 0)
     const tickCount = findDefaultPlayerMeleeTrajectoryTicks(inputs, meleeInputs, yaw)

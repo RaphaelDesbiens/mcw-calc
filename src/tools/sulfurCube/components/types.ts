@@ -1,4 +1,8 @@
-import type { Je26_2UniformFloorProfileId } from '../data/je26_2'
+import type {
+  Je26_2PlayerMeleeWeaponType,
+  Je26_2ToolMaterialId,
+  Je26_2UniformFloorProfileId,
+} from '../data/je26_2'
 
 export type NumericFormValue = string | number
 
@@ -21,16 +25,22 @@ export interface DiagnosticFormState {
 }
 
 export interface PlayerMeleeFormState {
-  readonly weaponPresetId: 'bareHand' | 'ironSword'
+  readonly weaponType: Je26_2PlayerMeleeWeaponType
+  /** Preserved while Bare hand is selected so changing back restores the material. */
+  readonly weaponMaterial: Je26_2ToolMaterialId
   readonly attackStrengthPercent: NumericFormValue
   readonly sprinting: boolean
   readonly criticalHitConditions: boolean
-  readonly knockbackEnchantmentLevel: 0 | 1 | 2
+  readonly sharpnessEnabled: boolean
+  readonly sharpnessLevel: NumericFormValue
+  readonly knockbackEnabled: boolean
+  readonly knockbackLevel: NumericFormValue
 }
 
 export interface SceneAttackSummary {
   readonly weaponLabel: string
   readonly attackStrengthPercent: number
+  readonly sharpnessLabel: string | null
   readonly knockbackLabel: string | null
   readonly sprinting: boolean
   readonly criticalHit: boolean

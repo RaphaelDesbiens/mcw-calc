@@ -176,18 +176,25 @@ const sceneAttackSummary = computed<SceneAttackSummary | null>(() => {
   }
 
   const inputs = current?.playerMeleeInputs ?? defaultPlayerMeleeInputs
-  const knockbackLabel =
-    inputs.knockbackEnchantmentLevel === 0
-      ? null
-      : t(
-          inputs.knockbackEnchantmentLevel === 1
-            ? 'sulfurCube.attack.knockback.one'
-            : 'sulfurCube.attack.knockback.two',
-        )
+  const weaponPreset = current?.weaponPreset
+  const weaponPresetId = weaponPreset?.id ?? 'bareHand'
+  const sharpnessLabel = inputs.sharpness.enabled
+    ? t('sulfurCube.attack.enchantmentWithLevel', {
+        enchantment: t('sulfurCube.attack.sharpness'),
+        level: inputs.sharpness.level,
+      })
+    : null
+  const knockbackLabel = inputs.knockback.enabled
+    ? t('sulfurCube.attack.enchantmentWithLevel', {
+        enchantment: t('sulfurCube.attack.knockback'),
+        level: inputs.knockback.level,
+      })
+    : null
 
   return {
-    weaponLabel: t(`sulfurCube.attack.weapon.${inputs.weaponPresetId}`),
+    weaponLabel: t(`sulfurCube.attack.weapon.${weaponPresetId}`),
     attackStrengthPercent: inputs.attackStrength * 100,
+    sharpnessLabel,
     knockbackLabel,
     sprinting: inputs.sprinting,
     criticalHit: inputs.criticalHitConditions,

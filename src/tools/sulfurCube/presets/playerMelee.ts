@@ -1,4 +1,8 @@
-import type { Je26_2PlayerMeleeWeaponPresetId } from '../data/je26_2'
+import type {
+  Je26_2PlayerMeleeWeaponPreset,
+  Je26_2PlayerMeleeWeaponPresetId,
+  PlayerMeleeWeaponChoice,
+} from '../data/je26_2'
 import type { CubeLaunchProperties, VelocityOperationSequenceResult } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
 import type {
@@ -9,8 +13,9 @@ import type {
 import type { DiagnosticEvaluation, DiagnosticInputs } from './diagnostic'
 import {
   je26_2KnockbackMechanics,
-  je26_2PlayerMeleeWeaponPresets,
+  je26_2PlayerMeleeMechanics,
   je26_2UniformFloorProfiles,
+  resolveJe26_2PlayerMeleeWeaponPreset,
 } from '../data/je26_2'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
 import { simulateRepeatedUniformFloorTrajectory } from '../model/trajectory'
@@ -24,33 +29,57 @@ import {
 } from './milestone1'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
 
+export type PlayerMeleeEnchantmentSelection =
+  | { readonly enabled: false }
+  | { readonly enabled: true; readonly level: number }
+
 export interface PlayerMeleeInputs {
-  readonly weaponPresetId: Je26_2PlayerMeleeWeaponPresetId
+  readonly weapon: PlayerMeleeWeaponChoice
   /** Normalized cooldown strength in the inclusive range 0 to 1. */
   readonly attackStrength: number
   readonly sprinting: boolean
   /** Requests the standard airborne/falling eligibility state; the resolver still derives success. */
   readonly criticalHitConditions: boolean
-  readonly knockbackEnchantmentLevel: 0 | 1 | 2
+  readonly sharpness: PlayerMeleeEnchantmentSelection
+  readonly knockback: PlayerMeleeEnchantmentSelection
 }
 
 export interface PlayerMeleeEvaluation extends DiagnosticEvaluation {
   readonly kind: 'primaryPlayerMelee'
   readonly playerMeleeInputs: PlayerMeleeInputs
+  readonly weaponPreset: Je26_2PlayerMeleeWeaponPreset
+  readonly resolvedEnchantments: ResolvedOrdinaryMeleeEnchantments
+  readonly availability: PlayerMeleeVanillaSurvivalAvailability
   readonly attackConfiguration: PrimaryPlayerMeleeAttackConfiguration
   readonly attackResolution: SuccessfulAttackResolution
   readonly operationSequence: VelocityOperationSequenceResult
   readonly attackerYawDegrees: number
 }
 
+export interface ResolvedOrdinaryMeleeEnchantments {
+  readonly sharpnessEnabled: boolean
+  readonly sharpnessLevel: number | null
+  readonly sharpnessBonus: number
+  readonly knockbackEnabled: boolean
+  readonly knockbackLevel: number | null
+  readonly enchantmentKnockbackAddition: number
+}
+
 export interface PlayerMeleeVanillaSurvivalIssue {
-  readonly code: 'unsupportedKnockbackForWeapon'
+  readonly code:
+    | 'enchantmentWithoutItem'
+    | 'unsupportedEnchantmentForWeapon'
+    | 'aboveVanillaSurvivalMaximum'
+    | 'invalidEnchantmentLevel'
+  readonly enchantment: 'sharpness' | 'knockback'
   readonly weaponPresetId: Je26_2PlayerMeleeWeaponPresetId
-  readonly selectedLevel: 1 | 2
-  readonly maximumLevel: 0 | 1 | 2
+  readonly selectedLevel: number
+  readonly maximumLevel: number
 }
 
 export interface PlayerMeleeVanillaSurvivalAvailability {
+  /** Unsupported is reserved for later attack families; primary melee returns the other states. */
+  readonly status: 'ordinarySurvival' | 'synthetic' | 'invalid' | 'unsupported'
   readonly obtainable: boolean
   readonly issues: readonly PlayerMeleeVanillaSurvivalIssue[]
 }
@@ -77,37 +106,134 @@ const airborneEligibility: PlayerCriticalEligibilityState = {
 
 export function createDefaultPlayerMeleeInputs(): PlayerMeleeInputs {
   return {
-    weaponPresetId: 'bareHand',
+    weapon: { type: 'bareHand' },
     attackStrength: 1,
     sprinting: false,
     criticalHitConditions: false,
-    knockbackEnchantmentLevel: 0,
+    sharpness: { enabled: false },
+    knockback: { enabled: false },
   }
 }
 
 export function resolvePlayerMeleeVanillaSurvivalAvailability(
-  inputs: Pick<PlayerMeleeInputs, 'weaponPresetId' | 'knockbackEnchantmentLevel'>,
+  inputs: Pick<PlayerMeleeInputs, 'weapon' | 'sharpness' | 'knockback'>,
 ): PlayerMeleeVanillaSurvivalAvailability {
-  const weapon = je26_2PlayerMeleeWeaponPresets[inputs.weaponPresetId]
+  const weapon = resolveJe26_2PlayerMeleeWeaponPreset(inputs.weapon)
+  const issues: PlayerMeleeVanillaSurvivalIssue[] = []
+  const declaredMaximumLevels = {
+    sharpness: je26_2PlayerMeleeMechanics.ordinarySurvivalSharpnessMaximum,
+    knockback: je26_2PlayerMeleeMechanics.ordinarySurvivalKnockbackMaximum,
+  } as const
 
-  if (weapon === undefined) {
-    return { obtainable: false, issues: [] }
+  for (const enchantment of ['sharpness', 'knockback'] as const) {
+    const selected = inputs[enchantment]
+    if (!selected.enabled) continue
+
+    const maximumLevel = declaredMaximumLevels[enchantment]
+    if (
+      !Number.isInteger(selected.level) ||
+      selected.level < 1 ||
+      selected.level > je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel
+    ) {
+      issues.push({
+        code: 'invalidEnchantmentLevel',
+        enchantment,
+        weaponPresetId: weapon.id,
+        selectedLevel: selected.level,
+        maximumLevel,
+      })
+      continue
+    }
+
+    if (weapon.weaponType === 'bareHand') {
+      issues.push({
+        code: 'enchantmentWithoutItem',
+        enchantment,
+        weaponPresetId: weapon.id,
+        selectedLevel: selected.level,
+        maximumLevel,
+      })
+    } else if (!weapon[enchantment].anvilSupported.value) {
+      issues.push({
+        code: 'unsupportedEnchantmentForWeapon',
+        enchantment,
+        weaponPresetId: weapon.id,
+        selectedLevel: selected.level,
+        maximumLevel,
+      })
+    }
+
+    if (selected.level > maximumLevel) {
+      issues.push({
+        code: 'aboveVanillaSurvivalMaximum',
+        enchantment,
+        weaponPresetId: weapon.id,
+        selectedLevel: selected.level,
+        maximumLevel,
+      })
+    }
   }
 
-  const maximumLevel = weapon.maximumVanillaSurvivalKnockbackLevel.value
-  const issues: PlayerMeleeVanillaSurvivalIssue[] =
-    inputs.knockbackEnchantmentLevel > maximumLevel
-      ? [
-          {
-            code: 'unsupportedKnockbackForWeapon',
-            weaponPresetId: inputs.weaponPresetId,
-            selectedLevel: inputs.knockbackEnchantmentLevel as 1 | 2,
-            maximumLevel,
-          },
-        ]
-      : []
+  const invalid = issues.some((issue) => issue.code === 'invalidEnchantmentLevel')
+  return {
+    status: invalid ? 'invalid' : issues.length > 0 ? 'synthetic' : 'ordinarySurvival',
+    obtainable: issues.length === 0,
+    issues,
+  }
+}
 
-  return { obtainable: issues.length === 0, issues }
+export function resolveSharpnessDamageBonus(
+  selection: PlayerMeleeEnchantmentSelection,
+  numerics: NumericBackend = standardNumerics,
+): number {
+  if (!selection.enabled) return 0
+  assertValidEnabledEnchantment(selection, 'Sharpness')
+
+  return numerics.sourceFloat(
+    je26_2PlayerMeleeMechanics.sharpnessFirstLevelDamageAddition +
+      numerics.sourceFloat(
+        je26_2PlayerMeleeMechanics.sharpnessAdditionalLevelDamageAddition * (selection.level - 1),
+      ),
+  )
+}
+
+function assertValidEnabledEnchantment(
+  selection: PlayerMeleeEnchantmentSelection,
+  name: string,
+): void {
+  if (!selection.enabled) return
+  if (
+    !Number.isInteger(selection.level) ||
+    selection.level < 1 ||
+    selection.level > je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel
+  ) {
+    throw new RangeError(
+      `enabled ${name} level must be an integer from 1 to ${je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel}`,
+    )
+  }
+}
+
+export function resolveOrdinaryMeleeEnchantments(
+  inputs: Pick<PlayerMeleeInputs, 'sharpness' | 'knockback'>,
+  numerics: NumericBackend = standardNumerics,
+): ResolvedOrdinaryMeleeEnchantments {
+  const sharpnessBonus = resolveSharpnessDamageBonus(inputs.sharpness, numerics)
+  assertValidEnabledEnchantment(inputs.knockback, 'Knockback')
+  const knockbackLevel = inputs.knockback.enabled ? inputs.knockback.level : null
+
+  return {
+    sharpnessEnabled: inputs.sharpness.enabled,
+    sharpnessLevel: inputs.sharpness.enabled ? inputs.sharpness.level : null,
+    sharpnessBonus,
+    knockbackEnabled: inputs.knockback.enabled,
+    knockbackLevel,
+    enchantmentKnockbackAddition:
+      knockbackLevel === null
+        ? 0
+        : numerics.sourceFloat(
+            knockbackLevel * je26_2PlayerMeleeMechanics.knockbackPerEnchantmentLevel,
+          ),
+  }
 }
 
 export function deriveMinecraftYawDegreesFromAim(
@@ -133,22 +259,26 @@ export function deriveMinecraftYawDegreesFromAim(
 export function createPrimaryPlayerMeleeConfiguration(
   inputs: PlayerMeleeInputs,
   attackerYawDegrees: number,
+  numerics: NumericBackend = standardNumerics,
 ): PrimaryPlayerMeleeAttackConfiguration {
-  const weapon = je26_2PlayerMeleeWeaponPresets[inputs.weaponPresetId]
-
-  if (weapon === undefined) {
-    throw new RangeError(`unknown player melee weapon preset: ${inputs.weaponPresetId}`)
+  const weapon = resolveJe26_2PlayerMeleeWeaponPreset(inputs.weapon)
+  const availability = resolvePlayerMeleeVanillaSurvivalAvailability(inputs)
+  if (availability.status === 'invalid') {
+    throw new RangeError(
+      `enabled enchantment levels must be integers from 1 to ${je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel}`,
+    )
   }
+  const enchantments = resolveOrdinaryMeleeEnchantments(inputs, numerics)
 
   return {
     family: 'primaryPlayerMelee',
     effectiveAttackDamage: weapon.effectiveAttackDamage.value,
-    damageEnchantmentBonus: 0,
+    damageEnchantmentBonus: enchantments.sharpnessBonus,
     itemSpecificDamageBonus: 0,
     attackStrength: inputs.attackStrength,
     sprinting: inputs.sprinting,
     effectiveAttackKnockback: weapon.effectiveAttackKnockback.value,
-    knockbackEnchantmentLevel: inputs.knockbackEnchantmentLevel,
+    knockbackEnchantmentLevel: enchantments.knockbackLevel ?? 0,
     criticalEligibility: inputs.criticalHitConditions ? airborneEligibility : groundedEligibility,
     attackerYawDegrees,
   }
@@ -165,6 +295,7 @@ export function evaluatePlayerMeleeInputs(
   const attackConfiguration = createPrimaryPlayerMeleeConfiguration(
     playerMeleeInputs,
     attackerYawDegrees,
+    numerics,
   )
   const attackResolution = resolveAttackConfiguration(attackConfiguration, context, numerics)
 
@@ -222,6 +353,9 @@ export function evaluatePlayerMeleeInputs(
       numerics,
     ),
     playerMeleeInputs: { ...playerMeleeInputs },
+    weaponPreset: resolveJe26_2PlayerMeleeWeaponPreset(playerMeleeInputs.weapon),
+    resolvedEnchantments: resolveOrdinaryMeleeEnchantments(playerMeleeInputs, numerics),
+    availability: resolvePlayerMeleeVanillaSurvivalAvailability(playerMeleeInputs),
     attackConfiguration,
     attackResolution,
     operationSequence,

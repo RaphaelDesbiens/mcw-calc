@@ -2,7 +2,7 @@ import type { Vec3 } from '../model/types'
 import type { DiagnosticInputs } from '../presets/diagnostic'
 import type { PlayerMeleeInputs } from '../presets/playerMelee'
 import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
-import { je26_2Constants } from '../data/je26_2'
+import { je26_2Constants, je26_2PlayerMeleeMechanics } from '../data/je26_2'
 import { parseNumericInput } from '../presentation/numericInput'
 
 function stringifyNumber(value: number): string {
@@ -11,11 +11,15 @@ function stringifyNumber(value: number): string {
 
 export function createPlayerMeleeFormState(inputs: PlayerMeleeInputs): PlayerMeleeFormState {
   return {
-    weaponPresetId: inputs.weaponPresetId,
+    weaponType: inputs.weapon.type,
+    weaponMaterial: inputs.weapon.type === 'bareHand' ? 'iron' : inputs.weapon.material,
     attackStrengthPercent: stringifyNumber(inputs.attackStrength * 100),
     sprinting: inputs.sprinting,
     criticalHitConditions: inputs.criticalHitConditions,
-    knockbackEnchantmentLevel: inputs.knockbackEnchantmentLevel,
+    sharpnessEnabled: inputs.sharpness.enabled,
+    sharpnessLevel: inputs.sharpness.enabled ? stringifyNumber(inputs.sharpness.level) : '1',
+    knockbackEnabled: inputs.knockback.enabled,
+    knockbackLevel: inputs.knockback.enabled ? stringifyNumber(inputs.knockback.level) : '1',
   }
 }
 
@@ -26,16 +30,36 @@ export function parsePlayerMeleeFormState(state: PlayerMeleeFormState): PlayerMe
     throw new RangeError('attackStrengthPercent must be between 0 and 100')
   }
 
-  if (![0, 1, 2].includes(state.knockbackEnchantmentLevel)) {
-    throw new RangeError('knockbackEnchantmentLevel must be 0, 1, or 2')
+  const parseEnchantment = (
+    enabled: boolean,
+    value: NumericFormValue,
+    field: string,
+  ): PlayerMeleeInputs['sharpness'] => {
+    if (!enabled) return { enabled: false }
+
+    const level = parseNumber(value, field)
+    if (
+      !Number.isInteger(level) ||
+      level < 1 ||
+      level > je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel
+    ) {
+      throw new RangeError(
+        `${field} must be an integer from 1 to ${je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel}`,
+      )
+    }
+    return { enabled: true, level }
   }
 
   return {
-    weaponPresetId: state.weaponPresetId,
+    weapon:
+      state.weaponType === 'bareHand'
+        ? { type: 'bareHand' }
+        : { type: state.weaponType, material: state.weaponMaterial },
     attackStrength: attackStrengthPercent / 100,
     sprinting: state.sprinting,
     criticalHitConditions: state.criticalHitConditions,
-    knockbackEnchantmentLevel: state.knockbackEnchantmentLevel,
+    sharpness: parseEnchantment(state.sharpnessEnabled, state.sharpnessLevel, 'sharpnessLevel'),
+    knockback: parseEnchantment(state.knockbackEnabled, state.knockbackLevel, 'knockbackLevel'),
   }
 }
 

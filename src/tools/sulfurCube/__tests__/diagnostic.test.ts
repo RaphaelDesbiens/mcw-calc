@@ -190,16 +190,20 @@ describe('stage 3 diagnostic orchestration', () => {
   it('round-trips and validates the player-melee form boundary', () => {
     const inputs = {
       ...createDefaultPlayerMeleeInputs(),
-      weaponPresetId: 'ironSword' as const,
+      weapon: { type: 'sword' as const, material: 'iron' as const },
       attackStrength: 0.75,
       sprinting: true,
-      knockbackEnchantmentLevel: 2 as const,
+      sharpness: { enabled: true as const, level: 4 },
+      knockback: { enabled: true as const, level: 2 },
     }
     const form = createPlayerMeleeFormState(inputs)
 
     expect(parsePlayerMeleeFormState(form)).toEqual(inputs)
     expect(() => parsePlayerMeleeFormState({ ...form, attackStrengthPercent: 101 })).toThrow(
       /between 0 and 100/,
+    )
+    expect(() => parsePlayerMeleeFormState({ ...form, knockbackLevel: 256 })).toThrow(
+      /integer from 1 to 255/,
     )
   })
 

@@ -505,9 +505,9 @@ describe('top-down scene presentation', () => {
       inputs,
       {
         ...createDefaultPlayerMeleeInputs(),
-        weaponPresetId: 'ironSword',
+        weapon: { type: 'sword', material: 'iron' },
         sprinting: true,
-        knockbackEnchantmentLevel: 2,
+        knockback: { enabled: true, level: 2 },
       },
       deriveMinecraftYawDegreesFromAim(inputs, 0),
     )

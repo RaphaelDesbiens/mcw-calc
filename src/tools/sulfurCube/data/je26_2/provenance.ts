@@ -56,25 +56,34 @@ export const provenance = {
     notes:
       'LivingEntity.getKnockback folds effective ATTACK_KNOCKBACK and enchantments before dividing by two at LivingEntity.java local lines 1540-1544. An eligible sprint contributes 0.5F to the one combined extra-call K.',
   },
+  playerMeleeSharpness: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'extractedData',
+    sourcePath: 'versions/26.2/extracted/data/minecraft/enchantment/sharpness.json',
+    locator: 'minecraft:damage effect LevelBasedValue.Linear base 1 and per_level_above_first 0.5',
+    notes:
+      'Player.attack obtains the enchantment-only damage difference before multiplying it by attack strength. Item enchantment levels decode through 255.',
+  },
   playerMeleeWeaponPresets: {
     edition: 'Java Edition',
     version: '26.2',
     sourceKind: 'decompiledBehavior',
     sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/item/Items.java',
     locator:
-      'iron sword registration (local line 1015); Player base ATTACK_DAMAGE registration is in Player.java local lines 206-208 and sword damage folding is defined by ToolMaterial.java local lines 26 and 97-103',
+      'sword and axe registrations (local lines 981-1043); Player base attributes are in Player.java local lines 206-208; ToolMaterial.java local lines 26 and 97-103 and AxeItem.java local lines 17-24 fold item modifiers',
     notes:
-      'The reader presets expose already-folded effective attributes: bare hand has effective ATTACK_DAMAGE 1, while an iron sword adds 5 for an effective value of 6. Neither preset adds base ATTACK_KNOCKBACK.',
+      'The 15 reader presets expose already-folded main-hand ATTACK_DAMAGE and ATTACK_SPEED attributes. Recovery period is 20 / effective ATTACK_SPEED. None adds base ATTACK_KNOCKBACK.',
   },
-  playerMeleeWeaponAvailability: {
+  playerMeleeEnchantmentAvailability: {
     edition: 'Java Edition',
     version: '26.2',
     sourceKind: 'extractedData',
-    sourcePath: 'versions/26.2/extracted/data/minecraft/enchantment/knockback.json',
+    sourcePath: 'versions/26.2/extracted/data/minecraft/enchantment/',
     locator:
-      'supported_items, slots, and max_level; supported tag minecraft:enchantable/melee_weapon contains #minecraft:swords and #minecraft:spears',
+      'sharpness.json and knockback.json supported_items, primary_items, slots, and max_level; referenced enchantable item tags',
     notes:
-      'Knockback is an active main-hand item enchantment with maximum level 2. An empty hand is not an item in either supported tag, so bare-hand Knockback is unavailable in unmodified vanilla Survival.',
+      'Sharpness I-V is ordinarily supported on swords and axes (axes through anvil application). Knockback I-II is supported on swords, but not axes. Empty-hand enchantments are model-level hypothetical configurations.',
   },
   playerMeleeReach: {
     edition: 'Java Edition',

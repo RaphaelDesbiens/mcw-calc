@@ -34,6 +34,11 @@ export const je26_2Constants = {
   playerMeleeKnockbackDivisor: sourcedValue(2, ['playerMeleeKnockback']),
   playerMeleeSprintKnockbackBonus: sourcedValue(0.5, ['playerMeleeKnockback']),
   playerMeleeKnockbackPerEnchantmentLevel: sourcedValue(1, ['playerMeleeKnockback']),
+  sharpnessFirstLevelDamageAddition: sourcedValue(1, ['playerMeleeSharpness']),
+  sharpnessAdditionalLevelDamageAddition: sourcedValue(0.5, ['playerMeleeSharpness']),
+  maximumDecodedMeleeEnchantmentLevel: sourcedValue(255, ['playerMeleeSharpness']),
+  ordinarySurvivalSharpnessMaximum: sourcedValue(5, ['playerMeleeEnchantmentAvailability']),
+  ordinarySurvivalKnockbackMaximum: sourcedValue(2, ['playerMeleeEnchantmentAvailability']),
   degreesToRadiansFloat: sourcedValue(0.01745329238474369, ['playerMeleeKnockback']),
   ordinarySurvivalPlayerMeleeReach: sourcedValue(3, ['playerMeleeReach']),
   entityRayClipTolerance: sourcedValue(1e-7, ['playerMeleeReach']),
@@ -103,6 +108,12 @@ export const je26_2PlayerMeleeMechanics = Object.freeze({
   knockbackDivisor: je26_2Constants.playerMeleeKnockbackDivisor.value,
   sprintKnockbackBonus: je26_2Constants.playerMeleeSprintKnockbackBonus.value,
   knockbackPerEnchantmentLevel: je26_2Constants.playerMeleeKnockbackPerEnchantmentLevel.value,
+  sharpnessFirstLevelDamageAddition: je26_2Constants.sharpnessFirstLevelDamageAddition.value,
+  sharpnessAdditionalLevelDamageAddition:
+    je26_2Constants.sharpnessAdditionalLevelDamageAddition.value,
+  maximumDecodedEnchantmentLevel: je26_2Constants.maximumDecodedMeleeEnchantmentLevel.value,
+  ordinarySurvivalSharpnessMaximum: je26_2Constants.ordinarySurvivalSharpnessMaximum.value,
+  ordinarySurvivalKnockbackMaximum: je26_2Constants.ordinarySurvivalKnockbackMaximum.value,
   degreesToRadians: je26_2Constants.degreesToRadiansFloat.value,
 })
 
