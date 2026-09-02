@@ -223,13 +223,20 @@ describe('radial scene presentation', () => {
     ).toBeCloseTo(aimArrowLength, 12)
     expect(scene.aimArrowEnd).not.toEqual(scene.aimPoint)
     expect(scene.reach).toEqual(evaluation.reach)
-    const launchSpeed = Math.hypot(0.165, 0.378)
+    const projectedLaunch = projectVectorToRadialPlane(evaluation.launchVelocity, scene.projection)
+    const launchSpeed = Math.hypot(projectedLaunch.x, projectedLaunch.y)
     const expectedDisplayLength = launchVectorDisplayLength(launchSpeed)
 
     expect(scene.launchDisplayLength).toBeCloseTo(expectedDisplayLength, 12)
     expect(Math.hypot(scene.launchEnd.x, scene.launchEnd.y)).toBeCloseTo(expectedDisplayLength, 12)
-    expect(scene.launchEnd.x / scene.launchEnd.y).toBeCloseTo(0.165 / 0.378, 12)
-    expect(scene.launchElevationRadians).toBeCloseTo(Math.atan2(0.378, 0.165), 12)
+    expect(scene.launchEnd.x / scene.launchEnd.y).toBeCloseTo(
+      projectedLaunch.x / projectedLaunch.y,
+      12,
+    )
+    expect(scene.launchElevationRadians).toBeCloseTo(
+      Math.atan2(projectedLaunch.y, Math.abs(projectedLaunch.x)),
+      12,
+    )
     expect(scene.launchElevationArc).toHaveLength(21)
     expect(scene.launchElevationLabelPoint).not.toBeNull()
     expect(
@@ -248,8 +255,8 @@ describe('radial scene presentation', () => {
 
     expect(trajectoryEnd).toEqual(finalTick)
     expect(scene.trajectoryStatus).toBe('truncated')
-    expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(11)
-    expect(scene.firstBounce).toMatchObject({ status: 'reached', tick: 11 })
+    expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(9)
+    expect(scene.firstBounce).toMatchObject({ status: 'reached', tick: 9 })
     expect(scene.trajectoryDistance.horizontalDistance).toBe(
       evaluation.trajectory.horizontalDisplacement,
     )
@@ -279,7 +286,7 @@ describe('radial scene presentation', () => {
     expect(scene.launchDisplayLength).toBeLessThan(launchElevationArcRadius)
     expect(scene.launchElevationArc).toEqual([])
     expect(scene.launchElevationLabelPoint).toBeNull()
-    expect(scene.launchElevationRadians).toBeGreaterThan(0)
+    expect(scene.launchElevationRadians).toBeLessThan(0)
   })
 
   it('anchors the theta arc and label to the attacker-feet angle corner', () => {
@@ -353,11 +360,11 @@ describe('radial scene presentation', () => {
     })
     const scene = createRadialScenePresentation(evaluation)
 
-    expect(scene.renderedTrajectoryTicks).toBe(90)
+    expect(scene.renderedTrajectoryTicks).toBe(77)
     expect(scene.requestedTrajectoryTicks).toBe(200)
-    expect(evaluation.trajectory.ticks).toHaveLength(90)
+    expect(evaluation.trajectory.ticks).toHaveLength(77)
     expect(evaluation.trajectory.status).toBe('settled')
-    expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(11)
+    expect(evaluation.trajectory.firstFloorCollision?.end.tick).toBe(9)
     expect(scene.trajectoryStatus).toBe('settled')
     expect(scene.bounceEventCount).toBeGreaterThan(0)
     expect(scene.airborneContactCount).toBeGreaterThan(1)

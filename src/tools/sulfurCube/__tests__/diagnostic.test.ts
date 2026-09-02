@@ -39,7 +39,7 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(inputs.attackerEyePosition.y).toBeCloseTo(1.32, 12)
     expect(inputs.attackerEyePosition.z).toBe(-2.6)
     expect(inputs.aimPoint).toEqual({ x: 0, y: 0.4, z: 1.7 })
-    expect(inputs.trajectoryTicks).toBe(101)
+    expect(inputs.trajectoryTicks).toBe(80)
     expect(previous.trajectory.status).toBe('truncated')
     expect(current.trajectory.status).toBe('settled')
     expect(current.trajectory.ticks).toHaveLength(inputs.trajectoryTicks)
@@ -66,8 +66,17 @@ describe('stage 3 diagnostic orchestration', () => {
     })
 
     expect(evaluation.launchSummary.horizontalSpeed).toBeCloseTo(0.165, 12)
-    expect(evaluation.launchSummary.totalSpeed).toBeCloseTo(0.41244271, 7)
+    expect(evaluation.launchSummary.totalSpeed).toBeCloseTo(
+      Math.hypot(
+        evaluation.launchVelocity.x,
+        evaluation.launchVelocity.y,
+        evaluation.launchVelocity.z,
+      ),
+      12,
+    )
     expect(evaluation.launchSummary.horizontalDirection).toEqual({ x: 0, y: -1 })
+    expect(evaluation.preAttackVelocity.y).toBeLessThan(0)
+    expect(evaluation.attackAddedVelocity).toEqual(evaluation.callResult.addedVelocity)
     expect(evaluation.launchVelocity).toEqual(evaluation.callResult.resultingVelocity)
     expect(evaluation.trajectory.ticks).toHaveLength(10)
     expect(evaluation.trajectory.endpoint.feetPosition).toEqual(
@@ -84,14 +93,14 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(previous.trajectory.status).toBe('truncated')
     expect(current.trajectory.status).toBe('settled')
     expect(current.trajectory.endpoint.feetPosition.y).toBe(inputs.cubeFeetPosition.y)
-    expect(current.trajectory.firstFloorCollision?.end.tick).toBe(11)
+    expect(current.trajectory.firstFloorCollision?.end.tick).toBe(9)
     expect(findDefaultTrajectoryTicks(getDiagnosticPreset('M8').inputs)).toBeGreaterThan(tickCount)
     expect(
       findDefaultTrajectoryTicks({
         ...createMilestone1DefaultInputs(),
         floorProfileId: 'slime_block',
       }),
-    ).toBe(851)
+    ).toBe(552)
   })
 
   it('keeps the selected uniform floor independent from cube archetype properties', () => {

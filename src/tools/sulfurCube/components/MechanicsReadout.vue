@@ -243,6 +243,30 @@ const finalRows = computed<readonly ReadoutRow[]>(() => {
 
   return [
     {
+      label: t('sulfurCube.readout.preAttackVelocity'),
+      value: formatVector(
+        props.evaluation.preAttackVelocity.x,
+        props.evaluation.preAttackVelocity.y,
+        props.evaluation.preAttackVelocity.z,
+      ),
+    },
+    {
+      label: t('sulfurCube.readout.addedVelocity'),
+      value: formatVector(
+        props.evaluation.attackAddedVelocity.x,
+        props.evaluation.attackAddedVelocity.y,
+        props.evaluation.attackAddedVelocity.z,
+      ),
+    },
+    {
+      label: t('sulfurCube.readout.resultingVelocity'),
+      value: formatVector(
+        props.evaluation.launchVelocity.x,
+        props.evaluation.launchVelocity.y,
+        props.evaluation.launchVelocity.z,
+      ),
+    },
+    {
       label: t('sulfurCube.readout.horizontalBeforeClamp'),
       value: formatNumber(values.horizontalBeforeClamp),
     },

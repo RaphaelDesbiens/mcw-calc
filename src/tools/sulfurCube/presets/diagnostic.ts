@@ -22,6 +22,7 @@ import { standardNumerics } from '../numerics/standard'
 import {
   createBouncyCubeLaunchProperties,
   createMilestone1Context,
+  createRestingGroundVelocity,
   createUniformFloorTrajectoryAssumptions,
 } from './milestone1'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
@@ -47,7 +48,11 @@ export interface DiagnosticEvaluation {
   readonly inputs: DiagnosticInputs
   readonly properties: CubeLaunchProperties
   readonly callResult: KnockbackCallResult
-  /** Complete immediate velocity used by the scene and free-flight continuation. */
+  /** Stored grounded Motion immediately before the attack is processed. */
+  readonly preAttackVelocity: Vec3
+  /** Net velocity added by every ordered operation in the attack. */
+  readonly attackAddedVelocity: Vec3
+  /** Resulting post-hit Motion used by the scenes and trajectory continuation. */
   readonly launchVelocity: Vec3
   readonly trajectory: UniformFloorTrajectoryResult
   readonly launchSummary: LaunchSummary
@@ -268,7 +273,7 @@ export function evaluateDiagnosticInputs(
     throw new RangeError('damageArgument must be finite and nonnegative')
   }
   const context = createDiagnosticKnockbackContext(inputs, numerics, properties)
-  const initialVelocity = { x: 0, y: 0, z: 0 }
+  const initialVelocity = createRestingGroundVelocity(properties, numerics)
   const callResult = applySulfurCubeKnockbackCall(
     initialVelocity,
     {
@@ -311,10 +316,12 @@ export function evaluateDiagnosticInputs(
     },
     properties: { ...properties },
     callResult,
+    preAttackVelocity: { ...initialVelocity },
+    attackAddedVelocity: { ...callResult.addedVelocity },
     launchVelocity: { ...callResult.resultingVelocity },
     trajectory,
     launchSummary: summarizeLaunchVelocity(
-      callResult.addedVelocity,
+      callResult.resultingVelocity,
       je26_2KnockbackMechanics.vectorNormalizationThreshold,
       numerics,
     ),

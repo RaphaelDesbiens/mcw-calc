@@ -1,6 +1,8 @@
+import type { NumericBackend } from '../numerics/types'
 import { describe, expect, it } from 'vitest'
 import {
   bouncyArchetype,
+  je26_2ArchetypesById,
   je26_2Constants,
   je26_2KnockbackMechanics,
   je26_2UniformFloorProfileDefinitions,
@@ -8,12 +10,20 @@ import {
   provenance,
 } from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
+import { resolveArchetype } from '../resolution/cubeProperties'
 import {
   createAdultSulfurCubeGeometry,
   createBouncyTrajectoryAssumptions,
   createMilestone1Scenario,
+  createRestingGroundVelocity,
 } from '../presets/milestone1'
 import { createStandingPlayerGeometry } from '../presets/standingPlayer'
+
+const sourceFloatNumerics: NumericBackend = Object.freeze({
+  ...standardNumerics,
+  id: 'fixture-source-float',
+  sourceFloat: Math.fround,
+})
 
 describe('java Edition 26.2 milestone data', () => {
   it('transcribes the Bouncy archetype without discarding later physical properties', () => {
@@ -76,7 +86,24 @@ describe('java Edition 26.2 milestone data', () => {
     )
   })
 
-  it('keeps the first milestone to one ordinary call from rest', () => {
+  it('derives archetype-sensitive resting-ground Motion with Java float operations', () => {
+    const hot = resolveArchetype(je26_2ArchetypesById['minecraft:hot'])
+
+    expect(
+      createRestingGroundVelocity(
+        { airDragModifier: bouncyArchetype.effectiveProperties.airDragModifier.value },
+        sourceFloatNumerics,
+      ),
+    ).toEqual({ x: 0, y: -0.07992800235748292, z: 0 })
+    expect(
+      createRestingGroundVelocity(
+        { airDragModifier: hot.attributes['minecraft:air_drag_modifier'].effectiveValue },
+        sourceFloatNumerics,
+      ),
+    ).toEqual({ x: 0, y: -0.07927999973297119, z: 0 })
+  })
+
+  it('keeps the first milestone to one ordinary call from grounded tick-boundary Motion', () => {
     const scenario = createMilestone1Scenario(
       createStandingPlayerGeometry({ x: 0, y: 0, z: 1.5 }, { x: 0, y: -0.5, z: -1 }),
       { x: 0, y: 0, z: 0 },
@@ -84,7 +111,12 @@ describe('java Edition 26.2 milestone data', () => {
       1,
     )
 
-    expect(scenario.initialVelocity).toEqual({ x: 0, y: 0, z: 0 })
+    expect(scenario.initialVelocity).toEqual(
+      createRestingGroundVelocity({
+        airDragModifier: bouncyArchetype.effectiveProperties.airDragModifier.value,
+      }),
+    )
+    expect(scenario.initialVelocity.y).toBeLessThan(0)
     expect(scenario.call.scaling).toEqual({ kind: 'ordinaryDamage' })
     expect(scenario.call.damageArgument).toBe(1)
   })

@@ -73,9 +73,16 @@ describe('full-tool primary player melee evaluation', () => {
       effectFactor: 0.375,
     })
     expect(melee.operationSequence.operationResults).toHaveLength(2)
+    expect(melee.operationSequence.initialVelocity).toEqual(melee.preAttackVelocity)
+    expect(melee.preAttackVelocity.y).toBeLessThan(0)
     expect(melee.operationSequence.operationResults[1].existingVelocity).toEqual(
       melee.operationSequence.operationResults[0].resultingVelocity,
     )
+    expect(melee.attackAddedVelocity).toEqual({
+      x: melee.launchVelocity.x - melee.preAttackVelocity.x,
+      y: melee.launchVelocity.y - melee.preAttackVelocity.y,
+      z: melee.launchVelocity.z - melee.preAttackVelocity.z,
+    })
     expect(melee.launchVelocity).toEqual(melee.operationSequence.resultingVelocity)
     expect(melee.launchVelocity).not.toEqual(melee.callResult.resultingVelocity)
     expect(melee.trajectory.initialState.velocity).toEqual(melee.launchVelocity)

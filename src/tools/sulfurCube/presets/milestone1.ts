@@ -64,16 +64,39 @@ export function createMilestone1Scenario(
   horizontalBaseDirection: HorizontalVector,
   damageArgument: number,
   numerics: NumericBackend = standardNumerics,
-  properties: CubeMechanicsProperties = createBouncyCubeLaunchProperties(),
+  properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
 ): Milestone1Scenario {
   return {
-    initialVelocity: { x: 0, y: 0, z: 0 },
+    initialVelocity: createRestingGroundVelocity(properties, numerics),
     call: {
       damageArgument,
       horizontalBaseDirection: { ...horizontalBaseDirection },
       scaling: { kind: 'ordinaryDamage' },
     },
     context: createMilestone1Context(attacker, cubeFeetPosition, numerics, properties),
+  }
+}
+
+/**
+ * Stored DeltaMovement at a normal tick boundary for an absorbed sulfur cube
+ * resting on supporting ground. Collision prevents actual downward displacement,
+ * but LivingEntity.travelInAir still stores gravity followed by the cube's
+ * omnidirectional air drag. See provenance.restingGroundMotion.
+ */
+export function createRestingGroundVelocity(
+  properties: Pick<CubeLaunchProperties, 'airDragModifier'>,
+  numerics: NumericBackend = standardNumerics,
+): Vec3 {
+  const airDrag = computeModifiedFriction(
+    je26_2Constants.baseAirDrag.value,
+    properties.airDragModifier,
+    numerics,
+  )
+
+  return {
+    x: 0,
+    y: -je26_2Constants.defaultGravity.value * airDrag,
+    z: 0,
   }
 }
 

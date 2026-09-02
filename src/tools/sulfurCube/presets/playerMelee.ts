@@ -19,12 +19,14 @@ import {
 } from '../data/je26_2'
 import { summarizeLaunchVelocity } from '../model/launchSummary'
 import { simulateRepeatedUniformFloorTrajectory } from '../model/trajectory'
+import { subtractVec3 } from '../model/vectors'
 import { applyVelocityOperations } from '../model/velocityOperations'
 import { standardNumerics } from '../numerics/standard'
 import { resolveAttackConfiguration } from '../resolution'
 import { createDiagnosticKnockbackContext, maximumTrajectoryTicks } from './diagnostic'
 import {
   createBouncyCubeLaunchProperties,
+  createRestingGroundVelocity,
   createUniformFloorTrajectoryAssumptions,
 } from './milestone1'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
@@ -303,8 +305,9 @@ export function evaluatePlayerMeleeInputs(
     throw new RangeError(`primary player melee resolution returned ${attackResolution.status}`)
   }
 
+  const preAttackVelocity = createRestingGroundVelocity(properties, numerics)
   const operationSequence = applyVelocityOperations(
-    { x: 0, y: 0, z: 0 },
+    preAttackVelocity,
     attackResolution.operations,
     numerics,
   )
@@ -345,6 +348,8 @@ export function evaluatePlayerMeleeInputs(
     },
     properties: { ...properties },
     callResult: firstOperation.knockbackResult,
+    preAttackVelocity: { ...preAttackVelocity },
+    attackAddedVelocity: subtractVec3(launchVelocity, preAttackVelocity),
     launchVelocity: { ...launchVelocity },
     trajectory,
     launchSummary: summarizeLaunchVelocity(

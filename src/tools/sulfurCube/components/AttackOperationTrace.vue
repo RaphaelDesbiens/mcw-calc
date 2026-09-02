@@ -160,6 +160,18 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
         <dt>{{ t('sulfurCube.attack.trace.yaw') }}</dt>
         <dd>{{ formatNumber(evaluation.attackerYawDegrees) }}°</dd>
       </div>
+      <div>
+        <dt>{{ t('sulfurCube.readout.preAttackVelocity') }}</dt>
+        <dd>{{ formatVector(evaluation.preAttackVelocity) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.readout.addedVelocity') }}</dt>
+        <dd>{{ formatVector(evaluation.attackAddedVelocity) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('sulfurCube.readout.resultingVelocity') }}</dt>
+        <dd>{{ formatVector(evaluation.launchVelocity) }}</dd>
+      </div>
     </dl>
 
     <ol class="attack-trace__operations">

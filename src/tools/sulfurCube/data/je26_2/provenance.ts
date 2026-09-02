@@ -255,6 +255,16 @@ export const provenance = {
     notes:
       'Absorbed sulfur cubes use omnidirectional air drag through SulfurCube.omnidirectionalAirMover (local lines 426-429).',
   },
+  restingGroundMotion: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/LivingEntity.java',
+    locator:
+      'travelInAir and aiStep (local lines 2460-2486 and 3050-3073); SulfurCube.omnidirectionalAirMover (SulfurCube.java local lines 426-429)',
+    notes:
+      'After a grounded movement is collision-clipped, travelInAir stores (0 - effective gravity) multiplied by modified 0.91F air drag. A later accepted player hit reads this existing DeltaMovement in SulfurCube.knockback before adding launch velocity.',
+  },
   flatFloorContact: {
     edition: 'Java Edition',
     version: '26.2',
