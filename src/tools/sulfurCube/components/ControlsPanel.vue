@@ -146,7 +146,11 @@ function updateFloor(value: string | number | null): void {
       </template>
 
       <div class="coordinate-sections">
-        <CdxButton class="controls-group__reset" @click="emit('resetPositionsAim')">
+        <CdxButton
+          class="controls-group__reset"
+          action="destructive"
+          @click="emit('resetPositionsAim')"
+        >
           {{ t('sulfurCube.reset.positionsAim') }}
         </CdxButton>
         <CdxField is-fieldset>
@@ -243,7 +247,7 @@ function updateFloor(value: string | number | null): void {
           </template>
 
           <div class="eye-preset-row">
-            <CdxButton @click="emit('resetAttackerEyeStanding')">
+            <CdxButton action="destructive" @click="emit('resetAttackerEyeStanding')">
               {{ t('sulfurCube.controls.attackerEyesStandingDefault') }}
             </CdxButton>
           </div>
@@ -330,27 +334,31 @@ function updateFloor(value: string | number | null): void {
             :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
           />
         </div>
-        <CdxButton size="small" @click="emit('resetFloor')">
+        <CdxButton size="small" action="destructive" @click="emit('resetFloor')">
           {{ t('sulfurCube.reset.floor') }}
         </CdxButton>
       </div>
-      <CdxField :hide-label="true">
-        <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
-        <CdxSelect
-          :selected="modelValue.floorProfileId"
-          :menu-items="floorItems"
-          @update:selected="updateFloor"
-        />
-      </CdxField>
-      <dl class="floor-controls__values">
-        <template v-for="row in floorPropertyRows" :key="row.label">
-          <dt>{{ row.label }}</dt>
-          <dd>{{ row.value }}</dd>
-        </template>
-      </dl>
-      <p v-if="selectedFloorScopeNote" class="floor-controls__note">
-        {{ selectedFloorScopeNote }}
-      </p>
+      <div class="floor-controls__body">
+        <CdxField :hide-label="true">
+          <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
+          <CdxSelect
+            :selected="modelValue.floorProfileId"
+            :menu-items="floorItems"
+            @update:selected="updateFloor"
+          />
+        </CdxField>
+        <div class="floor-controls__details">
+          <dl class="floor-controls__values">
+            <template v-for="row in floorPropertyRows" :key="row.label">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
+            </template>
+          </dl>
+          <p v-if="selectedFloorScopeNote" class="floor-controls__note">
+            {{ selectedFloorScopeNote }}
+          </p>
+        </div>
+      </div>
     </section>
   </section>
 </template>
@@ -467,6 +475,16 @@ function updateFloor(value: string | number | null): void {
   width: min(100%, 24rem);
   margin: 0;
 }
+.floor-controls__body {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  gap: 1rem 2rem;
+  align-items: center;
+}
+.floor-controls__details {
+  display: grid;
+  gap: 0.5rem;
+}
 
 .floor-controls__values > * {
   margin: 0;
@@ -488,6 +506,9 @@ function updateFloor(value: string | number | null): void {
 }
 
 @media (max-width: 32rem) {
+  .floor-controls__body {
+    grid-template-columns: 1fr;
+  }
   .floor-controls__values {
     grid-template-columns: 1fr auto;
   }

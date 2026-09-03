@@ -8,8 +8,9 @@ import type {
 import type { CubePropertySelectionResolution, CubePropertySelectionState } from '../resolution'
 import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getImageLink } from '@/utils/image'
 import {
   je26_2ArchetypeRegistryOrder,
   je26_2PlayerMeleeMechanics,
@@ -18,10 +19,14 @@ import {
   je26_2UniformFloorProfileOrder,
   resolveJe26_2PlayerMeleeWeaponPreset,
 } from '../data/je26_2'
-import { humanizeIdentifier } from '../presentation/blockSelector'
+import { blockSpriteFileName, humanizeIdentifier } from '../presentation/blockSelector'
 import { parseNumericInput, sanitizeNumericInput } from '../presentation/numericInput'
 import { maximumTrajectoryTicks } from '../presets/diagnostic'
-import { selectCubePropertyArchetype, selectCubePropertyMode } from '../resolution'
+import {
+  je26_2ArchetypeRepresentativeBlocks,
+  selectCubePropertyArchetype,
+  selectCubePropertyMode,
+} from '../resolution'
 import InfoTooltip from './InfoTooltip.vue'
 
 const props = defineProps<{
@@ -48,15 +53,33 @@ const { t } = useI18n()
 const archetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((id) => ({
   value: id,
   label: humanizeIdentifier(id),
+  thumbnail: {
+    url: getImageLink(`en:${blockSpriteFileName(je26_2ArchetypeRepresentativeBlocks[id])}`),
+  },
 }))
 const weaponItems = computed<MenuItemData[]>(() =>
   je26_2PlayerMeleeWeaponPresetOrder.map((id) => ({
     value: id,
     label: t(`sulfurCube.attack.weapon.${id}`),
+    ...(je26_2PlayerMeleeWeaponPresets[id].itemId.value === null
+      ? {}
+      : {
+          thumbnail: {
+            url: getImageLink(
+              `en:ItemSprite_${je26_2PlayerMeleeWeaponPresets[id].itemId
+                .value!.replace('minecraft:', '')
+                .replace(/_/g, '-')}.png`,
+            ),
+          },
+        }),
   })),
 )
-const enchantmentItems: MenuItemData[] = Array.from(
-  { length: je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel + 1 },
+const sharpnessItems: MenuItemData[] = Array.from(
+  { length: je26_2PlayerMeleeMechanics.ordinarySurvivalSharpnessMaximum + 1 },
+  (_, level) => ({ value: level, label: String(level) }),
+)
+const knockbackItems: MenuItemData[] = Array.from(
+  { length: je26_2PlayerMeleeMechanics.ordinarySurvivalKnockbackMaximum + 1 },
   (_, level) => ({ value: level, label: String(level) }),
 )
 const floorItems = computed<MenuItemData[]>(() =>
@@ -91,6 +114,38 @@ const selectedKnockback = computed(() =>
   props.playerMelee.knockbackEnabled
     ? (parseNumericInput(props.playerMelee.knockbackLevel) ?? 0)
     : 0,
+)
+const sharpnessUsesNumericInput = ref(false)
+const knockbackUsesNumericInput = ref(false)
+
+watch(
+  () =>
+    [
+      props.playerMelee.allowNonVanillaEnchantmentLevels,
+      props.playerMelee.sharpnessLevel,
+      props.playerMelee.knockbackLevel,
+    ] as const,
+  ([allowed, sharpnessLevel, knockbackLevel]) => {
+    if (!allowed) {
+      sharpnessUsesNumericInput.value = false
+      knockbackUsesNumericInput.value = false
+      return
+    }
+
+    if (
+      (parseNumericInput(sharpnessLevel) ?? 0) >
+      je26_2PlayerMeleeMechanics.ordinarySurvivalSharpnessMaximum
+    ) {
+      sharpnessUsesNumericInput.value = true
+    }
+    if (
+      (parseNumericInput(knockbackLevel) ?? 0) >
+      je26_2PlayerMeleeMechanics.ordinarySurvivalKnockbackMaximum
+    ) {
+      knockbackUsesNumericInput.value = true
+    }
+  },
+  { immediate: true },
 )
 
 function updateArchetype(value: string | number | null): void {
@@ -149,6 +204,19 @@ function updateEnchantment(
   })
 }
 
+function updateNumericEnchantment(
+  enchantment: 'sharpness' | 'knockback',
+  value: NumericFormValue,
+): void {
+  const parsed = parseNumericInput(sanitizeNumericInput(value))
+  const level = Math.min(
+    je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel,
+    Math.max(0, Math.trunc(parsed ?? 0)),
+  )
+
+  updateEnchantment(enchantment, level)
+}
+
 function updateFloor(value: string | number | null): void {
   if (
     typeof value === 'string' &&
@@ -182,6 +250,7 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
         <CdxSelect
           :selected="selectedArchetype"
           :menu-items="archetypeItems"
+          :menu-config="{ showThumbnail: true }"
           @update:selected="updateArchetype"
         />
       </CdxField>
@@ -190,22 +259,43 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
         <CdxSelect
           :selected="selectedWeapon"
           :menu-items="weaponItems"
+          :menu-config="{ showThumbnail: true }"
           @update:selected="updateWeapon"
         />
       </CdxField>
       <CdxField>
         <template #label>{{ t('sulfurCube.attack.sharpness') }}</template>
+        <CdxTextInput
+          v-if="sharpnessUsesNumericInput"
+          :model-value="String(selectedSharpness)"
+          input-type="number"
+          min="0"
+          :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
+          step="1"
+          @update:model-value="updateNumericEnchantment('sharpness', $event)"
+        />
         <CdxSelect
+          v-else
           :selected="selectedSharpness"
-          :menu-items="enchantmentItems"
+          :menu-items="sharpnessItems"
           @update:selected="updateEnchantment('sharpness', $event)"
         />
       </CdxField>
       <CdxField>
         <template #label>{{ t('sulfurCube.attack.knockback') }}</template>
+        <CdxTextInput
+          v-if="knockbackUsesNumericInput"
+          :model-value="String(selectedKnockback)"
+          input-type="number"
+          min="0"
+          :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
+          step="1"
+          @update:model-value="updateNumericEnchantment('knockback', $event)"
+        />
         <CdxSelect
+          v-else
           :selected="selectedKnockback"
-          :menu-items="enchantmentItems"
+          :menu-items="knockbackItems"
           @update:selected="updateEnchantment('knockback', $event)"
         />
       </CdxField>
@@ -250,23 +340,28 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
     <div class="launch-summary__resets">
       <strong>{{ t('sulfurCube.reset.options') }}</strong>
       <div class="launch-summary__reset-buttons">
-        <CdxButton size="small" @click="emit('resetPositionsAim')">
+        <CdxButton size="small" action="destructive" @click="emit('resetPositionsAim')">
           {{ t('sulfurCube.summary.resetPositionsAim') }}
         </CdxButton>
-        <CdxButton size="small" @click="emit('resetArchetype')">
+        <CdxButton size="small" action="destructive" @click="emit('resetArchetype')">
           {{ t('sulfurCube.summary.resetArchetype') }}
         </CdxButton>
-        <CdxButton size="small" @click="emit('resetWeapon')">
+        <CdxButton size="small" action="destructive" @click="emit('resetWeapon')">
           {{ t('sulfurCube.summary.resetWeapon') }}
         </CdxButton>
-        <CdxButton size="small" @click="emit('resetFloor')">
+        <CdxButton size="small" action="destructive" @click="emit('resetFloor')">
           {{ t('sulfurCube.summary.resetFloor') }}
-        </CdxButton>
-        <CdxButton size="small" @click="emit('resetLayout')">
-          {{ t('sulfurCube.summary.resetLayout') }}
         </CdxButton>
         <CdxButton size="small" action="destructive" @click="emit('resetEverything')">
           {{ t('sulfurCube.summary.resetEverything') }}
+        </CdxButton>
+        <CdxButton
+          class="launch-summary__reset-layout"
+          size="small"
+          action="destructive"
+          @click="emit('resetLayout')"
+        >
+          {{ t('sulfurCube.summary.resetLayout') }}
         </CdxButton>
       </div>
     </div>
@@ -278,7 +373,7 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
   display: grid;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border-color-subtle, #c8ccd1);
+  border: 2px solid #c69732;
   border-radius: 3px;
   background: var(--background-color-neutral-subtle, #f8f9fa);
 }
@@ -292,7 +387,7 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
 }
 .launch-summary__controls {
   display: grid;
-  grid-template-columns: repeat(6, minmax(7.5rem, 1fr));
+  grid-template-columns: 10.25rem 10.5rem 6rem 6rem 11rem 12.5rem;
   gap: 0.75rem;
   align-items: end;
 }
@@ -331,6 +426,9 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+.launch-summary__reset-layout {
+  margin-left: auto;
 }
 @media (max-width: 72rem) {
   .launch-summary__controls {

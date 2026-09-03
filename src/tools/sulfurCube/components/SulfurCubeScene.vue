@@ -16,7 +16,10 @@ import {
   pointOnProjectedAimAxis,
   rotateAimInRadialProjection,
 } from '../presentation/aimInteraction'
-import { createRadialScenePresentation } from '../presentation/scene'
+import {
+  createRadialScenePresentation,
+  maximumRenderedTrajectoryTicks,
+} from '../presentation/scene'
 import {
   clampPointToBoundsFromOrigin,
   createViewportWorldBounds,
@@ -71,7 +74,7 @@ const props = withDefaults(
     showComparisonHelp: true,
     showHeadingTitle: true,
     showSizeControl: true,
-    trajectoryTickLimit: 1000,
+    trajectoryTickLimit: maximumRenderedTrajectoryTicks,
     inputsInvalid: false,
   },
 )
@@ -229,7 +232,7 @@ const view = computed(() => {
     eyesLabelOffset: 11 * zoomFactor,
     feetLabelOffset: 18 * zoomFactor,
     launchLabelOffset: 18 * zoomFactor,
-    trajectoryPointRadius: 2.25 * zoomFactor,
+    trajectoryPointRadius: 2.25,
     trajectoryEndArm: 5 * zoomFactor,
     thetaSquareSize: 10 * zoomFactor,
     launchArrowWidth: Math.max(0.001, scene.launchDisplayLength * transform.scale * 0.18),
@@ -260,6 +263,7 @@ const view = computed(() => {
         }
   const sceneMetrics = {
     x: 18,
+    valueX: 168,
     speedY: 26,
     launchElevationY: 47,
     distanceY: 68,
@@ -285,12 +289,25 @@ const view = computed(() => {
     q: props.evaluation.callResult.diagnostics.q.toFixed(2),
     theta: ((props.evaluation.callResult.diagnostics.theta * 180) / Math.PI).toFixed(1),
     launchElevation: ((scene.launchElevationRadians * 180) / Math.PI).toFixed(1),
+    attackGroupEndY: props.attackSummary?.criticalHit
+      ? 348
+      : props.attackSummary?.sprinting
+        ? 327
+        : props.attackSummary?.knockbackLevel !== null
+          ? 306
+          : props.attackSummary?.sharpnessLevel !== null
+            ? 285
+            : props.attackSummary !== null &&
+                props.attackSummary !== undefined &&
+                Math.abs(props.attackSummary.attackStrengthPercent - 100) > 1e-9
+              ? 264
+              : 243,
   }
   const sceneWallBounds = {
-    minX: 64,
-    maxX: viewport.width - 64,
-    minY: 18,
-    maxY: viewport.height - 18,
+    minX: visual.aimPointRadius,
+    maxX: viewport.width - visual.aimPointRadius,
+    minY: visual.aimPointRadius,
+    maxY: viewport.height - visual.aimPointRadius,
   }
   const createGroundLabel = (
     point: PlanePoint,
@@ -300,25 +317,41 @@ const view = computed(() => {
   ) => {
     const actualMarker = toSvg(point)
     const marker = clampPointToBoundsFromOrigin(cubeFeet, actualMarker, sceneWallBounds)
-    const labelY = Math.min(viewport.height - 16, marker.y + verticalOffset)
-    const isOutOfScene =
-      Math.abs(marker.x - actualMarker.x) > 0.01 || Math.abs(marker.y - actualMarker.y) > 0.01
+    const edgeTolerance = 0.01
+    const boundedOnLeft =
+      actualMarker.x < sceneWallBounds.minX &&
+      Math.abs(marker.x - sceneWallBounds.minX) <= edgeTolerance
+    const boundedOnRight =
+      actualMarker.x > sceneWallBounds.maxX &&
+      Math.abs(marker.x - sceneWallBounds.maxX) <= edgeTolerance
+    const boundedOnTop =
+      actualMarker.y < sceneWallBounds.minY &&
+      Math.abs(marker.y - sceneWallBounds.minY) <= edgeTolerance
+    const boundedOnBottom =
+      actualMarker.y > sceneWallBounds.maxY &&
+      Math.abs(marker.y - sceneWallBounds.maxY) <= edgeTolerance
 
-    if (isOutOfScene) {
-      const isBoundedOnLeft = actualMarker.x < sceneWallBounds.minX
-      const x = isBoundedOnLeft ? 80 : viewport.width - 80
+    if (boundedOnLeft || boundedOnRight) {
+      const x = boundedOnLeft ? 66 : viewport.width - 66
+      const labelY = Math.min(viewport.height - 16, Math.max(18, marker.y + verticalOffset))
 
       return {
         marker,
         x,
         y: labelY,
-        anchor: isBoundedOnLeft ? ('start' as const) : ('end' as const),
-        arrow: isBoundedOnLeft
-          ? { x1: x - 8, y1: labelY - 4, x2: 18, y2: labelY - 4 }
-          : { x1: x + 8, y1: labelY - 4, x2: viewport.width - 18, y2: labelY - 4 },
+        anchor: boundedOnLeft ? ('start' as const) : ('end' as const),
+        arrow: boundedOnLeft
+          ? { x1: x - 7, y1: labelY - 4, x2: 7, y2: labelY - 4 }
+          : { x1: x + 7, y1: labelY - 4, x2: viewport.width - 7, y2: labelY - 4 },
         value: t(nameKey, { value }),
       }
     }
+
+    const labelY = boundedOnTop
+      ? Math.min(viewport.height - 16, marker.y + verticalOffset)
+      : boundedOnBottom
+        ? Math.max(18, marker.y - verticalOffset / 2)
+        : Math.min(viewport.height - 16, marker.y + verticalOffset)
 
     return {
       marker,
@@ -327,9 +360,9 @@ const view = computed(() => {
       anchor: 'middle' as const,
       arrow: {
         x1: marker.x,
-        y1: labelY - 10,
+        y1: boundedOnBottom ? labelY + 7 : labelY - 10,
         x2: marker.x,
-        y2: marker.y + 7,
+        y2: boundedOnBottom ? marker.y - 3 : marker.y + 3,
       },
       value: t('sulfurCube.scene.groundDistanceValue', { value }),
     }
@@ -719,8 +752,16 @@ function endDrag(event: PointerEvent): void {
   }
 }
 
+function preventPageMotionWhileDragging(event: Event): void {
+  if (dragState.value !== null || metricsResizeState.value !== null) {
+    event.preventDefault()
+  }
+}
+
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', clearHandleFocus)
+  document.removeEventListener('pointermove', preventPageMotionWhileDragging, true)
+  document.removeEventListener('wheel', preventPageMotionWhileDragging, true)
 })
 
 function clearHandleFocus(event: PointerEvent): void {
@@ -742,6 +783,14 @@ function clearHandleFocus(event: PointerEvent): void {
 
 onMounted(() => {
   document.addEventListener('pointerdown', clearHandleFocus)
+  document.addEventListener('pointermove', preventPageMotionWhileDragging, {
+    capture: true,
+    passive: false,
+  })
+  document.addEventListener('wheel', preventPageMotionWhileDragging, {
+    capture: true,
+    passive: false,
+  })
 })
 
 function keyboardDelta(event: KeyboardEvent): { x: number; y: number } | null {
@@ -888,10 +937,9 @@ function formatCoordinate(value: number): string {
         role="group"
         aria-labelledby="sulfur-cube-scene-svg-title"
         aria-describedby="sulfur-cube-scene-svg-description"
-        @pointermove="continueDrag"
+        @pointermove.prevent="continueDrag"
         @pointerup="endDrag"
         @pointercancel="endDrag"
-        @pointerleave="endDrag"
         @wheel.prevent="zoomWithWheel"
         @dragstart.prevent
       >
@@ -943,7 +991,7 @@ function formatCoordinate(value: number): string {
           width="100%"
           height="100%"
           rx="8"
-          @pointerdown="startDrag('camera', $event)"
+          @pointerdown.prevent="startDrag('camera', $event)"
         />
 
         <g
@@ -961,7 +1009,10 @@ function formatCoordinate(value: number): string {
           <g class="scene-metrics" aria-hidden="true">
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.speedY">
               <tspan>{{ t('sulfurCube.scene.speedLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--velocity">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--velocity"
+              >
                 {{ view.sceneMetrics.speed }}
               </tspan>
               <tspan class="scene-metric-unit">
@@ -970,21 +1021,30 @@ function formatCoordinate(value: number): string {
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.launchElevationY">
               <tspan>{{ t('sulfurCube.scene.radialLaunchAngleLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--velocity">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--velocity"
+              >
                 {{ view.sceneMetrics.launchElevation }}
               </tspan>
               <tspan class="scene-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
               <tspan>{{ t('sulfurCube.scene.distanceLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--trajectory">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--trajectory"
+              >
                 {{ view.sceneMetrics.distance }}
               </tspan>
               <tspan class="scene-metric-unit">&#160;{{ t('sulfurCube.scene.blocks') }}</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.firstBounceY">
               <tspan>{{ t('sulfurCube.scene.firstBounceLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--trajectory">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--trajectory"
+              >
                 {{ view.sceneMetrics.firstBounce }}
               </tspan>
               <tspan v-if="view.sceneMetrics.firstBounceReached" class="scene-metric-unit">
@@ -993,39 +1053,63 @@ function formatCoordinate(value: number): string {
             </text>
             <text v-if="showAimQLabel !== false" :x="view.sceneMetrics.x" :y="view.sceneMetrics.qY">
               <tspan>{{ t('sulfurCube.scene.aimFactorLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--aim">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--aim"
+              >
                 {{ view.sceneMetrics.q }}
               </tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.thetaY">
               <tspan>{{ t('sulfurCube.scene.heightAngleLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--theta">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--theta"
+              >
                 {{ view.sceneMetrics.theta }}
               </tspan>
               <tspan class="scene-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.blockY">
               <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--cube">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--cube"
+              >
                 {{ selectedBlockLabel }}
               </tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.archetypeY">
               <tspan>{{ t('sulfurCube.scene.archetypeLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--cube">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--cube"
+              >
                 {{ selectedArchetypeLabel }}
               </tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.floorY">
               <tspan>{{ t('sulfurCube.scene.floorSurfaceLabel') }}&#160;=&#160;</tspan>
-              <tspan class="scene-metric-value scene-metric-value--neutral">
+              <tspan
+                :x="view.sceneMetrics.valueX"
+                class="scene-metric-value scene-metric-value--neutral"
+              >
                 {{ floorSurfaceLabel }}
               </tspan>
             </text>
-            <template v-if="attackSummary">
+            <g v-if="attackSummary" class="scene-attack-metrics">
+              <line
+                :x1="view.sceneMetrics.x - 6"
+                :y1="view.sceneMetrics.weaponY - 15"
+                :x2="view.sceneMetrics.x - 6"
+                :y2="view.sceneMetrics.attackGroupEndY + 5"
+              />
               <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.weaponY">
                 <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
-                <tspan class="scene-metric-value scene-metric-value--neutral">
+                <tspan
+                  :x="view.sceneMetrics.valueX"
+                  class="scene-metric-value scene-metric-value--neutral"
+                >
                   {{ attackSummary.weaponLabel }}
                 </tspan>
               </text>
@@ -1035,39 +1119,66 @@ function formatCoordinate(value: number): string {
                 :y="view.sceneMetrics.attackStrengthY"
               >
                 <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;=&#160;</tspan>
-                <tspan class="scene-metric-value scene-metric-value--neutral">
+                <tspan
+                  :x="view.sceneMetrics.valueX"
+                  class="scene-metric-value scene-metric-value--neutral"
+                >
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
               </text>
               <text
-                v-if="attackSummary.sharpnessLabel"
+                v-if="attackSummary.sharpnessLevel !== null"
                 :x="view.sceneMetrics.x"
                 :y="view.sceneMetrics.sharpnessY"
               >
-                {{ attackSummary.sharpnessLabel }}
+                <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.sceneMetrics.valueX"
+                  class="scene-metric-value scene-metric-value--neutral"
+                >
+                  {{ attackSummary.sharpnessLevel }}
+                </tspan>
               </text>
               <text
-                v-if="attackSummary.knockbackLabel"
+                v-if="attackSummary.knockbackLevel !== null"
                 :x="view.sceneMetrics.x"
                 :y="view.sceneMetrics.knockbackY"
               >
-                {{ attackSummary.knockbackLabel }}
+                <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.sceneMetrics.valueX"
+                  class="scene-metric-value scene-metric-value--neutral"
+                >
+                  {{ attackSummary.knockbackLevel }}
+                </tspan>
               </text>
               <text
                 v-if="attackSummary.sprinting"
                 :x="view.sceneMetrics.x"
                 :y="view.sceneMetrics.sprintingY"
               >
-                {{ t('sulfurCube.attack.sprinting') }}
+                <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.sceneMetrics.valueX"
+                  class="scene-metric-value scene-metric-value--neutral"
+                >
+                  {{ t('sulfurCube.yes') }}
+                </tspan>
               </text>
               <text
                 v-if="attackSummary.criticalHit"
                 :x="view.sceneMetrics.x"
                 :y="view.sceneMetrics.criticalHitY"
               >
-                {{ t('sulfurCube.attack.criticalConditions') }}
+                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.sceneMetrics.valueX"
+                  class="scene-metric-value scene-metric-value--neutral"
+                >
+                  {{ t('sulfurCube.yes') }}
+                </tspan>
               </text>
-            </template>
+            </g>
           </g>
           <g
             class="scene-metrics-resize"
@@ -1496,26 +1607,10 @@ function formatCoordinate(value: number): string {
         {{ ' ' }}
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
-      <p v-if="showComparisonHelp !== false">{{ t('sulfurCube.scene.compactHelp') }}</p>
       <details v-if="showComparisonHelp !== false" class="projection-details">
         <summary>{{ t('sulfurCube.scene.projectionAdvancedTitle') }}</summary>
         <p>{{ t('sulfurCube.scene.projectionAdvanced') }}</p>
       </details>
-      <p v-if="view.scene.trajectoryStatus === 'truncated'">
-        {{
-          t('sulfurCube.scene.trajectoryContinues', {
-            ticks: view.scene.renderedTrajectoryTicks,
-          })
-        }}
-      </p>
-      <p v-else-if="view.scene.requestedTrajectoryTicks > view.scene.renderedTrajectoryTicks">
-        {{
-          t('sulfurCube.scene.trajectorySettledEarly', {
-            shown: view.scene.renderedTrajectoryTicks,
-            requested: view.scene.requestedTrajectoryTicks,
-          })
-        }}
-      </p>
     </figcaption>
   </figure>
 </template>
@@ -1642,6 +1737,7 @@ figcaption {
       8 7,
     grab;
   touch-action: none;
+  overscroll-behavior: contain;
   user-select: none;
 }
 
@@ -1724,6 +1820,10 @@ figcaption {
   stroke: var(--color-progressive, #36c);
   stroke-width: 2px;
 }
+.scene-attack-metrics > line {
+  stroke: color-mix(in srgb, var(--scene-muted) 36%, transparent);
+  stroke-width: 1px;
+}
 
 .scene-metric-value--velocity {
   fill: var(--scene-launch);
@@ -1731,6 +1831,9 @@ figcaption {
 
 .scene-metric-value--trajectory {
   fill: var(--scene-trajectory-muted);
+  stroke: var(--scene-ink);
+  stroke-width: 0.45px;
+  paint-order: stroke fill;
 }
 
 .scene-metric-value--aim {
@@ -1774,6 +1877,9 @@ figcaption {
   font-size: var(--scene-minor-font-size);
   font-weight: 700;
   pointer-events: none;
+  stroke: var(--scene-ink);
+  stroke-width: 0.45px;
+  paint-order: stroke fill;
 }
 
 .scene-reach-warning-svg {
@@ -1810,6 +1916,17 @@ figcaption {
   font-size: 11px;
   font-weight: 400;
   pointer-events: none;
+}
+
+.ground-metrics text {
+  stroke: var(--scene-ink);
+  stroke-width: 0.45px;
+  paint-order: stroke fill;
+}
+
+.ground-metrics line,
+.ground-arrow {
+  filter: drop-shadow(0 0 0.35px var(--scene-ink));
 }
 
 .ground-metrics line {
@@ -1952,7 +2069,9 @@ figcaption {
 
 .trajectory-tick {
   fill: var(--scene-trajectory-muted);
-  stroke: none;
+  stroke: var(--scene-ink);
+  stroke-width: 0.65px;
+  paint-order: stroke fill;
   opacity: 0.72;
 }
 
@@ -1967,6 +2086,7 @@ figcaption {
   stroke-linecap: round;
   stroke-width: var(--scene-stroke-regular);
   opacity: 0.75;
+  filter: drop-shadow(0 0 0.35px var(--scene-ink));
 }
 
 .trajectory-end-marker--truncated {
@@ -2098,6 +2218,7 @@ figcaption {
 
 .legend-swatch--trajectory {
   color: var(--scene-trajectory);
+  border: 1px solid var(--scene-ink);
 }
 
 .legend-swatch--player {

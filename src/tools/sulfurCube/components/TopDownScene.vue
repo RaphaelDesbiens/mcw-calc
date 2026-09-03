@@ -49,6 +49,7 @@ const props = withDefaults(
     selectedArchetypeLabel: string
     selectedBlockSpriteUrl: string | null
     attackSummary?: SceneAttackSummary | null
+    floorSurfaceLabel: string
     showHeadingTitle?: boolean
     inputsInvalid?: boolean
   }>(),
@@ -102,18 +103,18 @@ const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
 const metricsPanelHeight = computed(() => {
   const attack = props.attackSummary
 
-  if (attack?.criticalHit) return 256
-  if (attack?.sprinting) return 235
-  if (attack?.knockbackLabel) return 214
-  if (attack?.sharpnessLabel) return 193
+  if (attack?.criticalHit) return 291
+  if (attack?.sprinting) return 270
+  if (attack?.knockbackLabel) return 249
+  if (attack?.sharpnessLabel) return 228
   if (
     attack !== null &&
     attack !== undefined &&
     Math.abs(attack.attackStrengthPercent - 100) > 1e-9
   )
-    return 172
-  if (attack !== null && attack !== undefined) return 151
-  return 116
+    return 207
+  if (attack !== null && attack !== undefined) return 186
+  return 151
 })
 const maximumMetricsScale = computed(() =>
   Math.min(
@@ -188,18 +189,33 @@ const view = computed(() => {
   }
   const metrics = {
     x: 18,
+    valueX: 198,
     aimErrorY: 26,
     launchOffsetY: 47,
     blockY: 82,
     archetypeY: 103,
-    weaponY: 138,
-    attackStrengthY: 159,
-    sharpnessY: 180,
-    knockbackY: 201,
-    sprintingY: 222,
-    criticalHitY: 243,
+    floorY: 138,
+    weaponY: 173,
+    attackStrengthY: 194,
+    sharpnessY: 215,
+    knockbackY: 236,
+    sprintingY: 257,
+    criticalHitY: 278,
     aimErrorDegrees: ((scene.aimErrorRadians * 180) / Math.PI).toFixed(1),
     launchOffsetDegrees: ((scene.launchOffsetRadians * 180) / Math.PI).toFixed(1),
+    attackGroupEndY: props.attackSummary?.criticalHit
+      ? 278
+      : props.attackSummary?.sprinting
+        ? 257
+        : props.attackSummary?.knockbackLevel !== null
+          ? 236
+          : props.attackSummary?.sharpnessLevel !== null
+            ? 215
+            : props.attackSummary !== null &&
+                props.attackSummary !== undefined &&
+                Math.abs(props.attackSummary.attackStrengthPercent - 100) > 1e-9
+              ? 194
+              : 173,
   }
 
   return {
@@ -538,6 +554,12 @@ function endDrag(event: PointerEvent): void {
   }
 }
 
+function preventPageMotionWhileDragging(event: Event): void {
+  if (dragState.value !== null || metricsResizeState.value !== null) {
+    event.preventDefault()
+  }
+}
+
 function keyboardDelta(event: KeyboardEvent): PlanePoint | null {
   const step = event.shiftKey ? 0.05 : 0.25
 
@@ -626,8 +648,22 @@ function clearHandleFocus(event: PointerEvent): void {
   }
 }
 
-onMounted(() => document.addEventListener('pointerdown', clearHandleFocus))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFocus))
+onMounted(() => {
+  document.addEventListener('pointerdown', clearHandleFocus)
+  document.addEventListener('pointermove', preventPageMotionWhileDragging, {
+    capture: true,
+    passive: false,
+  })
+  document.addEventListener('wheel', preventPageMotionWhileDragging, {
+    capture: true,
+    passive: false,
+  })
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', clearHandleFocus)
+  document.removeEventListener('pointermove', preventPageMotionWhileDragging, true)
+  document.removeEventListener('wheel', preventPageMotionWhileDragging, true)
+})
 </script>
 
 <template>
@@ -683,10 +719,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
         role="group"
         aria-labelledby="sulfur-cube-topdown-svg-title"
         aria-describedby="sulfur-cube-topdown-svg-description"
-        @pointermove="continueDrag"
+        @pointermove.prevent="continueDrag"
         @pointerup="endDrag"
         @pointercancel="endDrag"
-        @pointerleave="endDrag"
         @wheel.prevent="zoomWithWheel"
         @dragstart.prevent
       >
@@ -725,7 +760,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           width="100%"
           height="100%"
           rx="4"
-          @pointerdown="startDrag('camera', $event)"
+          @pointerdown.prevent="startDrag('camera', $event)"
         />
 
         <g
@@ -743,7 +778,10 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           <g class="topdown-metrics" aria-hidden="true">
             <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
               <tspan>{{ t('sulfurCube.topDown.aimErrorLabel') }}&#160;=&#160;</tspan>
-              <tspan class="topdown-metric-value topdown-metric-value--aim">
+              <tspan
+                :x="view.metrics.valueX"
+                class="topdown-metric-value topdown-metric-value--aim"
+              >
                 {{ view.metrics.aimErrorDegrees }}
               </tspan>
               <tspan class="topdown-metric-unit">&#160;°</tspan>
@@ -757,27 +795,54 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
                 </tspan>
               </template>
               <tspan v-else>{{ t('sulfurCube.topDown.launchOffsetLabel') }}&#160;=&#160;</tspan>
-              <tspan class="topdown-metric-value topdown-metric-value--launch">
+              <tspan
+                :x="view.metrics.valueX"
+                class="topdown-metric-value topdown-metric-value--launch"
+              >
                 {{ view.metrics.launchOffsetDegrees }}
               </tspan>
               <tspan class="topdown-metric-unit">&#160;°</tspan>
             </text>
             <text :x="view.metrics.x" :y="view.metrics.blockY">
               <tspan>{{ t('sulfurCube.scene.selectedBlockLabel') }}&#160;=&#160;</tspan>
-              <tspan class="topdown-metric-value topdown-metric-value--cube">
+              <tspan
+                :x="view.metrics.valueX"
+                class="topdown-metric-value topdown-metric-value--cube"
+              >
                 {{ selectedBlockLabel }}
               </tspan>
             </text>
             <text :x="view.metrics.x" :y="view.metrics.archetypeY">
               <tspan>{{ t('sulfurCube.scene.archetypeLabel') }}&#160;=&#160;</tspan>
-              <tspan class="topdown-metric-value topdown-metric-value--cube">
+              <tspan
+                :x="view.metrics.valueX"
+                class="topdown-metric-value topdown-metric-value--cube"
+              >
                 {{ selectedArchetypeLabel }}
               </tspan>
             </text>
-            <template v-if="attackSummary">
+            <text :x="view.metrics.x" :y="view.metrics.floorY">
+              <tspan>{{ t('sulfurCube.scene.floorSurfaceLabel') }}&#160;=&#160;</tspan>
+              <tspan
+                :x="view.metrics.valueX"
+                class="topdown-metric-value topdown-metric-value--neutral"
+              >
+                {{ floorSurfaceLabel }}
+              </tspan>
+            </text>
+            <g v-if="attackSummary" class="topdown-attack-metrics">
+              <line
+                :x1="view.metrics.x - 6"
+                :y1="view.metrics.weaponY - 15"
+                :x2="view.metrics.x - 6"
+                :y2="view.metrics.attackGroupEndY + 5"
+              />
               <text :x="view.metrics.x" :y="view.metrics.weaponY">
                 <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
-                <tspan class="topdown-metric-value topdown-metric-value--neutral">
+                <tspan
+                  :x="view.metrics.valueX"
+                  class="topdown-metric-value topdown-metric-value--neutral"
+                >
                   {{ attackSummary.weaponLabel }}
                 </tspan>
               </text>
@@ -787,35 +852,62 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
                 :y="view.metrics.attackStrengthY"
               >
                 <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;=&#160;</tspan>
-                <tspan class="topdown-metric-value topdown-metric-value--neutral">
+                <tspan
+                  :x="view.metrics.valueX"
+                  class="topdown-metric-value topdown-metric-value--neutral"
+                >
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
               </text>
               <text
-                v-if="attackSummary.sharpnessLabel"
+                v-if="attackSummary.sharpnessLevel !== null"
                 :x="view.metrics.x"
                 :y="view.metrics.sharpnessY"
               >
-                {{ attackSummary.sharpnessLabel }}
+                <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.metrics.valueX"
+                  class="topdown-metric-value topdown-metric-value--neutral"
+                >
+                  {{ attackSummary.sharpnessLevel }}
+                </tspan>
               </text>
               <text
-                v-if="attackSummary.knockbackLabel"
+                v-if="attackSummary.knockbackLevel !== null"
                 :x="view.metrics.x"
                 :y="view.metrics.knockbackY"
               >
-                {{ attackSummary.knockbackLabel }}
+                <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.metrics.valueX"
+                  class="topdown-metric-value topdown-metric-value--neutral"
+                >
+                  {{ attackSummary.knockbackLevel }}
+                </tspan>
               </text>
               <text v-if="attackSummary.sprinting" :x="view.metrics.x" :y="view.metrics.sprintingY">
-                {{ t('sulfurCube.attack.sprinting') }}
+                <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.metrics.valueX"
+                  class="topdown-metric-value topdown-metric-value--neutral"
+                >
+                  {{ t('sulfurCube.yes') }}
+                </tspan>
               </text>
               <text
                 v-if="attackSummary.criticalHit"
                 :x="view.metrics.x"
                 :y="view.metrics.criticalHitY"
               >
-                {{ t('sulfurCube.attack.criticalConditions') }}
+                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;=&#160;</tspan>
+                <tspan
+                  :x="view.metrics.valueX"
+                  class="topdown-metric-value topdown-metric-value--neutral"
+                >
+                  {{ t('sulfurCube.yes') }}
+                </tspan>
               </text>
-            </template>
+            </g>
           </g>
           <g
             class="topdown-metrics-resize"
@@ -1052,14 +1144,14 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
         {{ t('sulfurCube.scene.legendPlayer') }}
       </span>
       <span>
+        <i class="topdown-swatch topdown-swatch--axis" />
+        {{ t('sulfurCube.topDown.playerCubeAxis') }}
+      </span>
+      <span>
         <i class="topdown-swatch topdown-swatch--cube" />
         {{ t('sulfurCube.scene.legendSulfurCube') }}
       </span>
       <span><i class="topdown-swatch topdown-swatch--aim" />{{ t('sulfurCube.scene.aim') }}</span>
-      <span>
-        <i class="topdown-swatch topdown-swatch--axis" />
-        {{ t('sulfurCube.topDown.playerCubeAxis') }}
-      </span>
       <span>
         <i class="topdown-swatch topdown-swatch--launch" />
         {{ t('sulfurCube.topDown.launchDirection') }}
@@ -1067,7 +1159,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
     </div>
 
     <figcaption>
-      <p>{{ t('sulfurCube.topDown.interactionHelp') }}</p>
+      <p class="scene-interaction-help">
+        <span>{{ t('sulfurCube.scene.openPointsBefore') }}</span>
+        <span class="open-point-example" aria-hidden="true">(<i class="open-point-symbol" />)</span>
+        {{ ' ' }}
+        <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
+      </p>
     </figcaption>
   </figure>
 </template>
@@ -1160,6 +1257,7 @@ figcaption {
   background: var(--topdown-background);
   cursor: var(--topdown-grab-cursor), grab;
   touch-action: none;
+  overscroll-behavior: contain;
   user-select: none;
 }
 .topdown-svg--panning,
@@ -1225,6 +1323,10 @@ figcaption {
 .topdown-metrics-resize:focus rect {
   stroke: var(--color-progressive, #36c);
   stroke-width: 2px;
+}
+.topdown-attack-metrics > line {
+  stroke: color-mix(in srgb, var(--topdown-muted) 36%, transparent);
+  stroke-width: 1px;
 }
 .topdown-metric-value--aim {
   fill: #007aa3;
@@ -1409,6 +1511,25 @@ figcaption {
 .topdown-figure figcaption {
   width: 100%;
   margin: 0.4rem auto 0;
+  color: var(--topdown-muted);
+  font-size: 0.875em;
+}
+.scene-interaction-help {
+  display: block;
+}
+.open-point-example {
+  margin-inline: 0.2rem;
+  white-space: nowrap;
+}
+.open-point-symbol {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 0.62em;
+  height: 0.62em;
+  border: 0.15em solid var(--topdown-ink);
+  border-radius: 50%;
+  background: var(--background-color-base, #fff);
+  vertical-align: -0.05em;
 }
 
 @media (max-width: 40rem) {

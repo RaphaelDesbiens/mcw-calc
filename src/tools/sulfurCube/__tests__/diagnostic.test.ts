@@ -124,6 +124,7 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(ordinary.trajectory.bounceEventCount).toBeGreaterThan(0)
     expect(slime.trajectory.bounceEventCount).toBeGreaterThan(ordinary.trajectory.bounceEventCount)
     expect(honey.trajectory.bounceEventCount).toBe(0)
+    expect(honey.trajectory.firstFloorCollision).not.toBeNull()
     expect(honey.trajectory.status).toBe('settled')
     expect(slime.trajectory.assumptions.floor.id).toBe('slime_block')
     expect(honey.properties).toEqual(ordinary.properties)
@@ -150,7 +151,7 @@ describe('stage 3 diagnostic orchestration', () => {
       customPerpetualProperties,
     )
 
-    expect(tickCount).toBe(1000)
+    expect(tickCount).toBe(6000)
     expect(evaluation.trajectory.status).toBe('truncated')
   })
 
@@ -229,7 +230,7 @@ describe('stage 3 diagnostic orchestration', () => {
     expect(() => evaluateDiagnosticInputs({ ...preset.inputs, damageArgument: -1 })).toThrow(
       /damageArgument/,
     )
-    expect(() => evaluateDiagnosticInputs({ ...preset.inputs, trajectoryTicks: 1001 })).toThrow(
+    expect(() => evaluateDiagnosticInputs({ ...preset.inputs, trajectoryTicks: 6001 })).toThrow(
       /trajectoryTicks/,
     )
     expect(() =>

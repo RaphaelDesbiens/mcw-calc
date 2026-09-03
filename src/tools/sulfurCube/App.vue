@@ -222,6 +222,8 @@ const sceneAttackSummary = computed<SceneAttackSummary | null>(() => {
     attackStrengthPercent: inputs.attackStrength * 100,
     sharpnessLabel,
     knockbackLabel,
+    sharpnessLevel: inputs.sharpness.enabled ? inputs.sharpness.level : null,
+    knockbackLevel: inputs.knockback.enabled ? inputs.knockback.level : null,
     sprinting: inputs.sprinting,
     criticalHit: inputs.criticalHitConditions,
   }
@@ -471,7 +473,6 @@ function resetSceneInputs(): void {
 function resetEverything(): void {
   resetSceneInputs()
   propertySelection.value = createInitialPropertySelection()
-  if (!isCompactView) resetPageLayout()
 }
 
 function switchCompactScene(): void {
@@ -657,7 +658,7 @@ watch(
             @update:selected="updateCompactFloor"
           />
         </CdxField>
-        <CdxButton @click="resetEverything">
+        <CdxButton action="destructive" @click="resetEverything">
           {{ t('sulfurCube.reset.everything') }}
         </CdxButton>
         <CdxButton @click="switchCompactScene">
@@ -706,6 +707,7 @@ watch(
         :selected-archetype-label="selectedCubeVisual.archetypeLabel"
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
         :attack-summary="sceneAttackSummary"
+        :floor-surface-label="selectedFloorLabel"
         @update-aim-point="updateAimPoint"
         @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
         @translate-cube="translateCube"
@@ -768,20 +770,22 @@ watch(
           @drop="dropSection(sectionId, $event)"
         >
           <div class="section-layout-handle-bar">
-            <div class="section-layout-heading">
+            <div
+              class="section-layout-heading"
+              :draggable="true"
+              @dragstart="startSectionDrag(sectionId, $event)"
+              @dragend="endSectionDrag"
+            >
               <CdxButton
                 class="section-layout-handle"
                 size="small"
                 weight="quiet"
-                :draggable="true"
                 :data-section-move-handle="sectionId"
                 :aria-label="
                   t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })
                 "
                 aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
                 :title="t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })"
-                @dragstart="startSectionDrag(sectionId, $event)"
-                @dragend="endSectionDrag"
                 @keydown="moveSectionByKeyboard(sectionId, $event)"
               >
                 <span class="section-layout-handle__grip" aria-hidden="true">⠿</span>
@@ -894,6 +898,7 @@ watch(
               :selected-archetype-label="selectedCubeVisual.archetypeLabel"
               :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
               :attack-summary="sceneAttackSummary"
+              :floor-surface-label="selectedFloorLabel"
               :show-heading-title="false"
               @update-aim-point="updateAimPoint"
               @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
@@ -1091,7 +1096,7 @@ watch(
   gap: 0;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border-color-subtle, #c8ccd1);
+  border: 2px solid #c69732;
   border-radius: 3px;
 }
 
@@ -1153,16 +1158,29 @@ watch(
   justify-content: space-between;
   gap: 0.5rem;
   min-width: 0;
-  border-bottom: 1px solid var(--border-color-subtle, #c8ccd1);
+  border-bottom: 2px solid #c69732;
   padding: 0.2rem 0.35rem;
-  background: #edf3f8;
+  background: #fff1b8;
   color: var(--color-base, #202122);
 }
 
 .section-layout-heading {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   min-width: 0;
+  align-self: stretch;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
+      8 7,
+    grab;
+}
+
+.section-layout-heading:active {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M7.5 10.5V7a1.5 1.5 0 0 1 3 0V9 5.5a1.5 1.5 0 0 1 3 0V9 6.5a1.5 1.5 0 0 1 3 0V10 8a1.5 1.5 0 0 1 3 0v5c0 4.2-2.6 7-6.5 7h-1c-2.4 0-4.3-1.4-5.4-3.4l-2-3.4a1.5 1.5 0 0 1 2.5-1.7z'/%3E%3C/svg%3E")
+      8 7,
+    grabbing;
 }
 
 .section-layout-handle {
@@ -1170,19 +1188,13 @@ watch(
   color: var(--color-base, #202122);
   font-size: 1.05rem;
   font-weight: 700;
-  cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
-      12 12,
-    move;
+  cursor: inherit;
 }
 
 .section-layout-handle *,
 .section-layout-handle:active,
 .section-layout-handle:active * {
-  cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.5' stroke-linejoin='round' d='M12 1l3 3h-2v6h6V8l3 3-3 3v-2h-6v6h2l-3 3-3-3h2v-6H5v2l-3-3 3-3v2h6V4H9z'/%3E%3C/svg%3E")
-      12 12,
-    move;
+  cursor: inherit;
 }
 
 .section-layout-handle :deep(.cdx-button__content) {
@@ -1207,7 +1219,7 @@ watch(
 }
 
 :global(.dark) .section-layout-handle-bar {
-  background: #2f3b45;
+  background: #594914;
   color: #eaecf0;
 }
 

@@ -80,7 +80,6 @@ export const je26_2UniformFloorProfileDefinitions = Object.freeze({
     speedFactor: sourcedValue(1, floorSource),
     suppressesBounce: sourcedValue(false, floorSource),
     afterTravel: sourcedValue('none', floorSource),
-    scopeNote: 'Frosted ice is treated as static; scheduled melting is outside this model.',
   },
   blue_ice: {
     id: 'blue_ice',

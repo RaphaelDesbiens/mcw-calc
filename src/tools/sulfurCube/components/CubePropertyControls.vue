@@ -408,7 +408,7 @@ function hideBlockTooltip(): void {
           placement="right"
         />
       </div>
-      <CdxButton size="small" @click="emit('reset')">
+      <CdxButton size="small" action="destructive" @click="emit('reset')">
         {{ t('sulfurCube.reset.archetype') }}
       </CdxButton>
     </div>
@@ -633,7 +633,11 @@ function hideBlockTooltip(): void {
             />
           </CdxField>
         </div>
-        <CdxButton class="property-controls__reset-custom" @click="copyCurrentResolvedValues">
+        <CdxButton
+          class="property-controls__reset-custom"
+          action="destructive"
+          @click="copyCurrentResolvedValues"
+        >
           <span>{{ t('sulfurCube.properties.resetCustomTo') }}</span>
           <strong>{{ currentLockedArchetypeLabel }}</strong>
         </CdxButton>

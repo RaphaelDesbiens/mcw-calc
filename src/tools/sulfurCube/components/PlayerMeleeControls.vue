@@ -181,7 +181,7 @@ function warningKey(code: string): string {
           :label="t('sulfurCube.attack.helpLabel')"
         />
       </div>
-      <CdxButton size="small" @click="emit('reset')">
+      <CdxButton size="small" action="destructive" @click="emit('reset')">
         {{ t('sulfurCube.reset.weapon') }}
       </CdxButton>
     </div>
@@ -248,25 +248,6 @@ function warningKey(code: string): string {
 
     <div class="player-attack__configuration-row">
       <CdxField>
-        <template #label>
-          <span class="player-attack__label-with-info">
-            {{ t('sulfurCube.attack.attackStrength') }}
-            <InfoTooltip
-              :text="t('sulfurCube.attack.attackStrengthHelp')"
-              :label="t('sulfurCube.attack.attackStrengthHelpLabel')"
-            />
-          </span>
-        </template>
-        <CdxTextInput
-          :model-value="modelValue.attackStrengthPercent"
-          input-type="number"
-          min="0"
-          max="100"
-          step="1"
-          @update:model-value="updateNumeric('attackStrengthPercent', $event)"
-        />
-      </CdxField>
-      <CdxField>
         <template #label>{{ t('sulfurCube.attack.sharpness') }}</template>
         <CdxTextInput
           v-if="modelValue.allowNonVanillaEnchantmentLevels"
@@ -302,31 +283,53 @@ function warningKey(code: string): string {
           @update:selected="updateOrdinaryEnchantment('knockback', $event)"
         />
       </CdxField>
+      <CdxField class="player-attack__strength">
+        <template #label>
+          <span class="player-attack__label-with-info">
+            {{ t('sulfurCube.attack.attackStrength') }}
+            <InfoTooltip
+              :text="t('sulfurCube.attack.attackStrengthHelp')"
+              :label="t('sulfurCube.attack.attackStrengthHelpLabel')"
+            />
+          </span>
+        </template>
+        <CdxTextInput
+          :model-value="modelValue.attackStrengthPercent"
+          input-type="number"
+          min="0"
+          max="100"
+          step="1"
+          @update:model-value="updateNumeric('attackStrengthPercent', $event)"
+        />
+      </CdxField>
     </div>
 
-    <CdxCheckbox
-      :model-value="modelValue.allowNonVanillaEnchantmentLevels"
-      @update:model-value="updateNonVanillaMode($event)"
-    >
-      {{ t('sulfurCube.attack.allowNonVanillaLevels') }}
-    </CdxCheckbox>
-
-    <div class="player-attack__conditions">
+    <div class="player-attack__options-row">
       <CdxCheckbox
-        :model-value="modelValue.sprinting"
-        @update:model-value="update({ sprinting: $event })"
+        class="player-attack__non-vanilla"
+        :model-value="modelValue.allowNonVanillaEnchantmentLevels"
+        @update:model-value="updateNonVanillaMode($event)"
       >
-        {{ t('sulfurCube.attack.sprinting') }}
+        {{ t('sulfurCube.attack.allowNonVanillaLevels') }}
       </CdxCheckbox>
-      <span :class="{ 'player-attack__critical--unavailable': !criticalHitSelectable }">
+
+      <div class="player-attack__conditions">
         <CdxCheckbox
-          :model-value="modelValue.criticalHitConditions"
-          :disabled="!criticalHitSelectable"
-          @update:model-value="update({ criticalHitConditions: $event })"
+          :model-value="modelValue.sprinting"
+          @update:model-value="update({ sprinting: $event })"
         >
-          {{ t('sulfurCube.attack.criticalConditions') }}
+          {{ t('sulfurCube.attack.sprinting') }}
         </CdxCheckbox>
-      </span>
+        <span :class="{ 'player-attack__critical--unavailable': !criticalHitSelectable }">
+          <CdxCheckbox
+            :model-value="modelValue.criticalHitConditions"
+            :disabled="!criticalHitSelectable"
+            @update:model-value="update({ criticalHitConditions: $event })"
+          >
+            {{ t('sulfurCube.attack.criticalConditions') }}
+          </CdxCheckbox>
+        </span>
+      </div>
     </div>
 
     <ul
@@ -431,14 +434,31 @@ function warningKey(code: string): string {
 }
 .player-attack__configuration-row {
   display: grid;
-  grid-template-columns: minmax(8rem, 1fr) minmax(6rem, 0.65fr) minmax(6rem, 0.65fr);
+  grid-template-columns: minmax(7rem, 9rem) minmax(7rem, 9rem) minmax(9rem, 11rem);
   gap: 0.75rem;
   align-items: end;
+}
+.player-attack__strength {
+  justify-self: end;
+}
+.player-attack__options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+.player-attack__non-vanilla {
+  font-size: 0.75rem;
+}
+.player-attack__non-vanilla :deep(.cdx-checkbox__icon) {
+  width: 1rem;
+  height: 1rem;
 }
 .player-attack__conditions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
+  margin-left: auto;
 }
 .player-attack__critical--unavailable {
   opacity: 0.55;
@@ -475,6 +495,16 @@ function warningKey(code: string): string {
   .player-attack__configuration-row,
   .player-attack__derived {
     grid-template-columns: 1fr;
+  }
+  .player-attack__strength {
+    justify-self: stretch;
+  }
+  .player-attack__options-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .player-attack__conditions {
+    margin-left: 0;
   }
 }
 </style>

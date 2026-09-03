@@ -64,7 +64,8 @@ const sharedEyes = { x: 0, y: 1.62, z: 1.5 } as const
 const sharedAim = { x: 0, y: 0.49, z: 0.48 } as const
 const sharedCubeFeet = { x: 0, y: 0, z: 0 } as const
 const standardDefaultTrajectoryTicks = 15
-export const maximumTrajectoryTicks = 1000
+/** Hard safety limit for complete uniform-floor settlement calculations. */
+export const maximumTrajectoryTicks = 6000
 export const defaultUniformFloorProfileId: Je26_2UniformFloorProfileId = 'ordinary_full_block'
 
 export function createMilestone1DefaultInputs(

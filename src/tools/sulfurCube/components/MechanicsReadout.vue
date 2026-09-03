@@ -8,6 +8,7 @@ interface ReadoutRow {
   readonly label: string
   readonly symbol?: string
   readonly value: string
+  readonly warning?: boolean
 }
 
 const props = withDefaults(
@@ -79,9 +80,9 @@ function formatVector(x: number, y: number, z: number): string {
 
 const summaryRows = computed<readonly ReadoutRow[]>(() => {
   const { launchSummary, launchVelocity, trajectory } = props.evaluation
-  const firstBounceTick = trajectory.ticks.find((tick) => tick.rebound.emittedBounceEvent)
+  const firstBounceTick = trajectory.firstFloorCollision
   const firstBounceAirTimeTicks =
-    firstBounceTick === undefined ? null : firstBounceTick.end.tick - trajectory.initialState.tick
+    firstBounceTick === null ? null : firstBounceTick.end.tick - trajectory.initialState.tick
 
   return [
     {
@@ -124,6 +125,23 @@ const summaryRows = computed<readonly ReadoutRow[]>(() => {
         ),
       }),
     },
+    {
+      label: t('sulfurCube.readout.endpointCoordinates'),
+      value: formatVector(
+        trajectory.endpoint.feetPosition.x,
+        trajectory.endpoint.feetPosition.y,
+        trajectory.endpoint.feetPosition.z,
+      ),
+    },
+    ...(trajectory.status === 'truncated'
+      ? [
+          {
+            label: t('sulfurCube.readout.calculationStatus'),
+            value: t('sulfurCube.readout.trajectoryStatus.truncated'),
+            warning: true,
+          },
+        ]
+      : []),
   ]
 })
 
@@ -405,7 +423,12 @@ const readoutSections = computed(() => [
       class="summary-grid"
       :class="{ 'summary-grid--single': props.summaryLayout === 'single' }"
     >
-      <div v-for="row in summaryRows" :key="row.label" class="summary-grid__item">
+      <div
+        v-for="row in summaryRows"
+        :key="row.label"
+        class="summary-grid__item"
+        :class="{ 'summary-grid__item--warning': row.warning }"
+      >
         <dt>{{ row.label }}</dt>
         <dd>{{ row.value }}</dd>
       </div>
@@ -493,6 +516,11 @@ const readoutSections = computed(() => [
   border: 1px solid var(--border-color-subtle, #c8ccd1);
   border-radius: 2px;
   background: var(--background-color-interactive-subtle, #f8f9fa);
+}
+
+.summary-grid__item--warning {
+  border-color: var(--border-color-warning, #ac6600);
+  background: var(--background-color-warning-subtle, #fef6e7);
 }
 
 .summary-grid dt {

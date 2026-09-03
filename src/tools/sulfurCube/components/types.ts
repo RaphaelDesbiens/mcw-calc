@@ -43,6 +43,8 @@ export interface SceneAttackSummary {
   readonly attackStrengthPercent: number
   readonly sharpnessLabel: string | null
   readonly knockbackLabel: string | null
+  readonly sharpnessLevel: number | null
+  readonly knockbackLevel: number | null
   readonly sprinting: boolean
   readonly criticalHit: boolean
 }
