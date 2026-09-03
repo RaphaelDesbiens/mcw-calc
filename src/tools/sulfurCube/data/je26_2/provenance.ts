@@ -243,7 +243,37 @@ export const provenance = {
     sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/phys/Vec2.java',
     locator: 'rotate (local lines 82-86)',
     notes:
-      'Mth.sin/cos use a 65,536-entry float table at Mth.java local lines 35-59; standard mode intentionally defers that quantization.',
+      'Mth.sin/cos use a 65,536-entry float table at Mth.java local lines 35-59. Java precision reproduces the table; Standard intentionally defers that quantization.',
+  },
+  javaPrecisionTrigonometry: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/util/Mth.java',
+    locator:
+      'SIN table, sin, cos, sqrt(float), wrapDegrees(float), atan2 and fastInvSqrt (local lines 25-59, 216-227 and 391-456)',
+    notes:
+      'The Java-precision backend applies Math.fround only at audited source-float boundaries. Mth.atan2 is not the backend atan2: it is confined to command-facing Entity.lookAt conversion.',
+  },
+  commandFacingPlayerAim: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'decompiledBehavior',
+    sourcePath: 'versions/26.2/decompiled/src/net/minecraft/world/entity/Entity.java',
+    locator:
+      'calculateViewVector and lookAt (local lines 1972-1980 and 3662-3673); Mth helpers are recorded by javaPrecisionTrigonometry',
+    notes:
+      'Reproduces the validation protocol execute anchored-eyes facing conversion from the distinct eye and aim-point inputs into float pitch/yaw and a quantized view vector.',
+  },
+  meleeEndpointValidation: {
+    edition: 'Java Edition',
+    version: '26.2',
+    sourceKind: 'extractedData',
+    sourcePath:
+      'notes/in-game-data/sulfur_cube_endpoint/command_storage.dat and protocol-iterations/je26_2-melee-accuracy-matrix-accurate',
+    locator: '100 completed player-melee rows, each with 40 stable endpoint samples',
+    notes:
+      'The tracked test fixture retains the full-precision observed stable endpoints. Java precision matches all stored X/Y/Z components exactly; Standard is locked to the earlier six-decimal predictions.',
   },
   airTravel: {
     edition: 'Java Edition',

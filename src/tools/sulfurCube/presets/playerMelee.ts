@@ -3,7 +3,7 @@ import type {
   Je26_2PlayerMeleeWeaponPresetId,
   PlayerMeleeWeaponChoice,
 } from '../data/je26_2'
-import type { CubeLaunchProperties, VelocityOperationSequenceResult } from '../model/types'
+import type { CubeLaunchProperties, Vec3, VelocityOperationSequenceResult } from '../model/types'
 import type { NumericBackend } from '../numerics/types'
 import type {
   PlayerCriticalEligibilityState,
@@ -251,7 +251,10 @@ export function deriveMinecraftYawDegreesFromAim(
   const horizontalZ = inputs.aimPoint.z - inputs.attackerEyePosition.z
   const horizontalLength = numerics.sqrt(horizontalX * horizontalX + horizontalZ * horizontalZ)
 
-  if (horizontalLength < je26_2KnockbackMechanics.vectorNormalizationThreshold) {
+  if (
+    horizontalLength <
+    numerics.sourceFloat(je26_2KnockbackMechanics.vectorNormalizationThreshold)
+  ) {
     return fallbackYawDegrees
   }
 
@@ -292,8 +295,14 @@ export function evaluatePlayerMeleeInputs(
   attackerYawDegrees: number,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
+  attackerLookDirection?: Vec3,
 ): PlayerMeleeEvaluation {
-  const context = createDiagnosticKnockbackContext(diagnosticInputs, numerics, properties)
+  const context = createDiagnosticKnockbackContext(
+    diagnosticInputs,
+    numerics,
+    properties,
+    attackerLookDirection,
+  )
   const attackConfiguration = createPrimaryPlayerMeleeConfiguration(
     playerMeleeInputs,
     attackerYawDegrees,
@@ -354,7 +363,7 @@ export function evaluatePlayerMeleeInputs(
     trajectory,
     launchSummary: summarizeLaunchVelocity(
       launchVelocity,
-      je26_2KnockbackMechanics.vectorNormalizationThreshold,
+      numerics.sourceFloat(je26_2KnockbackMechanics.vectorNormalizationThreshold),
       numerics,
     ),
     playerMeleeInputs: { ...playerMeleeInputs },
@@ -375,6 +384,7 @@ export function findDefaultPlayerMeleeTrajectoryTicks(
   attackerYawDegrees: number,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
+  attackerLookDirection?: Vec3,
 ): number {
   const maximumTicks = maximumTrajectoryTicks
   const evaluation = evaluatePlayerMeleeInputs(
@@ -383,6 +393,7 @@ export function findDefaultPlayerMeleeTrajectoryTicks(
     attackerYawDegrees,
     numerics,
     properties,
+    attackerLookDirection,
   )
   return evaluation.trajectory.ticks.length
 }

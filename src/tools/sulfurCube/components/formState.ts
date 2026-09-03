@@ -1,8 +1,10 @@
 import type { Vec3 } from '../model/types'
+import type { NumericBackend } from '../numerics/types'
 import type { DiagnosticInputs } from '../presets/diagnostic'
 import type { PlayerMeleeInputs } from '../presets/playerMelee'
 import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { je26_2Constants, je26_2PlayerMeleeMechanics } from '../data/je26_2'
+import { standardNumerics } from '../numerics/standard'
 import { parseNumericInput } from '../presentation/numericInput'
 
 function stringifyNumber(value: number): string {
@@ -141,9 +143,10 @@ export function updateAimPointInFormState(
 
 export function resetAttackerEyeToStandingPresetInFormState(
   state: DiagnosticFormState,
+  numerics: NumericBackend = standardNumerics,
 ): DiagnosticFormState {
   const inputs = parseDiagnosticFormState(state)
-  const eyeHeight = je26_2Constants.standingPlayerEyeHeight.value
+  const eyeHeight = numerics.sourceFloat(je26_2Constants.standingPlayerEyeHeight.value)
 
   return {
     ...state,

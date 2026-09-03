@@ -67,14 +67,18 @@ const standardDefaultTrajectoryTicks = 15
 export const maximumTrajectoryTicks = 1000
 export const defaultUniformFloorProfileId: Je26_2UniformFloorProfileId = 'ordinary_full_block'
 
-export function createMilestone1DefaultInputs(): DiagnosticInputs {
+export function createMilestone1DefaultInputs(
+  numerics: NumericBackend = standardNumerics,
+): DiagnosticInputs {
   const attackerFeetPosition = { x: 0, y: -0.3, z: -2.6 } as const
   const inputs: DiagnosticInputs = {
     cubeFeetPosition: { x: 0, y: 0, z: 0 },
     attackerFeetPosition,
     attackerEyePosition: {
       x: attackerFeetPosition.x,
-      y: attackerFeetPosition.y + je26_2Constants.standingPlayerEyeHeight.value,
+      y:
+        attackerFeetPosition.y +
+        numerics.sourceFloat(je26_2Constants.standingPlayerEyeHeight.value),
       z: attackerFeetPosition.z,
     },
     aimPoint: { x: 0, y: 0.4, z: 1.7 },
@@ -85,7 +89,7 @@ export function createMilestone1DefaultInputs(): DiagnosticInputs {
 
   return {
     ...inputs,
-    trajectoryTicks: findDefaultTrajectoryTicks(inputs),
+    trajectoryTicks: findDefaultTrajectoryTicks(inputs, numerics),
   }
 }
 
@@ -214,11 +218,15 @@ export function createDiagnosticKnockbackContext(
   inputs: DiagnosticInputs,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
+  attackerLookDirection?: Vec3,
 ): SulfurCubeKnockbackContext {
   assertFiniteVec3(inputs.attackerFeetPosition, 'attackerFeetPosition')
   assertFiniteVec3(inputs.attackerEyePosition, 'attackerEyePosition')
   assertFiniteVec3(inputs.aimPoint, 'aimPoint')
   assertFiniteVec3(inputs.cubeFeetPosition, 'cubeFeetPosition')
+  if (attackerLookDirection !== undefined) {
+    assertFiniteVec3(attackerLookDirection, 'attackerLookDirection')
+  }
 
   if (
     !Number.isInteger(inputs.trajectoryTicks) ||
@@ -233,20 +241,28 @@ export function createDiagnosticKnockbackContext(
   }
 
   const eyeToAim = subtractVec3(inputs.aimPoint, inputs.attackerEyePosition)
+  const vectorNormalizationThreshold = numerics.sourceFloat(
+    je26_2KnockbackMechanics.vectorNormalizationThreshold,
+  )
+  const sourceLookDirection = attackerLookDirection ?? eyeToAim
 
-  if (lengthVec3(eyeToAim, numerics) < je26_2KnockbackMechanics.vectorNormalizationThreshold) {
+  if (lengthVec3(sourceLookDirection, numerics) < vectorNormalizationThreshold) {
     throw new RangeError('aimPoint must define a nonzero look direction from attackerEyePosition')
   }
+
+  // A command-derived view vector is intentionally left unnormalized here:
+  // SulfurCube normalizes getLookAngle exactly once. The generic target-vector
+  // path retains its historical pre-normalization behavior.
+  const lookDirection =
+    attackerLookDirection === undefined
+      ? normalizeVec3(eyeToAim, numerics, vectorNormalizationThreshold)
+      : { ...attackerLookDirection }
 
   return createMilestone1Context(
     {
       feetPosition: inputs.attackerFeetPosition,
       eyePosition: inputs.attackerEyePosition,
-      lookDirection: normalizeVec3(
-        eyeToAim,
-        numerics,
-        je26_2KnockbackMechanics.vectorNormalizationThreshold,
-      ),
+      lookDirection,
     },
     inputs.cubeFeetPosition,
     numerics,
@@ -268,11 +284,17 @@ export function evaluateDiagnosticInputs(
   inputs: DiagnosticInputs,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
+  attackerLookDirection?: Vec3,
 ): DiagnosticEvaluation {
   if (!Number.isFinite(inputs.damageArgument) || inputs.damageArgument < 0) {
     throw new RangeError('damageArgument must be finite and nonnegative')
   }
-  const context = createDiagnosticKnockbackContext(inputs, numerics, properties)
+  const context = createDiagnosticKnockbackContext(
+    inputs,
+    numerics,
+    properties,
+    attackerLookDirection,
+  )
   const initialVelocity = createRestingGroundVelocity(properties, numerics)
   const callResult = applySulfurCubeKnockbackCall(
     initialVelocity,
@@ -322,7 +344,7 @@ export function evaluateDiagnosticInputs(
     trajectory,
     launchSummary: summarizeLaunchVelocity(
       callResult.resultingVelocity,
-      je26_2KnockbackMechanics.vectorNormalizationThreshold,
+      numerics.sourceFloat(je26_2KnockbackMechanics.vectorNormalizationThreshold),
       numerics,
     ),
     reach: resolveOrdinarySurvivalPlayerMeleeReach(context),
@@ -333,12 +355,14 @@ export function findDefaultTrajectoryTicks(
   inputs: DiagnosticInputs,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
+  attackerLookDirection?: Vec3,
 ): number {
   const maximumTicks = maximumTrajectoryTicks
   const evaluation = evaluateDiagnosticInputs(
     { ...inputs, trajectoryTicks: maximumTicks },
     numerics,
     properties,
+    attackerLookDirection,
   )
   return evaluation.trajectory.ticks.length
 }

@@ -42,7 +42,8 @@ import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
 import TopDownScene from './components/TopDownScene.vue'
 import { je26_2ArchetypeRegistryOrder, je26_2UniformFloorProfileOrder } from './data/je26_2'
-import { standardNumerics } from './numerics/standard'
+import { javaPrecisionNumerics } from './numerics/javaPrecision'
+import { deriveJe26_2PlayerAim } from './numerics/je26_2PlayerAim'
 import { blockSpriteFileName, humanizeIdentifier } from './presentation/blockSelector'
 import {
   defaultSulfurCubeSectionLayouts,
@@ -58,7 +59,6 @@ import {
 } from './presets/diagnostic'
 import {
   createDefaultPlayerMeleeInputs,
-  deriveMinecraftYawDegreesFromAim,
   evaluatePlayerMeleeInputs,
   findDefaultPlayerMeleeTrajectoryTicks,
 } from './presets/playerMelee'
@@ -73,7 +73,8 @@ const props = defineProps<{
   viewMode: SulfurCubeViewMode
 }>()
 
-const defaultInputs = createMilestone1DefaultInputs()
+const toolNumerics = javaPrecisionNumerics
+const defaultInputs = createMilestone1DefaultInputs(toolNumerics)
 const defaultPlayerMeleeInputs = createDefaultPlayerMeleeInputs()
 const isCompactView = props.viewMode === 'compact'
 const defaultPropertySelection = createDefaultCubePropertySelectionState()
@@ -89,7 +90,6 @@ const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInpu
 const playerMeleeState = ref<PlayerMeleeFormState>(
   createPlayerMeleeFormState(defaultPlayerMeleeInputs),
 )
-const attackerYawDegrees = ref(deriveMinecraftYawDegreesFromAim(defaultInputs, 0))
 const propertySelection = ref<CubePropertySelectionState>(initialPropertySelection)
 const trajectoryTicksDefaultActive = ref(true)
 const sectionLayoutStorageKey = 'mcwCalc:sulfurCube:sectionLayouts:v2'
@@ -155,13 +155,15 @@ const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
 
   try {
     const inputs = parseDiagnosticFormState(formState.value)
+    const playerAim = deriveJe26_2PlayerAim(inputs.attackerEyePosition, inputs.aimPoint)
 
     return evaluatePlayerMeleeInputs(
       inputs,
       parsePlayerMeleeFormState(playerMeleeState.value),
-      deriveMinecraftYawDegreesFromAim(inputs, attackerYawDegrees.value),
-      standardNumerics,
+      playerAim.yawDegrees,
+      toolNumerics,
       properties,
+      playerAim.lookDirection,
     )
   } catch {
     return null
@@ -213,11 +215,9 @@ const evaluation = computed<DiagnosticEvaluation | null>(() => {
   }
 
   try {
-    return evaluateDiagnosticInputs(
-      parseDiagnosticFormState(formState.value),
-      standardNumerics,
-      properties,
-    )
+    const inputs = parseDiagnosticFormState(formState.value)
+    const playerAim = deriveJe26_2PlayerAim(inputs.attackerEyePosition, inputs.aimPoint)
+    return evaluateDiagnosticInputs(inputs, toolNumerics, properties, playerAim.lookDirection)
   } catch {
     return null
   }
@@ -436,7 +436,6 @@ function resetSceneInputs(): void {
   trajectoryTicksDefaultActive.value = true
   formState.value = createDiagnosticFormState(defaultInputs)
   playerMeleeState.value = createPlayerMeleeFormState(defaultPlayerMeleeInputs)
-  attackerYawDegrees.value = deriveMinecraftYawDegreesFromAim(defaultInputs, 0)
   sceneResetVersion.value += 1
 }
 
@@ -468,7 +467,6 @@ function resetPositionsAim(): void {
     aimY: defaults.aimY,
     aimZ: defaults.aimZ,
   }
-  attackerYawDegrees.value = deriveMinecraftYawDegreesFromAim(defaultInputs, 0)
   sceneResetVersion.value += 1
 }
 
@@ -522,14 +520,16 @@ function refreshDefaultTrajectoryTicks(): void {
 
   try {
     const inputs = parseDiagnosticFormState(formState.value)
+    const playerAim = deriveJe26_2PlayerAim(inputs.attackerEyePosition, inputs.aimPoint)
     trajectoryTicks = isCompactView
-      ? findDefaultTrajectoryTicks(inputs, standardNumerics, properties)
+      ? findDefaultTrajectoryTicks(inputs, toolNumerics, properties, playerAim.lookDirection)
       : findDefaultPlayerMeleeTrajectoryTicks(
           inputs,
           parsePlayerMeleeFormState(playerMeleeState.value),
-          deriveMinecraftYawDegreesFromAim(inputs, attackerYawDegrees.value),
-          standardNumerics,
+          playerAim.yawDegrees,
+          toolNumerics,
           properties,
+          playerAim.lookDirection,
         )
   } catch {
     return
@@ -555,7 +555,7 @@ function toggleTrajectoryTicksDefault(): void {
 
 function resetAttackerEyeStanding(): void {
   try {
-    updateFormState(resetAttackerEyeToStandingPresetInFormState(formState.value))
+    updateFormState(resetAttackerEyeToStandingPresetInFormState(formState.value, toolNumerics))
   } catch {
     // Ignore until numeric fields are valid enough to derive the preset eye position.
   }
@@ -604,19 +604,6 @@ function updateCompactFloor(value: string | number | null): void {
     floorProfileId: value as Je26_2UniformFloorProfileId,
   })
 }
-
-watch(
-  formState,
-  () => {
-    try {
-      const inputs = parseDiagnosticFormState(formState.value)
-      attackerYawDegrees.value = deriveMinecraftYawDegreesFromAim(inputs, attackerYawDegrees.value)
-    } catch {
-      // Retain the last source-relevant yaw while position or aim fields are incomplete.
-    }
-  },
-  { deep: true },
-)
 
 watch([formState, playerMeleeState, propertyResolution], refreshDefaultTrajectoryTicks, {
   deep: true,
