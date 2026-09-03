@@ -2,7 +2,7 @@
 import type { Vec3 } from '../model/types'
 import type { PlanePoint, WorldBounds, WorldToSvgTransform } from '../presentation/types'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
-import type { SceneAttackSummary, SceneResetOption } from './types'
+import type { SceneAttackSummary } from './types'
 import { CdxButton } from '@wikimedia/codex'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +19,6 @@ import {
   translateWorldBounds,
 } from '../presentation/worldToSvg'
 import InfoTooltip from './InfoTooltip.vue'
-import SceneResetMenu from './SceneResetMenu.vue'
 
 type ObjectDragKind = 'aim' | 'attacker' | 'cube'
 type DragKind = ObjectDragKind | 'camera'
@@ -63,7 +62,6 @@ const emit = defineEmits<{
   translateAttackerPreservingCubeBearing: [delta: Vec3]
   translateCube: [delta: Vec3]
   updateAimPoint: [point: Vec3]
-  reset: [option: SceneResetOption]
 }>()
 
 const { t } = useI18n()
@@ -672,10 +670,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', clearHandleFoc
           +
         </CdxButton>
       </div>
-      <div class="topdown-overlay topdown-overlay--reset">
-        <SceneResetMenu @select="emit('reset', $event)" />
-      </div>
-
       <svg
         ref="svgElement"
         class="topdown-svg"

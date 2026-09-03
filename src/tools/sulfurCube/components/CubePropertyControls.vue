@@ -48,6 +48,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: CubePropertySelectionState]
+  reset: []
 }>()
 
 const { t } = useI18n()
@@ -399,12 +400,17 @@ function hideBlockTooltip(): void {
 <template>
   <section class="property-controls" aria-labelledby="sulfur-cube-properties-title">
     <div class="property-controls__heading">
-      <h4 id="sulfur-cube-properties-title">{{ t('sulfurCube.properties.title') }}</h4>
-      <InfoTooltip
-        :text="t('sulfurCube.properties.archetypeDefinition')"
-        :label="t('sulfurCube.properties.archetypeDefinitionLabel')"
-        placement="right"
-      />
+      <div class="property-controls__heading-title">
+        <h4 id="sulfur-cube-properties-title">{{ t('sulfurCube.properties.title') }}</h4>
+        <InfoTooltip
+          :text="t('sulfurCube.properties.archetypeDefinition')"
+          :label="t('sulfurCube.properties.archetypeDefinitionLabel')"
+          placement="right"
+        />
+      </div>
+      <CdxButton size="small" @click="emit('reset')">
+        {{ t('sulfurCube.reset.archetype') }}
+      </CdxButton>
     </div>
 
     <p class="property-controls__selection-summary">
@@ -678,10 +684,15 @@ function hideBlockTooltip(): void {
 }
 
 .property-controls__heading,
+.property-controls__heading-title,
 .field-label-with-info {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.property-controls__heading {
+  justify-content: space-between;
 }
 
 .property-controls__heading h4 {

@@ -100,6 +100,8 @@ export interface RadialScenePresentation {
 export interface RadialScenePresentationOptions {
   readonly attackerSide?: RadialAttackerSide
   readonly fallbackHorizontalAxis?: Vec2
+  /** Presentation-only horizon; mechanics summaries continue to use the full evaluation. */
+  readonly trajectoryTickLimit?: number
 }
 
 function addScaledVector(origin: PlanePoint, vector: PlanePoint, scale: number): PlanePoint {
@@ -295,6 +297,11 @@ export function createRadialScenePresentation(
     context.mechanics.vectorNormalizationThreshold,
     launchDisplayLength >= launchElevationArcMinimumDisplayLength,
   )
+  const trajectoryTickLimit = Math.min(
+    maximumRenderedTrajectoryTicks,
+    Math.max(0, Math.trunc(options.trajectoryTickLimit ?? inputs.trajectoryTicks)),
+  )
+  const renderedTrajectory = trajectory.ticks.slice(0, trajectoryTickLimit)
   const trajectoryPoints = [
     {
       tick: 0,
@@ -302,7 +309,7 @@ export function createRadialScenePresentation(
       floorCollision: false,
       arcNumber: null,
     },
-    ...trajectory.ticks.slice(0, maximumRenderedTrajectoryTicks).map((tick) => ({
+    ...renderedTrajectory.map((tick) => ({
       tick: tick.end.tick,
       point: projectPointToRadialPlane(tick.end.feetPosition, projection),
       floorCollision: tick.collision.floorCollision,
@@ -423,13 +430,14 @@ export function createRadialScenePresentation(
       trajectory.ticks.length === 0
         ? null
         : (trajectoryPoints[trajectoryPoints.length - 1]?.point ?? null),
-    trajectoryStatus: trajectory.status,
+    trajectoryStatus:
+      renderedTrajectory.length < trajectory.ticks.length ? 'truncated' : trajectory.status,
     airborneContactCount: trajectory.airborneContactCount,
     bounceEventCount: trajectory.bounceEventCount,
     firstBounce,
     trajectoryDistance,
     maximumHeight,
-    renderedTrajectoryTicks: trajectoryPoints.length - 1,
-    requestedTrajectoryTicks: inputs.trajectoryTicks,
+    renderedTrajectoryTicks: renderedTrajectory.length,
+    requestedTrajectoryTicks: trajectoryTickLimit,
   }
 }

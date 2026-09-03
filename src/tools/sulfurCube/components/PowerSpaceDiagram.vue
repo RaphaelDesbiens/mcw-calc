@@ -56,26 +56,16 @@ function formatFixedNumber(value: number, fractionDigits: 2 | 4): string {
   return fixedNumberFormatters[fractionDigits].format(roundsToZero ? 0 : value)
 }
 
-function countFractionDigits(value: number): number {
-  const [coefficient, exponentText] = Math.abs(value).toString().toLowerCase().split('e')
-  const fractionLength = coefficient?.split('.')[1]?.length ?? 0
-  const exponent = Number(exponentText ?? 0)
-
-  return Math.max(0, fractionLength - exponent)
-}
-
 const powerCoordinateFormatters = computed(() => {
-  const { h0, v0 } = props.evaluation.callResult.diagnostics
-
   return {
     horizontal: new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: countFractionDigits(h0),
-      maximumFractionDigits: countFractionDigits(h0),
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
       useGrouping: false,
     }),
     vertical: new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: countFractionDigits(v0),
-      maximumFractionDigits: countFractionDigits(v0),
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
       useGrouping: false,
     }),
   }

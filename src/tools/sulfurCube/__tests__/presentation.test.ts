@@ -377,6 +377,26 @@ describe('radial scene presentation', () => {
     )
   })
 
+  it('can truncate only the drawn trajectory while retaining full-stop metrics', () => {
+    const evaluation = evaluateDiagnosticInputs({
+      ...getDiagnosticPreset('M1').inputs,
+      trajectoryTicks: 1000,
+    })
+    const scene = createRadialScenePresentation(evaluation, undefined, {
+      trajectoryTickLimit: 5,
+    })
+
+    expect(evaluation.trajectory.status).toBe('settled')
+    expect(evaluation.trajectory.ticks).toHaveLength(77)
+    expect(scene.renderedTrajectoryTicks).toBe(5)
+    expect(scene.requestedTrajectoryTicks).toBe(5)
+    expect(scene.trajectoryStatus).toBe('truncated')
+    expect(scene.trajectory).toHaveLength(6)
+    expect(scene.trajectoryDistance.horizontalDistance).toBe(
+      evaluation.trajectory.horizontalDisplacement,
+    )
+  })
+
   it('counts a source-emitted tick-one rebound as the first bounce for a downward launch', () => {
     const inputs = { ...getDiagnosticPreset('M1').inputs, trajectoryTicks: 3 }
     const base = evaluateDiagnosticInputs(inputs)

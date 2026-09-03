@@ -4,7 +4,6 @@ import type {
   DiagnosticFormState,
   PlayerMeleeFormState,
   SceneAttackSummary,
-  SceneResetOption,
 } from './components/types'
 import type { Je26_2ArchetypeId, Je26_2UniformFloorProfileId } from './data/je26_2'
 import type { Vec3 } from './model/types'
@@ -37,6 +36,7 @@ import {
   updateAimPointInFormState,
 } from './components/formState'
 import InfoTooltip from './components/InfoTooltip.vue'
+import LaunchSummaryPanel from './components/LaunchSummaryPanel.vue'
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
 import SulfurCubeScene from './components/SulfurCubeScene.vue'
@@ -45,6 +45,7 @@ import { je26_2ArchetypeRegistryOrder, je26_2UniformFloorProfileOrder } from './
 import { javaPrecisionNumerics } from './numerics/javaPrecision'
 import { deriveJe26_2PlayerAim } from './numerics/je26_2PlayerAim'
 import { blockSpriteFileName, humanizeIdentifier } from './presentation/blockSelector'
+import { parseNumericInput } from './presentation/numericInput'
 import {
   defaultSulfurCubeSectionLayouts,
   moveSulfurCubeSection,
@@ -56,6 +57,7 @@ import {
   createMilestone1DefaultInputs,
   evaluateDiagnosticInputs,
   findDefaultTrajectoryTicks,
+  maximumTrajectoryTicks,
 } from './presets/diagnostic'
 import {
   createDefaultPlayerMeleeInputs,
@@ -141,6 +143,28 @@ const compactFloorItems: MenuItemData[] = je26_2UniformFloorProfileOrder.map((fl
   label: t(`sulfurCube.floor.${floorProfileId}`),
 }))
 const selectedFloorLabel = computed(() => t(`sulfurCube.floor.${formState.value.floorProfileId}`))
+const sulfurCubeImageUrl = getImageLink('en:Sulfur Cube JE2 BE2.png')
+const visualTrajectoryTicks = computed(() => {
+  const value = parseNumericInput(formState.value.trajectoryTicks)
+
+  return value !== null && Number.isInteger(value) && value >= 0 && value <= maximumTrajectoryTicks
+    ? value
+    : 0
+})
+
+function parseFullTrajectoryInputs() {
+  const inputs = parseDiagnosticFormState(formState.value)
+
+  if (
+    !Number.isInteger(inputs.trajectoryTicks) ||
+    inputs.trajectoryTicks < 0 ||
+    inputs.trajectoryTicks > maximumTrajectoryTicks
+  ) {
+    throw new RangeError(`trajectoryTicks must be an integer from 0 to ${maximumTrajectoryTicks}`)
+  }
+
+  return { ...inputs, trajectoryTicks: maximumTrajectoryTicks }
+}
 
 const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
   if (isCompactView) {
@@ -154,7 +178,7 @@ const playerMeleeEvaluation = computed<PlayerMeleeEvaluation | null>(() => {
   }
 
   try {
-    const inputs = parseDiagnosticFormState(formState.value)
+    const inputs = parseFullTrajectoryInputs()
     const playerAim = deriveJe26_2PlayerAim(inputs.attackerEyePosition, inputs.aimPoint)
 
     return evaluatePlayerMeleeInputs(
@@ -215,7 +239,7 @@ const evaluation = computed<DiagnosticEvaluation | null>(() => {
   }
 
   try {
-    const inputs = parseDiagnosticFormState(formState.value)
+    const inputs = parseFullTrajectoryInputs()
     const playerAim = deriveJe26_2PlayerAim(inputs.attackerEyePosition, inputs.aimPoint)
     return evaluateDiagnosticInputs(inputs, toolNumerics, properties, playerAim.lookDirection)
   } catch {
@@ -392,8 +416,13 @@ function endSectionDrag(): void {
   sectionDropTarget.value = null
 }
 
-function resetSectionOrder(): void {
-  updateActiveSectionOrder(defaultSulfurCubeSectionLayouts[sceneSize.value])
+function resetPageLayout(): void {
+  sectionLayouts.value = {
+    regular: [...defaultSulfurCubeSectionLayouts.regular],
+    compact: [...defaultSulfurCubeSectionLayouts.compact],
+  }
+  collapsedSectionIds.value = []
+  sceneSize.value = 'compact'
 }
 
 function isSectionCollapsed(sectionId: SulfurCubeSectionId): boolean {
@@ -442,6 +471,7 @@ function resetSceneInputs(): void {
 function resetEverything(): void {
   resetSceneInputs()
   propertySelection.value = createInitialPropertySelection()
+  if (!isCompactView) resetPageLayout()
 }
 
 function switchCompactScene(): void {
@@ -482,26 +512,6 @@ function resetFloor(): void {
   formState.value = {
     ...formState.value,
     floorProfileId: defaultInputs.floorProfileId,
-  }
-}
-
-function resetOption(option: SceneResetOption): void {
-  switch (option) {
-    case 'everything':
-      resetEverything()
-      break
-    case 'positionsAim':
-      resetPositionsAim()
-      break
-    case 'archetype':
-      resetArchetype()
-      break
-    case 'weapon':
-      resetWeapon()
-      break
-    case 'floor':
-      resetFloor()
-      break
   }
 }
 
@@ -624,12 +634,12 @@ watch(
 </script>
 
 <template>
-  <CalcField>
+  <CalcField v-if="isCompactView">
     <template #heading>
       {{ t('sulfurCube.title') }}
     </template>
 
-    <div v-if="isCompactView" class="sulfur-cube-compact" lang="en">
+    <div class="sulfur-cube-compact" lang="en">
       <div class="compact-toolbar">
         <CdxField class="compact-toolbar__archetype">
           <template #label>{{ t('sulfurCube.compact.archetype') }}</template>
@@ -680,10 +690,10 @@ watch(
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
         :attack-summary="sceneAttackSummary"
         :floor-surface-label="selectedFloorLabel"
+        :trajectory-tick-limit="visualTrajectoryTicks"
         @update-aim-point="updateAimPoint"
         @translate-attacker="translateAttacker"
         @translate-cube="translateCube"
-        @reset="resetOption"
       />
 
       <TopDownScene
@@ -699,24 +709,42 @@ watch(
         @update-aim-point="updateAimPoint"
         @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
         @translate-cube="translateCube"
-        @reset="resetOption"
       />
 
       <CdxMessage v-else type="warning">
         {{ t('sulfurCube.invalidInputs') }}
       </CdxMessage>
     </div>
+  </CalcField>
 
-    <div v-else class="sulfur-cube-tool" lang="en">
-      <CdxMessage type="notice">
-        {{ t('sulfurCube.scope') }}
-      </CdxMessage>
+  <CalcField v-else>
+    <div class="sulfur-cube-tool" lang="en">
+      <header class="tool-title-band">
+        <img class="tool-title-band__image" :src="sulfurCubeImageUrl" alt="" />
+        <div class="tool-title-band__text">
+          <h2>{{ t('sulfurCube.title') }}</h2>
+          <p>{{ t('sulfurCube.titleThemes') }}</p>
+        </div>
+        <span class="tool-title-band__edition">{{ t('sulfurCube.scope') }}</span>
+      </header>
 
-      <div class="section-layout-toolbar">
-        <CdxButton size="small" weight="quiet" @click="resetSectionOrder">
-          {{ t('sulfurCube.layout.reset') }}
-        </CdxButton>
-      </div>
+      <LaunchSummaryPanel
+        :form-value="formState"
+        :property-selection="propertySelection"
+        :property-resolution="propertyResolution"
+        :player-melee="playerMeleeState"
+        :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
+        @update:form-value="updateFormStateFromControls"
+        @update:property-selection="updatePropertySelection"
+        @update:player-melee="updatePlayerMeleeState"
+        @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
+        @reset-positions-aim="resetPositionsAim"
+        @reset-archetype="resetArchetype"
+        @reset-weapon="resetWeapon"
+        @reset-floor="resetFloor"
+        @reset-layout="resetPageLayout"
+        @reset-everything="resetEverything"
+      />
 
       <div class="interaction-grid">
         <section
@@ -819,13 +847,10 @@ watch(
               :property-resolution="propertyResolution"
               :player-melee="playerMeleeState"
               :show-title="false"
-              :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
               @update:model-value="updateFormStateFromControls"
               @update:property-selection="updatePropertySelection"
               @update:player-melee="updatePlayerMeleeState"
               @reset-attacker-eye-standing="resetAttackerEyeStanding"
-              @toggle-trajectory-ticks-default="toggleTrajectoryTicksDefault"
-              @reset-everything="resetEverything"
               @reset-positions-aim="resetPositionsAim"
               @reset-archetype="resetArchetype"
               @reset-weapon="resetWeapon"
@@ -847,10 +872,10 @@ watch(
                 :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
                 :attack-summary="sceneAttackSummary"
                 :floor-surface-label="selectedFloorLabel"
+                :trajectory-tick-limit="visualTrajectoryTicks"
                 @update-aim-point="updateAimPoint"
                 @translate-attacker="translateAttacker"
                 @translate-cube="translateCube"
-                @reset="resetOption"
               />
 
               <CdxMessage v-else class="interaction-grid__scene" type="warning">
@@ -873,7 +898,6 @@ watch(
               @update-aim-point="updateAimPoint"
               @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
               @translate-cube="translateCube"
-              @reset="resetOption"
             />
 
             <PowerSpaceDiagram
@@ -984,6 +1008,60 @@ watch(
   margin-top: 0.75rem;
 }
 
+.tool-title-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6.5rem;
+  padding: 1rem 8rem;
+  overflow: hidden;
+  border: 1px solid #d5a43a;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #fff1b8, #f5c65d);
+  color: #202122;
+}
+
+.tool-title-band__image {
+  width: 72px;
+  height: 72px;
+  margin-right: 1rem;
+  object-fit: contain;
+}
+
+.tool-title-band__text {
+  text-align: center;
+}
+
+.tool-title-band__text h2,
+.tool-title-band__text p {
+  margin: 0;
+}
+
+.tool-title-band__text h2 {
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.tool-title-band__text p {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.tool-title-band__edition {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  width: max-content;
+  border: 1px solid rgb(32 33 34 / 18%);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  background: rgb(255 255 255 / 58%);
+  color: #54595d;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 :global(html.sulfur-cube-embedded),
 :global(html.sulfur-cube-embedded body) {
   overflow: hidden;
@@ -998,17 +1076,6 @@ watch(
   padding-left: 1.5rem;
 }
 
-.section-layout-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: 2rem;
-}
-
-.section-layout-toolbar :deep(.cdx-button) {
-  flex: 0 0 auto;
-}
-
 .interaction-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1021,8 +1088,11 @@ watch(
 .interaction-grid__slot {
   position: relative;
   display: grid;
-  gap: 0.35rem;
+  gap: 0;
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-color-subtle, #c8ccd1);
+  border-radius: 3px;
 }
 
 .interaction-grid__slot--half {
@@ -1084,6 +1154,8 @@ watch(
   gap: 0.5rem;
   min-width: 0;
   border-bottom: 1px solid var(--border-color-subtle, #c8ccd1);
+  padding: 0.2rem 0.35rem;
+  background: #edf3f8;
   color: var(--color-base, #202122);
 }
 
@@ -1131,6 +1203,28 @@ watch(
 
 .section-layout-content {
   min-width: 0;
+  padding: 0.75rem;
+}
+
+:global(.dark) .section-layout-handle-bar {
+  background: #2f3b45;
+  color: #eaecf0;
+}
+
+:global(.dark) .section-layout-handle,
+:global(.dark) .section-layout-collapse {
+  color: #eaecf0;
+}
+
+@media (max-width: 48rem) {
+  .tool-title-band {
+    padding: 2.5rem 1rem 1rem;
+  }
+
+  .tool-title-band__image {
+    width: 56px;
+    height: 56px;
+  }
 }
 
 @media (max-width: 52rem) {

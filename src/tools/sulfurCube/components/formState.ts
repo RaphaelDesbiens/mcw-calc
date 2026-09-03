@@ -22,6 +22,11 @@ export function createPlayerMeleeFormState(inputs: PlayerMeleeInputs): PlayerMel
     sharpnessLevel: inputs.sharpness.enabled ? stringifyNumber(inputs.sharpness.level) : '1',
     knockbackEnabled: inputs.knockback.enabled,
     knockbackLevel: inputs.knockback.enabled ? stringifyNumber(inputs.knockback.level) : '1',
+    allowNonVanillaEnchantmentLevels:
+      (inputs.sharpness.enabled &&
+        inputs.sharpness.level > je26_2PlayerMeleeMechanics.ordinarySurvivalSharpnessMaximum) ||
+      (inputs.knockback.enabled &&
+        inputs.knockback.level > je26_2PlayerMeleeMechanics.ordinarySurvivalKnockbackMaximum),
   }
 }
 

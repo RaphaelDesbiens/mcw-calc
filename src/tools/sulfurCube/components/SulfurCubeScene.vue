@@ -8,7 +8,7 @@ import type {
   WorldToSvgTransform,
 } from '../presentation/types'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
-import type { SceneAttackSummary, SceneResetOption } from './types'
+import type { SceneAttackSummary } from './types'
 import { CdxButton } from '@wikimedia/codex'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,7 +25,6 @@ import {
   translateWorldBounds,
 } from '../presentation/worldToSvg'
 import InfoTooltip from './InfoTooltip.vue'
-import SceneResetMenu from './SceneResetMenu.vue'
 
 type ObjectDragKind = 'aim' | 'attacker' | 'cube'
 type DragKind = ObjectDragKind | 'camera'
@@ -63,6 +62,7 @@ const props = withDefaults(
     selectedBlockSpriteUrl: string | null
     attackSummary?: SceneAttackSummary | null
     floorSurfaceLabel: string
+    trajectoryTickLimit?: number
     inputsInvalid?: boolean
   }>(),
   {
@@ -71,6 +71,7 @@ const props = withDefaults(
     showComparisonHelp: true,
     showHeadingTitle: true,
     showSizeControl: true,
+    trajectoryTickLimit: 1000,
     inputsInvalid: false,
   },
 )
@@ -80,7 +81,6 @@ const emit = defineEmits<{
   translateCube: [delta: Vec3]
   'update:sceneSize': [size: SceneSize]
   updateAimPoint: [point: Vec3]
-  reset: [option: SceneResetOption]
 }>()
 
 const { t } = useI18n()
@@ -96,7 +96,9 @@ const viewport = {
   height: 480,
   padding: { top: 36, right: 44, bottom: 46, left: 48 },
 } as const
-const initialScene = createRadialScenePresentation(props.evaluation)
+const initialScene = createRadialScenePresentation(props.evaluation, undefined, {
+  trajectoryTickLimit: props.trajectoryTickLimit,
+})
 const aimHandleDistance = ref(
   Math.hypot(
     initialScene.aimArrowEnd.x - initialScene.attackerEyes.x,
@@ -163,6 +165,7 @@ const view = computed(() => {
   const scene = createRadialScenePresentation(props.evaluation, undefined, {
     attackerSide: attackerSide.value,
     fallbackHorizontalAxis: fallbackHorizontalAxis.value,
+    trajectoryTickLimit: props.trajectoryTickLimit,
   })
   const transform = createWorldToSvgTransform(cameraBounds.value, viewport)
   const toSvg = transform.toSvg
@@ -871,9 +874,6 @@ function formatCoordinate(value: number): string {
         >
           +
         </CdxButton>
-      </div>
-      <div class="scene-frame__overlay scene-frame__overlay--reset">
-        <SceneResetMenu @select="emit('reset', $event)" />
       </div>
       <svg
         ref="svgElement"

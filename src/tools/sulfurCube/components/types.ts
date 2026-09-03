@@ -35,6 +35,7 @@ export interface PlayerMeleeFormState {
   readonly sharpnessLevel: NumericFormValue
   readonly knockbackEnabled: boolean
   readonly knockbackLevel: NumericFormValue
+  readonly allowNonVanillaEnchantmentLevels: boolean
 }
 
 export interface SceneAttackSummary {
@@ -45,5 +46,3 @@ export interface SceneAttackSummary {
   readonly sprinting: boolean
   readonly criticalHit: boolean
 }
-
-export type SceneResetOption = 'everything' | 'positionsAim' | 'archetype' | 'weapon' | 'floor'

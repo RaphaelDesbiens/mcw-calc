@@ -4,10 +4,13 @@ import type { Je26_2UniformFloorProfileId } from '../data/je26_2'
 import type { CubePropertySelectionResolution, CubePropertySelectionState } from '../resolution'
 import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { CdxAccordion, CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { je26_2UniformFloorProfileOrder } from '../data/je26_2'
+import {
+  je26_2UniformFloorProfileDefinitions,
+  je26_2UniformFloorProfileOrder,
+} from '../data/je26_2'
 import { sanitizeNumericInput } from '../presentation/numericInput'
-import { maximumTrajectoryTicks } from '../presets/diagnostic'
 import CubePropertyControls from './CubePropertyControls.vue'
 import InfoTooltip from './InfoTooltip.vue'
 import PlayerMeleeControls from './PlayerMeleeControls.vue'
@@ -17,7 +20,6 @@ const props = withDefaults(
     modelValue: DiagnosticFormState
     propertySelection: CubePropertySelectionState
     propertyResolution: CubePropertySelectionResolution
-    trajectoryTicksDefaultActive: boolean
     playerMelee: PlayerMeleeFormState
     showTitle?: boolean
   }>(),
@@ -36,7 +38,6 @@ const emit = defineEmits<{
   resetWeapon: []
   resetFloor: []
   resetAttackerEyeStanding: []
-  toggleTrajectoryTicksDefault: []
 }>()
 
 const { t } = useI18n()
@@ -44,6 +45,44 @@ const floorItems: MenuItemData[] = je26_2UniformFloorProfileOrder.map((id) => ({
   value: id,
   label: t(`sulfurCube.floor.${id}`),
 }))
+const selectedFloorDefinition = computed(
+  () => je26_2UniformFloorProfileDefinitions[props.modelValue.floorProfileId],
+)
+const selectedFloorScopeNote = computed(() => {
+  const floor = selectedFloorDefinition.value
+
+  return 'scopeNote' in floor ? floor.scopeNote : null
+})
+const floorNumberFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 4,
+  useGrouping: false,
+})
+const floorPropertyRows = computed(() => {
+  const floor = selectedFloorDefinition.value
+
+  return [
+    {
+      label: t('sulfurCube.floor.surfaceHeight'),
+      value: floorNumberFormatter.format(floor.surfaceHeightWithinBlock.value),
+    },
+    {
+      label: t('sulfurCube.floor.friction'),
+      value: floorNumberFormatter.format(floor.friction.value),
+    },
+    {
+      label: t('sulfurCube.floor.bounceRestitution'),
+      value: floorNumberFormatter.format(floor.bounceRestitution.value),
+    },
+    {
+      label: t('sulfurCube.floor.speedFactor'),
+      value: floorNumberFormatter.format(floor.speedFactor.value),
+    },
+    {
+      label: t('sulfurCube.floor.suppressesBounce'),
+      value: t(floor.suppressesBounce.value ? 'sulfurCube.yes' : 'sulfurCube.no'),
+    },
+  ]
+})
 
 function updateField(
   field: Exclude<keyof DiagnosticFormState, 'floorProfileId'>,
@@ -74,37 +113,25 @@ function updateFloor(value: string | number | null): void {
     :aria-labelledby="showTitle ? 'sulfur-cube-controls-title' : undefined"
     :aria-label="showTitle ? undefined : t('sulfurCube.controls.title')"
   >
-    <div
-      class="controls-panel__heading"
-      :class="{ 'controls-panel__heading--without-title': !showTitle }"
-    >
-      <h3 v-if="showTitle" id="sulfur-cube-controls-title" class="controls-panel__title">
-        {{ t('sulfurCube.controls.title') }}
-      </h3>
-      <CdxButton @click="emit('resetEverything')">
-        {{ t('sulfurCube.reset.everything') }}
-      </CdxButton>
-    </div>
+    <h3 v-if="showTitle" id="sulfur-cube-controls-title" class="controls-panel__title">
+      {{ t('sulfurCube.controls.title') }}
+    </h3>
 
     <div class="controls-group controls-group--properties">
       <CubePropertyControls
         :model-value="propertySelection"
         :resolution="propertyResolution"
         @update:model-value="emit('update:propertySelection', $event)"
+        @reset="emit('resetArchetype')"
       />
-      <CdxButton class="controls-group__reset" @click="emit('resetArchetype')">
-        {{ t('sulfurCube.reset.archetype') }}
-      </CdxButton>
     </div>
 
     <div class="controls-group controls-group--weapon">
       <PlayerMeleeControls
         :model-value="playerMelee"
         @update:model-value="emit('update:playerMelee', $event)"
+        @reset="emit('resetWeapon')"
       />
-      <CdxButton class="controls-group__reset" @click="emit('resetWeapon')">
-        {{ t('sulfurCube.reset.weapon') }}
-      </CdxButton>
     </div>
 
     <CdxAccordion class="controls-group--coordinates" heading-level="h4" separation="outline">
@@ -294,56 +321,37 @@ function updateFloor(value: string | number | null): void {
       </div>
     </CdxAccordion>
 
-    <div class="controls-group controls-group--floor">
-      <CdxField>
-        <template #label>
-          <span class="field-label-with-info">
-            {{ t('sulfurCube.controls.uniformFloor') }}
-            <InfoTooltip
-              :text="t('sulfurCube.controls.uniformFloorHelp')"
-              :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
-            />
-          </span>
-        </template>
+    <section class="floor-controls controls-group--floor" aria-labelledby="sulfur-cube-floor-title">
+      <div class="floor-controls__heading">
+        <div class="field-label-with-info">
+          <h4 id="sulfur-cube-floor-title">{{ t('sulfurCube.controls.uniformFloor') }}</h4>
+          <InfoTooltip
+            :text="t('sulfurCube.controls.uniformFloorHelp')"
+            :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
+          />
+        </div>
+        <CdxButton size="small" @click="emit('resetFloor')">
+          {{ t('sulfurCube.reset.floor') }}
+        </CdxButton>
+      </div>
+      <CdxField :hide-label="true">
+        <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
         <CdxSelect
           :selected="modelValue.floorProfileId"
           :menu-items="floorItems"
           @update:selected="updateFloor"
         />
       </CdxField>
-      <CdxButton class="controls-group__reset" @click="emit('resetFloor')">
-        {{ t('sulfurCube.reset.floor') }}
-      </CdxButton>
-    </div>
-
-    <div class="trajectory-row controls-group--trajectory">
-      <CdxField class="trajectory-row__input">
-        <template #label>
-          <span class="field-label-with-info">
-            {{ t('sulfurCube.controls.trajectoryTicks') }}
-            <InfoTooltip
-              :text="t('sulfurCube.controls.trajectoryTicksHelp')"
-              :label="t('sulfurCube.controls.trajectoryTicksHelpLabel')"
-            />
-          </span>
+      <dl class="floor-controls__values">
+        <template v-for="row in floorPropertyRows" :key="row.label">
+          <dt>{{ row.label }}</dt>
+          <dd>{{ row.value }}</dd>
         </template>
-        <CdxTextInput
-          :model-value="modelValue.trajectoryTicks"
-          input-type="number"
-          min="0"
-          :max="maximumTrajectoryTicks"
-          step="1"
-          @update:model-value="updateField('trajectoryTicks', $event)"
-        />
-      </CdxField>
-      <CdxButton
-        :action="trajectoryTicksDefaultActive ? 'progressive' : 'default'"
-        :aria-pressed="trajectoryTicksDefaultActive"
-        @click="emit('toggleTrajectoryTicksDefault')"
-      >
-        {{ t('sulfurCube.controls.trajectoryTicksDefault') }}
-      </CdxButton>
-    </div>
+      </dl>
+      <p v-if="selectedFloorScopeNote" class="floor-controls__note">
+        {{ selectedFloorScopeNote }}
+      </p>
+    </section>
   </section>
 </template>
 
@@ -359,17 +367,6 @@ function updateFloor(value: string | number | null): void {
 
 .controls-panel__title {
   margin: 0;
-}
-
-.controls-panel__heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.controls-panel__heading--without-title {
-  justify-content: flex-start;
 }
 
 .controls-group {
@@ -389,12 +386,8 @@ function updateFloor(value: string | number | null): void {
   order: 3;
 }
 
-.controls-group--trajectory {
-  order: 4;
-}
-
 .controls-group--coordinates {
-  order: 5;
+  order: 4;
 }
 
 .controls-group__reset {
@@ -411,17 +404,6 @@ function updateFloor(value: string | number | null): void {
   min-width: var(--numeric-input-width);
   width: var(--numeric-input-width);
   max-width: var(--numeric-input-width);
-}
-
-.trajectory-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 0.75rem;
-}
-
-.trajectory-row__input {
-  min-width: 0;
 }
 
 .coordinate-grid {
@@ -456,13 +438,58 @@ function updateFloor(value: string | number | null): void {
   margin-bottom: 0.75rem;
 }
 
-@media (max-width: 32rem) {
-  .trajectory-row {
-    grid-template-columns: 1fr;
-  }
+.floor-controls {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color-subtle, #c8ccd1);
+}
 
-  .trajectory-row > :last-child {
-    justify-self: start;
+.floor-controls__heading,
+.floor-controls__heading > div {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.floor-controls__heading {
+  justify-content: space-between;
+}
+
+.floor-controls__heading h4 {
+  margin: 0;
+}
+
+.floor-controls__values {
+  display: grid;
+  grid-template-columns: minmax(10rem, 13rem) minmax(5rem, auto);
+  gap: 0.4rem 0.75rem;
+  width: min(100%, 24rem);
+  margin: 0;
+}
+
+.floor-controls__values > * {
+  margin: 0;
+}
+
+.floor-controls__values dt,
+.floor-controls__note {
+  color: var(--color-subtle, #54595d);
+}
+
+.floor-controls__values dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.floor-controls__note {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 32rem) {
+  .floor-controls__values {
+    grid-template-columns: 1fr auto;
   }
 }
 </style>

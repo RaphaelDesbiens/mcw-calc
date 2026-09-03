@@ -153,6 +153,13 @@ describe('audited JE 26.2 ordinary melee enchantments', () => {
       sharpness: { enabled: false },
       knockback: { enabled: false },
     })
+    expect(
+      createPlayerMeleeFormState(createDefaultPlayerMeleeInputs()).allowNonVanillaEnchantmentLevels,
+    ).toBe(false)
+    expect(
+      createPlayerMeleeFormState(inputs({ sharpness: { enabled: true, level: 255 } }))
+        .allowNonVanillaEnchantmentLevels,
+    ).toBe(true)
   })
 
   it('matches accepted damage and call-count diagnostics for combined settings', () => {
