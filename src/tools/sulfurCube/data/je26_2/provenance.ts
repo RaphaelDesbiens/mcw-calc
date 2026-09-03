@@ -273,7 +273,7 @@ export const provenance = {
       'notes/in-game-data/sulfur_cube_endpoint/command_storage.dat and protocol-iterations/je26_2-melee-accuracy-matrix-accurate',
     locator: '100 completed player-melee rows, each with 40 stable endpoint samples',
     notes:
-      'The tracked test fixture retains the full-precision observed stable endpoints. Java precision matches all stored X/Y/Z components exactly; Standard is locked to the earlier six-decimal predictions.',
+      'The tracked fixtures retain full-precision observed endpoints, exact Standard outputs, focused command/launch intermediates and numerical edge cases. Java precision matches all stored X/Y/Z endpoint components exactly.',
   },
   airTravel: {
     edition: 'Java Edition',

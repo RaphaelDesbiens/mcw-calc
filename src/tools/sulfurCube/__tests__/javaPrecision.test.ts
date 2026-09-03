@@ -3,7 +3,7 @@ import type {
   Je26_2UniformFloorProfileId,
 } from '../data/je26_2'
 import type { DiagnosticInputs } from '../presets/diagnostic'
-import type { PlayerMeleeInputs } from '../presets/playerMelee'
+import type { PlayerMeleeEvaluation, PlayerMeleeInputs } from '../presets/playerMelee'
 import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { je26_2Constants } from '../data/je26_2'
@@ -45,7 +45,78 @@ interface EndpointFixture {
   readonly observedEndpoint: readonly [number, number, number]
 }
 
+interface ExtremeFixture {
+  readonly testId: string
+  readonly commandDerived: {
+    readonly eyePosition: readonly [number, number, number]
+    readonly pitchDegrees: number
+    readonly yawDegrees: number
+    readonly reconstructedLookVector: readonly [number, number, number]
+  }
+  readonly postHitMotion: readonly [number, number, number]
+  readonly observedFinalEndpoint: readonly [number, number, number]
+}
+
+interface NumericEdgeFixture {
+  readonly sineTable: readonly {
+    readonly name: string
+    readonly radians: number
+    readonly expected: number
+  }[]
+  readonly wrapDegreesFloat: readonly {
+    readonly name: string
+    readonly input: number
+    readonly expected: number
+  }[]
+  readonly entityLookAt: readonly {
+    readonly name: string
+    readonly eyePosition?: readonly [number, number, number]
+    readonly aimPoint?: readonly [number, number, number]
+    readonly expected: {
+      readonly pitch: number
+      readonly yaw: number
+      readonly look: { readonly x: number; readonly y: number; readonly z: number }
+    }
+  }[]
+  readonly mthSqrtFloat: { readonly input: number; readonly expected: number }
+  readonly vec3NormalizeCutoff: {
+    readonly floatCutoff: number
+    readonly cases: readonly {
+      readonly name: string
+      readonly component: number
+      readonly result: readonly [number, number, number]
+    }[]
+  }
+  readonly twoCallOrderedMelee: {
+    readonly initialVelocity: readonly [number, number, number]
+    readonly operations: readonly {
+      readonly existingVelocity: readonly [number, number, number]
+      readonly resultingVelocity: readonly [number, number, number]
+    }[]
+    readonly finalVelocity: readonly [number, number, number]
+  }
+  readonly repeatedUniformFloor: {
+    readonly status: 'settled' | 'truncated'
+    readonly simulatedTickCount: number
+    readonly arcCount: number
+    readonly airborneContactCount: number
+    readonly floorCollisionTickCount: number
+    readonly bounceEventCount: number
+    readonly endpointFeetPosition: readonly [number, number, number]
+    readonly endpointVelocity: readonly [number, number, number]
+    readonly endpointOnGround: boolean
+  }
+}
+
 const fixtureUrl = new URL('./fixtures/je26_2MeleeEndpointValidation.csv', import.meta.url)
+const extremeFixtureUrl = new URL(
+  './fixtures/je26_2MeleeExtremeValidation.json',
+  import.meta.url,
+)
+const numericEdgeFixtureUrl = new URL(
+  './fixtures/je26_2NumericEdgeValidation.json',
+  import.meta.url,
+)
 
 function parseFixtureCsv(): readonly EndpointFixture[] {
   const [headerLine, ...lines] = fs.readFileSync(fixtureUrl, 'utf8').trim().split(/\r?\n/)
@@ -86,6 +157,12 @@ function parseFixtureCsv(): readonly EndpointFixture[] {
 }
 
 const endpointFixtures = parseFixtureCsv()
+const extremeFixtures = (
+  JSON.parse(fs.readFileSync(extremeFixtureUrl, 'utf8')) as { readonly rows: ExtremeFixture[] }
+).rows
+const numericEdgeFixtures = JSON.parse(
+  fs.readFileSync(numericEdgeFixtureUrl, 'utf8'),
+) as NumericEdgeFixture
 
 function floorProfile(blockId: string): Je26_2UniformFloorProfileId {
   if (blockId === 'minecraft:slime_block') return 'slime_block'
@@ -166,7 +243,10 @@ function resolvedProperties(blockId: string) {
   return resolution.values
 }
 
-function endpointFor(fixture: EndpointFixture, mode: 'standard' | 'java') {
+function evaluationFor(
+  fixture: EndpointFixture,
+  mode: 'standard' | 'java',
+): PlayerMeleeEvaluation {
   const numerics = mode === 'java' ? javaPrecisionNumerics : standardNumerics
   const eyeHeight =
     mode === 'java'
@@ -188,7 +268,7 @@ function endpointFor(fixture: EndpointFixture, mode: 'standard' | 'java') {
     properties,
     javaAim?.lookDirection,
   )
-  const evaluation = evaluatePlayerMeleeInputs(
+  return evaluatePlayerMeleeInputs(
     { ...diagnostic, trajectoryTicks },
     melee,
     yaw,
@@ -197,31 +277,41 @@ function endpointFor(fixture: EndpointFixture, mode: 'standard' | 'java') {
     javaAim?.lookDirection,
   )
 
-  return evaluation.trajectory.endpoint.feetPosition
+}
+
+function endpointFor(fixture: EndpointFixture, mode: 'standard' | 'java') {
+  return evaluationFor(fixture, mode).trajectory.endpoint.feetPosition
+}
+
+function vectorTuple(vector: { readonly x: number; readonly y: number; readonly z: number }) {
+  return [vector.x, vector.y, vector.z]
 }
 
 describe('je 26.2 Java-precision numerics', () => {
   it('uses source Float32 boundaries without changing Java double primitives', () => {
     expect(javaPrecisionNumerics.sourceFloat(1 / 3)).toBe(Math.fround(1 / 3))
     expect(javaPrecisionNumerics.sqrt(2)).toBe(Math.sqrt(2))
-    expect(Math.fround(javaPrecisionNumerics.sqrt(Math.fround(2)))).toBe(1.4142135381698608)
+    expect(
+      Math.fround(
+        javaPrecisionNumerics.sqrt(Math.fround(numericEdgeFixtures.mthSqrtFloat.input)),
+      ),
+    ).toBe(numericEdgeFixtures.mthSqrtFloat.expected)
   })
 
   it('reproduces the quantized sine table, including negative lookup indices', () => {
     expect(minecraftSin(0)).toBe(0)
     expect(minecraftCos(0)).toBe(1)
-    expect(minecraftSin(1)).toBe(0.8414514064788818)
-    expect(minecraftSin(-1)).toBe(-0.8414514064788818)
     expect(minecraftCos(-1)).toBe(0.540252149105072)
-    expect(minecraftSin(Math.PI * 2)).toBe(0)
+
+    for (const fixture of numericEdgeFixtures.sineTable) {
+      expect(minecraftSin(fixture.radians), fixture.name).toBe(fixture.expected)
+    }
   })
 
   it('reproduces float wrapDegrees at and around its branch boundary', () => {
-    expect(minecraftWrapDegreesFloat(180)).toBe(-180)
-    expect(minecraftWrapDegreesFloat(-180)).toBe(-180)
-    expect(minecraftWrapDegreesFloat(179.99999)).toBe(179.99998474121094)
-    expect(minecraftWrapDegreesFloat(180.00001)).toBe(-179.99998474121094)
-    expect(minecraftWrapDegreesFloat(-180.00001)).toBe(179.99998474121094)
+    for (const fixture of numericEdgeFixtures.wrapDegreesFloat) {
+      expect(minecraftWrapDegreesFloat(fixture.input), fixture.name).toBe(fixture.expected)
+    }
   })
 
   it('keeps the Mth atan2 approximation inside the command-facing adapter', () => {
@@ -230,46 +320,69 @@ describe('je 26.2 Java-precision numerics', () => {
   })
 
   it('reconstructs Entity lookAt rotation and calculateViewVector', () => {
+    const fixture = numericEdgeFixtures.entityLookAt.find(({ name }) => name === 'general')!
+    const eyePosition = fixture.eyePosition!
+    const aimPoint = fixture.aimPoint!
     const result = deriveJe26_2PlayerAim(
-      { x: 0, y: 1.62, z: 0 },
-      { x: 1, y: 0.4, z: 2 },
+      { x: eyePosition[0], y: eyePosition[1], z: eyePosition[2] },
+      { x: aimPoint[0], y: aimPoint[1], z: aimPoint[2] },
     )
 
-    expect(result.pitchDegrees).toBe(28.616657257080078)
-    expect(result.yawDegrees).toBe(-26.565032958984375)
-    expect(result.lookDirection).toEqual({
-      x: 0.39259248971939087,
-      y: -0.47890472412109375,
-      z: 0.7851887941360474,
-    })
+    expect(result.pitchDegrees).toBe(fixture.expected.pitch)
+    expect(result.yawDegrees).toBe(fixture.expected.yaw)
+    expect(result.lookDirection).toEqual(fixture.expected.look)
     expect(calculateJe26_2ViewVector(result.pitchDegrees, result.yawDegrees)).toEqual(
       result.lookDirection,
     )
   })
 
   it('preserves the source vertical-look and signed-zero branch behavior', () => {
+    const vertical = numericEdgeFixtures.entityLookAt.find(({ name }) => name === 'vertical-up')!
+    const eyePosition = vertical.eyePosition!
+    const aimPoint = vertical.aimPoint!
+
     expect(
-      deriveJe26_2PlayerAim({ x: 0, y: 1.62, z: 0 }, { x: 0, y: 4, z: 0 }),
+      deriveJe26_2PlayerAim(
+        { x: eyePosition[0], y: eyePosition[1], z: eyePosition[2] },
+        { x: aimPoint[0], y: aimPoint[1], z: aimPoint[2] },
+      ),
     ).toEqual({
-      pitchDegrees: -90,
-      yawDegrees: -90,
-      lookDirection: { x: 0, y: 1, z: 0 },
+      pitchDegrees: vertical.expected.pitch,
+      yawDegrees: vertical.expected.yaw,
+      lookDirection: vertical.expected.look,
     })
+
+    const signedZero = numericEdgeFixtures.entityLookAt.find(
+      ({ name }) => name === 'signed-zero-horizontal-components',
+    )!
+    const signedZeroResult = deriveJe26_2PlayerAim(
+      { x: 0, y: Math.fround(1.62), z: 0 },
+      { x: -0, y: Math.fround(1.62), z: -0 },
+    )
+    expect(Object.is(signedZeroResult.pitchDegrees, -0)).toBe(true)
+    expect(signedZeroResult.yawDegrees).toBe(signedZero.expected.yaw)
+    expect(signedZeroResult.lookDirection.x).toBe(signedZero.expected.look.x)
+    expect(Object.is(signedZeroResult.lookDirection.y, -0)).toBe(true)
+    expect(signedZeroResult.lookDirection.z).toBe(signedZero.expected.look.z)
     expect(Object.is(minecraftAtan2(-0, 1), 0)).toBe(true)
     expect(Object.is(minecraftAtan2(0, -0), 0)).toBe(true)
   })
 
   it('uses the Float32 Vec3 normalization cutoff with the source strict comparison', () => {
-    const cutoff = Math.fround(1e-5)
+    const { floatCutoff, cases } = numericEdgeFixtures.vec3NormalizeCutoff
 
-    expect(normalizeVec3({ x: cutoff / 2, y: 0, z: 0 }, javaPrecisionNumerics, cutoff)).toEqual(
-      { x: 0, y: 0, z: 0 },
-    )
-    expect(normalizeVec3({ x: cutoff, y: 0, z: 0 }, javaPrecisionNumerics, cutoff)).toEqual({
-      x: 1,
-      y: 0,
-      z: 0,
-    })
+    for (const fixture of cases) {
+      expect(
+        vectorTuple(
+          normalizeVec3(
+            { x: fixture.component, y: 0, z: 0 },
+            javaPrecisionNumerics,
+            floatCutoff,
+          ),
+        ),
+        fixture.name,
+      ).toEqual(fixture.result)
+    }
   })
 })
 
@@ -281,13 +394,13 @@ describe('je 26.2 in-game melee endpoint validation', () => {
     )
   })
 
-  it('keeps Standard-mode endpoints stable to the recorded six-decimal outputs', () => {
+  it('keeps Standard-mode endpoints exactly stable', () => {
     for (const fixture of endpointFixtures) {
       const endpoint = endpointFor(fixture, 'standard')
 
-      expect(endpoint.x, `row ${fixture.row} X`).toBeCloseTo(fixture.standardEndpoint[0], 6)
-      expect(endpoint.y, `row ${fixture.row} Y`).toBeCloseTo(fixture.standardEndpoint[1], 6)
-      expect(endpoint.z, `row ${fixture.row} Z`).toBeCloseTo(fixture.standardEndpoint[2], 6)
+      expect(endpoint.x, `row ${fixture.row} X`).toBe(fixture.standardEndpoint[0])
+      expect(endpoint.y, `row ${fixture.row} Y`).toBe(fixture.standardEndpoint[1])
+      expect(endpoint.z, `row ${fixture.row} Z`).toBe(fixture.standardEndpoint[2])
     }
   })
 
@@ -301,10 +414,60 @@ describe('je 26.2 in-game melee endpoint validation', () => {
     }
   })
 
-  it.each([44, 85, 93, 94, 97])('locks named extreme row %i', (row) => {
-    const fixture = endpointFixtures[row - 1]!
-    const endpoint = endpointFor(fixture, 'java')
+  it.each(extremeFixtures)('locks command and launch intermediates for $testId', (extreme) => {
+    const fixture = endpointFixtures[Number(extreme.testId.slice(1)) - 1]!
+    const { diagnostic } = createEvaluationInputs(
+      fixture,
+      Math.fround(je26_2Constants.standingPlayerEyeHeight.value),
+    )
+    const aim = deriveJe26_2PlayerAim(diagnostic.attackerEyePosition, diagnostic.aimPoint)
+    const evaluation = evaluationFor(fixture, 'java')
 
-    expect([endpoint.x, endpoint.y, endpoint.z]).toEqual(fixture.observedEndpoint)
+    expect(vectorTuple(diagnostic.attackerEyePosition)).toEqual(extreme.commandDerived.eyePosition)
+    expect(aim.pitchDegrees).toBe(extreme.commandDerived.pitchDegrees)
+    expect(aim.yawDegrees).toBe(extreme.commandDerived.yawDegrees)
+    expect(vectorTuple(aim.lookDirection)).toEqual(
+      extreme.commandDerived.reconstructedLookVector,
+    )
+    expect(vectorTuple(evaluation.launchVelocity)).toEqual(extreme.postHitMotion)
+    expect(vectorTuple(evaluation.trajectory.endpoint.feetPosition)).toEqual(
+      extreme.observedFinalEndpoint,
+    )
+  })
+
+  it('locks row 44 two-call ordering and repeated-floor diagnostics', () => {
+    const evaluation = evaluationFor(endpointFixtures[43]!, 'java')
+    const ordered = numericEdgeFixtures.twoCallOrderedMelee
+    const floor = numericEdgeFixtures.repeatedUniformFloor
+
+    expect(vectorTuple(evaluation.operationSequence.initialVelocity)).toEqual(
+      ordered.initialVelocity,
+    )
+    expect(
+      evaluation.operationSequence.operationResults.map((result) => ({
+        existingVelocity: vectorTuple(result.existingVelocity),
+        resultingVelocity: vectorTuple(result.resultingVelocity),
+      })),
+    ).toEqual(
+      ordered.operations.map((operation) => ({
+        existingVelocity: operation.existingVelocity,
+        resultingVelocity: operation.resultingVelocity,
+      })),
+    )
+    expect(vectorTuple(evaluation.operationSequence.resultingVelocity)).toEqual(
+      ordered.finalVelocity,
+    )
+
+    expect(evaluation.trajectory.status).toBe(floor.status)
+    expect(evaluation.trajectory.ticks).toHaveLength(floor.simulatedTickCount)
+    expect(evaluation.trajectory.arcCount).toBe(floor.arcCount)
+    expect(evaluation.trajectory.airborneContactCount).toBe(floor.airborneContactCount)
+    expect(evaluation.trajectory.floorCollisionTickCount).toBe(floor.floorCollisionTickCount)
+    expect(evaluation.trajectory.bounceEventCount).toBe(floor.bounceEventCount)
+    expect(vectorTuple(evaluation.trajectory.endpoint.feetPosition)).toEqual(
+      floor.endpointFeetPosition,
+    )
+    expect(vectorTuple(evaluation.trajectory.endpoint.velocity)).toEqual(floor.endpointVelocity)
+    expect(evaluation.trajectory.endpoint.onGround).toBe(floor.endpointOnGround)
   })
 })
