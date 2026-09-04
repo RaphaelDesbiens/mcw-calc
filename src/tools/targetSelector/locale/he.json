@@ -1,0 +1,18 @@
+{
+  "targetSelector.java": "Java Edition",
+  "targetSelector.bedrock": "Bedrock Edition",
+  "targetSelector.none": "ללא",
+  "targetSelector.min": "מינימום",
+  "targetSelector.max": "מקסימום",
+  "targetSelector.sort.arbitrary": "ללא",
+  "targetSelector.pos.x": "X",
+  "targetSelector.pos.y": "Y",
+  "targetSelector.pos.z": "Z",
+  "targetSelector.dx": "DX",
+  "targetSelector.dy": "DY",
+  "targetSelector.dz": "DZ",
+  "targetSelector.tag": "תג",
+  "targetSelector.group.basic": "בסיסי",
+  "targetSelector.copy": "העתק",
+  "targetSelector.copied": "הועתק!"
+}

@@ -1,0 +1,8 @@
+{
+  "meleeDamage.java": "Java Edition",
+  "meleeDamage.bedrock": "Bedrock Edition",
+  "meleeDamage.tool.select": "נשק",
+  "meleeDamage.tool.modifier.operation.add": "הוסף",
+  "meleeDamage.defaultTools.hand": "יד",
+  "meleeDamage.defaultTools.mace": "אלת מחץ"
+}
