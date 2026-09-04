@@ -124,12 +124,21 @@ function updateFloor(value: string | number | null): void {
       open
     >
       <template #title>
-        <span class="field-label-with-info">
-          {{ t('sulfurCube.properties.title') }}
-          <InfoTooltip
-            :text="t('sulfurCube.properties.archetypeDefinition')"
-            :label="t('sulfurCube.properties.archetypeDefinitionLabel')"
-          />
+        <span class="input-subsection-title">
+          <span class="field-label-with-info">
+            {{ t('sulfurCube.properties.title') }}
+            <InfoTooltip
+              :text="t('sulfurCube.properties.archetypeDefinition')"
+              :label="t('sulfurCube.properties.archetypeDefinitionLabel')"
+            />
+          </span>
+          <CdxButton
+            class="input-subsection-title__reset sulfur-cube-reset"
+            size="small"
+            @click.stop.prevent="emit('resetArchetype')"
+          >
+            {{ t('sulfurCube.reset.archetype') }}
+          </CdxButton>
         </span>
       </template>
       <CubePropertyControls
@@ -147,12 +156,21 @@ function updateFloor(value: string | number | null): void {
       separation="outline"
     >
       <template #title>
-        <span class="field-label-with-info">
-          {{ t('sulfurCube.attack.weapon') }}
-          <InfoTooltip
-            :text="t('sulfurCube.attack.help')"
-            :label="t('sulfurCube.attack.helpLabel')"
-          />
+        <span class="input-subsection-title">
+          <span class="field-label-with-info">
+            {{ t('sulfurCube.attack.weapon') }}
+            <InfoTooltip
+              :text="t('sulfurCube.attack.help')"
+              :label="t('sulfurCube.attack.helpLabel')"
+            />
+          </span>
+          <CdxButton
+            class="input-subsection-title__reset sulfur-cube-reset"
+            size="small"
+            @click.stop.prevent="emit('resetWeapon')"
+          >
+            {{ t('sulfurCube.reset.weapon') }}
+          </CdxButton>
         </span>
       </template>
       <PlayerMeleeControls
@@ -165,22 +183,25 @@ function updateFloor(value: string | number | null): void {
 
     <CdxAccordion class="controls-group--coordinates" heading-level="h4" separation="outline">
       <template #title>
-        <span class="field-label-with-info">
-          {{ t('sulfurCube.controls.coordinates') }}
-          <InfoTooltip
-            :text="t('sulfurCube.controls.coordinatesHelp')"
-            :label="t('sulfurCube.controls.coordinatesHelpLabel')"
-          />
+        <span class="input-subsection-title">
+          <span class="field-label-with-info">
+            {{ t('sulfurCube.controls.coordinates') }}
+            <InfoTooltip
+              :text="t('sulfurCube.controls.coordinatesHelp')"
+              :label="t('sulfurCube.controls.coordinatesHelpLabel')"
+            />
+          </span>
+          <CdxButton
+            class="input-subsection-title__reset sulfur-cube-reset"
+            size="small"
+            @click.stop.prevent="emit('resetPositionsAim')"
+          >
+            {{ t('sulfurCube.reset.positionsAim') }}
+          </CdxButton>
         </span>
       </template>
 
       <div class="coordinate-sections">
-        <CdxButton
-          class="controls-group__reset sulfur-cube-reset"
-          @click="emit('resetPositionsAim')"
-        >
-          {{ t('sulfurCube.reset.positionsAim') }}
-        </CdxButton>
         <CdxField is-fieldset>
           <template #label>
             <span class="field-label-with-info">
@@ -275,7 +296,7 @@ function updateFloor(value: string | number | null): void {
           </template>
 
           <div class="eye-preset-row">
-            <CdxButton class="sulfur-cube-reset" @click="emit('resetAttackerEyeStanding')">
+            <CdxButton @click="emit('resetAttackerEyeStanding')">
               {{ t('sulfurCube.controls.attackerEyesStandingDefault') }}
             </CdxButton>
           </div>
@@ -355,24 +376,31 @@ function updateFloor(value: string | number | null): void {
 
     <CdxAccordion class="controls-group--floor" heading-level="h4" separation="outline">
       <template #title>
-        <span class="field-label-with-info">
-          {{ t('sulfurCube.controls.uniformFloor') }}
-          <InfoTooltip
-            :text="t('sulfurCube.controls.uniformFloorHelp')"
-            :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
-          />
+        <span class="input-subsection-title">
+          <span class="field-label-with-info">
+            {{ t('sulfurCube.controls.uniformFloor') }}
+            <InfoTooltip
+              :text="t('sulfurCube.controls.uniformFloorHelp')"
+              :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
+            />
+          </span>
+          <CdxButton
+            class="input-subsection-title__reset sulfur-cube-reset"
+            size="small"
+            @click.stop.prevent="emit('resetFloor')"
+          >
+            {{ t('sulfurCube.reset.floor') }}
+          </CdxButton>
         </span>
       </template>
       <div class="floor-controls">
-        <CdxButton class="sulfur-cube-reset" size="small" @click="emit('resetFloor')">
-          {{ t('sulfurCube.reset.floor') }}
-        </CdxButton>
         <div class="floor-controls__body">
           <CdxField :hide-label="true">
             <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
             <CdxSelect
               :selected="modelValue.floorProfileId"
               :menu-items="floorItems"
+              :menu-config="{ renderInPlace: true }"
               @update:selected="updateFloor"
             />
           </CdxField>
@@ -407,6 +435,10 @@ function updateFloor(value: string | number | null): void {
   margin: 0;
 }
 
+.controls-panel :deep(.cdx-accordion[open]) {
+  overflow: visible;
+}
+
 .controls-group {
   display: grid;
   gap: 0.75rem;
@@ -428,14 +460,28 @@ function updateFloor(value: string | number | null): void {
   order: 4;
 }
 
-.controls-group__reset {
-  justify-self: end;
-}
-
 .field-label-with-info {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.input-subsection-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.input-subsection-title__reset {
+  flex: none;
+  margin-left: auto;
+}
+
+.controls-panel :deep(.cdx-accordion__header__title) {
+  flex: 1;
+  min-width: 0;
 }
 
 .controls-panel :deep(.cdx-text-input) {
@@ -480,10 +526,6 @@ function updateFloor(value: string | number | null): void {
   display: grid;
   gap: 0.75rem;
 }
-.floor-controls > .sulfur-cube-reset {
-  justify-self: end;
-}
-
 .floor-controls__values {
   display: grid;
   grid-template-columns: minmax(10rem, 13rem) minmax(5rem, auto);
@@ -493,7 +535,7 @@ function updateFloor(value: string | number | null): void {
 }
 .floor-controls__body {
   display: grid;
-  grid-template-columns: 11rem minmax(0, 1fr);
+  grid-template-columns: calc(11rem + 1cm) minmax(0, 1fr);
   gap: 1rem 2rem;
   align-items: center;
 }
@@ -502,9 +544,16 @@ function updateFloor(value: string | number | null): void {
   width: 100%;
   min-width: 0;
 }
+.floor-controls__body :deep(.cdx-select-vue .cdx-menu) {
+  top: 100% !important;
+  right: auto !important;
+  left: 0 !important;
+  transform: none !important;
+}
 .floor-controls__details {
   display: grid;
   gap: 0.5rem;
+  margin-left: 1cm;
 }
 
 .floor-controls__values > * {
@@ -529,6 +578,9 @@ function updateFloor(value: string | number | null): void {
 @media (max-width: 32rem) {
   .floor-controls__body {
     grid-template-columns: 1fr;
+  }
+  .floor-controls__details {
+    margin-left: 0;
   }
   .floor-controls__values {
     grid-template-columns: 1fr auto;

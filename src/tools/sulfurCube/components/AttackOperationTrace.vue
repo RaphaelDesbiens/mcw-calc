@@ -71,6 +71,9 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
     </h3>
     <p class="attack-trace__intro">{{ t('sulfurCube.attack.trace.intro') }}</p>
 
+    <h4 class="attack-trace__group-title">
+      {{ t('sulfurCube.attack.trace.resolutionValues') }}
+    </h4>
     <dl class="attack-trace__summary">
       <div>
         <dt>{{ t('sulfurCube.attack.trace.effectiveDamage') }}</dt>
@@ -174,6 +177,7 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
       </div>
     </dl>
 
+    <h4 class="attack-trace__group-title">{{ t('sulfurCube.attack.trace.orderedCalls') }}</h4>
     <ol class="attack-trace__operations">
       <li
         v-for="(result, index) in evaluation.operationSequence.operationResults"
@@ -222,6 +226,10 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
 .attack-trace h3,
 .attack-trace__intro {
   margin: 0 0 0.75rem;
+}
+
+.attack-trace__group-title {
+  margin: 0 0 0.5rem;
 }
 
 .attack-trace__summary {

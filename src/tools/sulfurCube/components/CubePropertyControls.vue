@@ -408,8 +408,8 @@ function hideBlockTooltip(): void {
     :aria-labelledby="showHeading ? 'sulfur-cube-properties-title' : undefined"
     :aria-label="showHeading ? undefined : t('sulfurCube.properties.title')"
   >
-    <div class="property-controls__heading">
-      <div v-if="showHeading" class="property-controls__heading-title">
+    <div v-if="showHeading" class="property-controls__heading">
+      <div class="property-controls__heading-title">
         <h4 id="sulfur-cube-properties-title">{{ t('sulfurCube.properties.title') }}</h4>
         <InfoTooltip
           :text="t('sulfurCube.properties.archetypeDefinition')"

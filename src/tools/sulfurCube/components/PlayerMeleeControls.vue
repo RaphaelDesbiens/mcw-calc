@@ -185,8 +185,8 @@ function warningKey(code: string): string {
     :aria-labelledby="showHeading ? 'sulfur-cube-player-attack-title' : undefined"
     :aria-label="showHeading ? undefined : t('sulfurCube.attack.weapon')"
   >
-    <div class="player-attack__heading">
-      <div v-if="showHeading" class="player-attack__heading-title">
+    <div v-if="showHeading" class="player-attack__heading">
+      <div class="player-attack__heading-title">
         <h4 id="sulfur-cube-player-attack-title">{{ t('sulfurCube.attack.title') }}</h4>
         <InfoTooltip
           :text="t('sulfurCube.attack.help')"
@@ -271,6 +271,7 @@ function warningKey(code: string): string {
           v-else
           :selected="selectedLevel(modelValue.sharpnessEnabled, modelValue.sharpnessLevel)"
           :menu-items="ordinarySharpnessItems"
+          :menu-config="{ renderInPlace: true }"
           @update:selected="updateOrdinaryEnchantment('sharpness', $event)"
         />
       </CdxField>
@@ -289,6 +290,7 @@ function warningKey(code: string): string {
           v-else
           :selected="selectedLevel(modelValue.knockbackEnabled, modelValue.knockbackLevel)"
           :menu-items="ordinaryKnockbackItems"
+          :menu-config="{ renderInPlace: true }"
           @update:selected="updateOrdinaryEnchantment('knockback', $event)"
         />
       </CdxField>
@@ -386,6 +388,12 @@ function warningKey(code: string): string {
 }
 .player-attack__heading h4 {
   margin: 0;
+}
+.player-attack :deep(.cdx-select-vue .cdx-menu) {
+  top: 100% !important;
+  right: auto !important;
+  left: 0 !important;
+  transform: none !important;
 }
 .weapon-picker {
   display: grid;

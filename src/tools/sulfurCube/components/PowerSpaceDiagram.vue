@@ -2,7 +2,7 @@
 import type { PowerStageId } from '../presentation/powerSpace'
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { I18nT, useI18n } from 'vue-i18n'
 import { createPowerSpacePresentation } from '../presentation/powerSpace'
 import { createWorldToSvgTransform } from '../presentation/worldToSvg'
 import InfoTooltip from './InfoTooltip.vue'
@@ -98,23 +98,23 @@ function stageLabelY(stage: SvgPowerStage): number {
   return stage.id === 'base' ? stage.svg.y + 14 : stage.svg.y - 11
 }
 
-const powerSequenceDescription = computed(() => {
+const currentTransformation = computed(() => {
   const ratio = props.evaluation.callResult.diagnostics.transferredPowerRatio
   const angle = props.evaluation.callResult.diagnostics.powerRotationAngle
   const presentation = createPowerSpacePresentation(props.evaluation.callResult)
-  const capDescription = presentation.capApplied
-    ? t('sulfurCube.power.sequenceCapApplied', {
-        factor: formatFixedNumber(presentation.capFactor, 4),
-      })
-    : t('sulfurCube.power.sequenceCapNotApplied')
 
-  return t('sulfurCube.power.sequenceExplanation', {
+  return {
     percentage: formatFixedNumber(ratio * 100, 2),
     horizontalFactor: formatFixedNumber(1 - ratio, 2),
     verticalFactor: formatFixedNumber(1 + ratio, 2),
     degrees: formatFixedNumber((angle * 180) / Math.PI, 2),
-    capDescription,
-  })
+    capFactor: formatFixedNumber(presentation.capFactor, 4),
+    capStatus: t(
+      presentation.capApplied
+        ? 'sulfurCube.power.currentCapApplied'
+        : 'sulfurCube.power.currentCapNotApplied',
+    ),
+  }
 })
 
 const view = computed(() => {
@@ -353,12 +353,54 @@ const view = computed(() => {
     </ol>
 
     <figcaption class="power-space__details">
-      <span>{{ t('sulfurCube.power.currentValues') }}</span>
-      <InfoTooltip
-        :text="powerSequenceDescription"
-        :label="t('sulfurCube.power.currentValuesLabel')"
-        placement="top"
-      />
+      <strong>{{ t('sulfurCube.power.currentValues') }}</strong>
+      <I18nT
+        keypath="sulfurCube.power.currentAimTransformation"
+        scope="global"
+        tag="p"
+        class="power-space__transformation power-space__transformation--aim"
+      >
+        <template #percentage>
+          <span class="power-space__transformation-value power-space__transformation-value--wide">
+            {{ currentTransformation.percentage }}
+          </span>
+        </template>
+        <template #horizontalFactor>
+          <span class="power-space__transformation-value">
+            {{ currentTransformation.horizontalFactor }}
+          </span>
+        </template>
+        <template #verticalFactor>
+          <span class="power-space__transformation-value">
+            {{ currentTransformation.verticalFactor }}
+          </span>
+        </template>
+      </I18nT>
+      <I18nT
+        keypath="sulfurCube.power.currentHeightTransformation"
+        scope="global"
+        tag="p"
+        class="power-space__transformation power-space__transformation--elevation"
+      >
+        <template #degrees>
+          <span class="power-space__transformation-value power-space__transformation-value--wide">
+            {{ currentTransformation.degrees }}
+          </span>
+        </template>
+      </I18nT>
+      <I18nT
+        keypath="sulfurCube.power.currentCapTransformation"
+        scope="global"
+        tag="p"
+        class="power-space__transformation power-space__transformation--cap"
+      >
+        <template #factor>
+          <span class="power-space__transformation-value power-space__transformation-value--cap">
+            {{ currentTransformation.capFactor }}
+          </span>
+        </template>
+        <template #status>{{ currentTransformation.capStatus }}</template>
+      </I18nT>
     </figcaption>
   </figure>
 </template>
@@ -368,11 +410,7 @@ const view = computed(() => {
   --power-ink: var(--color-base, #202122);
   --power-muted: var(--color-subtle, #54595d);
   --power-border: var(--border-color-subtle, #c8ccd1);
-  --power-background: color-mix(
-    in srgb,
-    var(--color-base, #202122) 5%,
-    var(--background-color-base, #fff)
-  );
+  --power-background: #e2e4e7;
   --power-base: #f2a900;
   --power-aim: #00a3d7;
   --power-elevation: #d33682;
@@ -594,6 +632,7 @@ figcaption {
 }
 
 :global(.dark) .power-space {
+  --power-background: #2a2d30;
   --power-base: #ffd84d;
   --power-aim: #62d6ff;
   --power-elevation: #ff6bb3;
@@ -608,11 +647,43 @@ figcaption {
 }
 
 .power-space__details {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 0.25rem;
   margin-top: 0.75rem;
   font-size: 0.875em;
+}
+
+.power-space__transformation {
+  min-height: 1.5em;
+  margin: 0;
+}
+
+.power-space__transformation-value {
+  display: inline-block;
+  min-width: 4.5ch;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.power-space__transformation-value--wide {
+  min-width: 6.5ch;
+}
+
+.power-space__transformation-value--cap {
+  min-width: 7ch;
+}
+
+.power-space__transformation--aim .power-space__transformation-value {
+  color: var(--power-aim);
+}
+
+.power-space__transformation--elevation .power-space__transformation-value {
+  color: var(--power-elevation);
+}
+
+.power-space__transformation--cap .power-space__transformation-value {
+  color: var(--power-cap);
 }
 
 @media (max-width: 32rem) {

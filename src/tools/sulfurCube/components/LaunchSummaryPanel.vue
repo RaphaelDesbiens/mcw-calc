@@ -57,7 +57,7 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const transparentThumbnailUrl =
-  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/%3E'
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const radialDisplayOptionKeys = [
   'velocity',
   'cube',
@@ -137,6 +137,27 @@ const selectedKnockback = computed(() =>
 )
 const sharpnessUsesNumericInput = ref(false)
 const knockbackUsesNumericInput = ref(false)
+const sharpnessNumericInputValue = ref('0')
+const knockbackNumericInputValue = ref('0')
+
+watch(
+  selectedSharpness,
+  (level) => {
+    sharpnessNumericInputValue.value = String(
+      Math.min(je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel, Math.max(0, level)),
+    )
+  },
+  { immediate: true },
+)
+watch(
+  selectedKnockback,
+  (level) => {
+    knockbackNumericInputValue.value = String(
+      Math.min(je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel, Math.max(0, level)),
+    )
+  },
+  { immediate: true },
+)
 
 watch(
   () =>
@@ -234,6 +255,9 @@ function updateNumericEnchantment(
     Math.max(0, Math.trunc(parsed ?? 0)),
   )
 
+  if (enchantment === 'sharpness') sharpnessNumericInputValue.value = String(level)
+  else knockbackNumericInputValue.value = String(level)
+
   updateEnchantment(enchantment, level)
 }
 
@@ -318,7 +342,10 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
         </CdxButton>
       </div>
       <div class="launch-summary__attack-controls">
-        <CdxField class="launch-summary__weapon">
+        <CdxField
+          class="launch-summary__weapon"
+          :class="{ 'launch-summary__weapon--bare': selectedWeapon === 'bareHand' }"
+        >
           <template #label>{{ t('sulfurCube.attack.weapon') }}</template>
           <CdxSelect
             :selected="selectedWeapon"
@@ -331,7 +358,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
           <template #label>{{ t('sulfurCube.attack.sharpness') }}</template>
           <CdxTextInput
             v-if="sharpnessUsesNumericInput"
-            :model-value="String(selectedSharpness)"
+            :model-value="sharpnessNumericInputValue"
             input-type="number"
             min="0"
             :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
@@ -349,7 +376,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
           <template #label>{{ t('sulfurCube.attack.knockback') }}</template>
           <CdxTextInput
             v-if="knockbackUsesNumericInput"
-            :model-value="String(selectedKnockback)"
+            :model-value="knockbackNumericInputValue"
             input-type="number"
             min="0"
             :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
@@ -450,11 +477,18 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
 .launch-summary__floor {
   width: min(100%, 12rem);
 }
-.launch-summary__archetype :deep(.cdx-thumbnail),
-.launch-summary__weapon :deep(.cdx-thumbnail) {
-  width: 0.675rem;
-  min-width: 0.675rem;
-  height: 0.675rem;
+.launch-summary__archetype :deep(.cdx-thumbnail__image),
+.launch-summary__archetype :deep(.cdx-thumbnail__placeholder),
+.launch-summary__weapon :deep(.cdx-thumbnail__image),
+.launch-summary__weapon :deep(.cdx-thumbnail__placeholder) {
+  width: 1.375rem;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  min-height: 1.375rem;
+}
+.launch-summary__weapon--bare :deep(.cdx-select-vue__handle .cdx-thumbnail),
+.launch-summary__weapon :deep(.cdx-menu-item:first-child .cdx-thumbnail) {
+  display: none;
 }
 .launch-summary__archetype :deep(.cdx-menu-item__text),
 .launch-summary__weapon :deep(.cdx-menu-item__text),
@@ -465,9 +499,10 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
 }
 .launch-summary__trajectory {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 8rem max-content;
   gap: 0.4rem;
   align-items: end;
+  justify-content: start;
 }
 .launch-summary__attack-controls {
   display: grid;

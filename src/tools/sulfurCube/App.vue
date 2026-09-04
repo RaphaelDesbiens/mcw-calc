@@ -1408,6 +1408,10 @@ watch(
   padding: 0.75rem;
 }
 
+.interaction-grid__slot[data-section-id='controls'] .section-layout-content {
+  overflow: visible;
+}
+
 :global(.dark) .section-layout-handle-bar {
   background: linear-gradient(135deg, #594914, #80671a);
   color: #eaecf0;

@@ -150,6 +150,14 @@ const geometryRows = computed<readonly ReadoutRow[]>(() => {
 
   return [
     {
+      label: t('sulfurCube.readout.normalizedLookDirection'),
+      value: formatVector(
+        values.normalizedLookDirection.x,
+        values.normalizedLookDirection.y,
+        values.normalizedLookDirection.z,
+      ),
+    },
+    {
       label: t('sulfurCube.readout.verticalAimFactor'),
       symbol: 'q',
       value: formatNumber(values.q),
@@ -163,6 +171,13 @@ const geometryRows = computed<readonly ReadoutRow[]>(() => {
       label: t('sulfurCube.readout.horizontalAimDifference'),
       symbol: 'δ',
       value: formatRadians(values.horizontalAngleDelta),
+    },
+    {
+      label: t('sulfurCube.readout.horizontalBaseDirection'),
+      value: formatPair(
+        props.evaluation.callResult.input.call.horizontalBaseDirection.x,
+        props.evaluation.callResult.input.call.horizontalBaseDirection.z,
+      ),
     },
     {
       label: t('sulfurCube.readout.transformedDirection'),
@@ -261,30 +276,6 @@ const finalRows = computed<readonly ReadoutRow[]>(() => {
 
   return [
     {
-      label: t('sulfurCube.readout.preAttackVelocity'),
-      value: formatVector(
-        props.evaluation.preAttackVelocity.x,
-        props.evaluation.preAttackVelocity.y,
-        props.evaluation.preAttackVelocity.z,
-      ),
-    },
-    {
-      label: t('sulfurCube.readout.addedVelocity'),
-      value: formatVector(
-        props.evaluation.attackAddedVelocity.x,
-        props.evaluation.attackAddedVelocity.y,
-        props.evaluation.attackAddedVelocity.z,
-      ),
-    },
-    {
-      label: t('sulfurCube.readout.resultingVelocity'),
-      value: formatVector(
-        props.evaluation.launchVelocity.x,
-        props.evaluation.launchVelocity.y,
-        props.evaluation.launchVelocity.z,
-      ),
-    },
-    {
       label: t('sulfurCube.readout.horizontalBeforeClamp'),
       value: formatNumber(values.horizontalBeforeClamp),
     },
@@ -297,8 +288,59 @@ const finalRows = computed<readonly ReadoutRow[]>(() => {
       value: formatNumber(values.verticalBeforeClamp),
     },
     { label: t('sulfurCube.readout.verticalResult'), value: formatNumber(values.verticalResult) },
+    {
+      label: t('sulfurCube.readout.callVelocityBefore'),
+      value: formatVector(
+        props.evaluation.preAttackVelocity.x,
+        props.evaluation.preAttackVelocity.y,
+        props.evaluation.preAttackVelocity.z,
+      ),
+    },
+    {
+      label: t('sulfurCube.readout.callVelocityAdded'),
+      value: formatVector(
+        props.evaluation.callResult.addedVelocity.x,
+        props.evaluation.callResult.addedVelocity.y,
+        props.evaluation.callResult.addedVelocity.z,
+      ),
+    },
+    {
+      label: t('sulfurCube.readout.callVelocityAfter'),
+      value: formatVector(
+        props.evaluation.callResult.resultingVelocity.x,
+        props.evaluation.callResult.resultingVelocity.y,
+        props.evaluation.callResult.resultingVelocity.z,
+      ),
+    },
   ]
 })
+
+const completeAttackRows = computed<readonly ReadoutRow[]>(() => [
+  {
+    label: t('sulfurCube.readout.preAttackVelocity'),
+    value: formatVector(
+      props.evaluation.preAttackVelocity.x,
+      props.evaluation.preAttackVelocity.y,
+      props.evaluation.preAttackVelocity.z,
+    ),
+  },
+  {
+    label: t('sulfurCube.readout.addedVelocity'),
+    value: formatVector(
+      props.evaluation.attackAddedVelocity.x,
+      props.evaluation.attackAddedVelocity.y,
+      props.evaluation.attackAddedVelocity.z,
+    ),
+  },
+  {
+    label: t('sulfurCube.readout.resultingVelocity'),
+    value: formatVector(
+      props.evaluation.launchVelocity.x,
+      props.evaluation.launchVelocity.y,
+      props.evaluation.launchVelocity.z,
+    ),
+  },
+])
 
 const trajectoryRows = computed<readonly ReadoutRow[]>(() => {
   const trajectory = props.evaluation.trajectory
@@ -306,7 +348,11 @@ const trajectoryRows = computed<readonly ReadoutRow[]>(() => {
   const endpoint = trajectory.endpoint
 
   return [
-    { label: t('sulfurCube.readout.tickHorizon'), value: formatNumber(trajectory.ticks.length) },
+    {
+      label: t('sulfurCube.readout.requestedTickHorizon'),
+      value: formatNumber(trajectory.requestedMaximumTicks),
+    },
+    { label: t('sulfurCube.readout.simulatedTicks'), value: formatNumber(trajectory.ticks.length) },
     {
       label: t('sulfurCube.readout.trajectoryStatus'),
       value: t(`sulfurCube.readout.trajectoryStatus.${trajectory.status}`),
@@ -342,22 +388,6 @@ const trajectoryRows = computed<readonly ReadoutRow[]>(() => {
       value: formatNumber(trajectory.assumptions.movementCutoff),
     },
     {
-      label: t('sulfurCube.readout.finalPosition'),
-      value: formatVector(
-        endpoint.feetPosition.x,
-        endpoint.feetPosition.y,
-        endpoint.feetPosition.z,
-      ),
-    },
-    {
-      label: t('sulfurCube.readout.horizontalDistance'),
-      value: formatNumber(trajectory.horizontalDisplacement),
-    },
-    {
-      label: t('sulfurCube.readout.maximumFeetY'),
-      value: formatNumber(trajectory.maximumDiscreteFeetY),
-    },
-    {
       label: t('sulfurCube.readout.contactTick'),
       value:
         trajectory.firstFloorCollision === null
@@ -365,20 +395,18 @@ const trajectoryRows = computed<readonly ReadoutRow[]>(() => {
           : formatNumber(trajectory.firstFloorCollision.end.tick),
     },
     {
-      label: t('sulfurCube.readout.geometricTouchTick'),
-      value:
-        trajectory.firstGeometricTouch === null
-          ? t('sulfurCube.readout.notReached')
-          : formatNumber(trajectory.firstGeometricTouch.end.tick),
-    },
-    {
       label: t('sulfurCube.readout.airborneContacts'),
       value: formatNumber(trajectory.airborneContactCount),
+    },
+    {
+      label: t('sulfurCube.readout.floorCollisionTicks'),
+      value: formatNumber(trajectory.floorCollisionTickCount),
     },
     {
       label: t('sulfurCube.readout.bounceEvents'),
       value: formatNumber(trajectory.bounceEventCount),
     },
+    { label: t('sulfurCube.readout.arcCount'), value: formatNumber(trajectory.arcCount) },
     {
       label: t('sulfurCube.readout.finalVelocity'),
       value: formatVector(endpoint.velocity.x, endpoint.velocity.y, endpoint.velocity.z),
@@ -392,6 +420,11 @@ const readoutSections = computed(() => [
   { id: 'cap', title: t('sulfurCube.readout.cap'), rows: capRows.value },
   { id: 'scaling', title: t('sulfurCube.readout.scaling'), rows: scalingRows.value },
   { id: 'final', title: t('sulfurCube.readout.finalScalars'), rows: finalRows.value },
+  {
+    id: 'completeAttack',
+    title: t('sulfurCube.readout.completeAttack'),
+    rows: completeAttackRows.value,
+  },
   { id: 'trajectory', title: t('sulfurCube.readout.trajectory'), rows: trajectoryRows.value },
 ])
 </script>
@@ -446,6 +479,7 @@ const readoutSections = computed(() => [
       </template>
 
       <div class="readout-sections">
+        <p class="readout-scope-note">{{ t('sulfurCube.readout.scopeNote') }}</p>
         <table v-for="section in readoutSections" :key="section.id" class="readout-table">
           <caption>
             {{
@@ -538,6 +572,12 @@ const readoutSections = computed(() => [
 .readout-sections {
   display: grid;
   gap: 1rem;
+}
+
+.readout-scope-note {
+  margin: 0;
+  color: var(--color-subtle, #54595d);
+  font-size: 0.875em;
 }
 
 .readout-table {

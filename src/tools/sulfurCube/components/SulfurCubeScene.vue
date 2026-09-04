@@ -189,6 +189,12 @@ const view = computed(() => {
   const cubeTop = toSvg(scene.cube.top)
   const cubeBottom = toSvg(scene.cube.bottom)
   const horizontalFeetReference = toSvg(scene.horizontalFeetReference)
+  const floorWorldMinimumX =
+    Math.floor(Math.min(scene.cubeFeetLineStart.x, scene.cubeFeetLineEnd.x)) - 1
+  const floorWorldMaximumX =
+    Math.ceil(Math.max(scene.cubeFeetLineStart.x, scene.cubeFeetLineEnd.x)) + 1
+  const floorStart = toSvg({ x: floorWorldMinimumX, y: scene.cubeFeetLineStart.y })
+  const floorEnd = toSvg({ x: floorWorldMaximumX, y: scene.cubeFeetLineEnd.y })
   const trajectory = scene.trajectory.map((sample) => ({
     tick: sample.tick,
     point: toSvg(sample.point),
@@ -446,6 +452,8 @@ const view = computed(() => {
       .join(' '),
     groundStart: toSvg(scene.cubeFeetLineStart),
     groundEnd: toSvg(scene.cubeFeetLineEnd),
+    floorStart,
+    floorEnd,
     trajectory,
     trajectoryTicks,
     trajectoryEndMarker,
@@ -955,8 +963,8 @@ function formatCoordinate(value: number): string {
           <pattern
             :id="floorPatternId"
             patternUnits="userSpaceOnUse"
-            :x="Math.min(view.groundStart.x, view.groundEnd.x)"
-            :y="view.groundStart.y"
+            :x="Math.min(view.floorStart.x, view.floorEnd.x)"
+            :y="view.floorStart.y"
             :width="view.visual.floorTileSize"
             :height="view.visual.floorTileSize"
           >
@@ -981,9 +989,9 @@ function formatCoordinate(value: number): string {
         <rect
           v-if="displayOptions.floor"
           class="floor-surface-icons"
-          :x="Math.min(view.groundStart.x, view.groundEnd.x)"
-          :y="view.groundStart.y"
-          :width="Math.abs(view.groundEnd.x - view.groundStart.x)"
+          :x="Math.min(view.floorStart.x, view.floorEnd.x)"
+          :y="view.floorStart.y"
+          :width="Math.abs(view.floorEnd.x - view.floorStart.x)"
           :height="view.visual.floorTileSize"
           :fill="`url(#${floorPatternId})`"
         />
@@ -1890,8 +1898,8 @@ figcaption {
 .ground-metrics {
   fill: var(--scene-trajectory-muted);
   stroke: var(--scene-trajectory-muted);
-  font-size: 11px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 700;
   pointer-events: none;
 }
 

@@ -22,7 +22,9 @@ withDefaults(
     size="small"
     weight="quiet"
     :aria-label="label ?? text"
-    @pointerdown.stop
+    :draggable="false"
+    @mousedown.stop.prevent
+    @pointerdown.stop.prevent
     @click.stop.prevent
     @dragstart.stop.prevent
   >
@@ -50,6 +52,12 @@ withDefaults(
 .info-tooltip:active {
   border-color: transparent;
   background: transparent;
+}
+
+:global(.cdx-tooltip),
+:global(.cdx-tooltip *) {
+  cursor: default;
+  user-select: none;
 }
 
 :global(.cdx-tooltip) {
