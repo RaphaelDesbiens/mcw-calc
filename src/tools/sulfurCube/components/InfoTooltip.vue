@@ -57,10 +57,11 @@ withDefaults(
 :global(.cdx-tooltip),
 :global(.cdx-tooltip *) {
   cursor: default;
-  user-select: none;
 }
 
 :global(.cdx-tooltip) {
+  pointer-events: auto;
+  -webkit-user-drag: none;
   box-sizing: border-box;
   width: max-content;
   max-width: min(32rem, calc(100vw - 2rem));
@@ -72,7 +73,13 @@ withDefaults(
   box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
   line-height: 1.4;
   text-align: justify;
+  user-select: text;
   white-space: normal;
+}
+
+:global(.cdx-tooltip *) {
+  -webkit-user-drag: none;
+  user-select: text;
 }
 
 :global(.dark .cdx-tooltip) {

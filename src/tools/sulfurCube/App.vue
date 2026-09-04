@@ -441,7 +441,22 @@ function moveSectionByKeyboard(sectionId: SulfurCubeSectionId, event: KeyboardEv
   void focusSectionHandle(sectionId)
 }
 
+function isSectionInformationTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element && target.closest('.info-tooltip, .cdx-tooltip') !== null
+  )
+}
+
 function startSectionDrag(sectionId: SulfurCubeSectionId, event: DragEvent): void {
+  const pointerTarget = document.elementFromPoint(event.clientX, event.clientY)
+
+  if (isSectionInformationTarget(event.target) || isSectionInformationTarget(pointerTarget)) {
+    event.preventDefault()
+    event.stopPropagation()
+    suppressSectionHeaderClick = false
+    return
+  }
+
   suppressSectionHeaderClick = true
   draggedSectionId.value = sectionId
   draggedSectionHeight.value =
@@ -539,7 +554,8 @@ function endSectionDrag(): void {
   }, 0)
 }
 
-function activateSectionHeader(sectionId: SulfurCubeSectionId): void {
+function activateSectionHeader(sectionId: SulfurCubeSectionId, event: MouseEvent): void {
+  if (isSectionInformationTarget(event.target)) return
   if (suppressSectionHeaderClick) return
   toggleSectionCollapsed(sectionId)
 }
@@ -948,7 +964,7 @@ watch(
                 )
               "
               aria-keyshortcuts="Enter Space ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
-              @click="activateSectionHeader(sectionId)"
+              @click="activateSectionHeader(sectionId, $event)"
               @keydown="moveSectionByKeyboard(sectionId, $event)"
               @dragstart="startSectionDrag(sectionId, $event)"
               @dragend="endSectionDrag"

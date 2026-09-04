@@ -825,7 +825,7 @@ onBeforeUnmount(() => {
                 </tspan>
               </text>
               <text :x="view.metrics.attackDetailX" :y="view.metrics.attackStrengthY">
-                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
@@ -834,7 +834,7 @@ onBeforeUnmount(() => {
                 </tspan>
               </text>
               <text :x="view.metrics.attackDetailX" :y="view.metrics.sharpnessY">
-                <tspan>{{ t('sulfurCube.attack.sharpness') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
@@ -843,7 +843,7 @@ onBeforeUnmount(() => {
                 </tspan>
               </text>
               <text :x="view.metrics.attackDetailX" :y="view.metrics.knockbackY">
-                <tspan>{{ t('sulfurCube.attack.knockback') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
@@ -852,7 +852,7 @@ onBeforeUnmount(() => {
                 </tspan>
               </text>
               <text :x="view.metrics.attackDetailX" :y="view.metrics.sprintingY">
-                <tspan>{{ t('sulfurCube.attack.sprinting') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
@@ -861,7 +861,7 @@ onBeforeUnmount(() => {
                 </tspan>
               </text>
               <text :x="view.metrics.attackDetailX" :y="view.metrics.criticalHitY">
-                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"

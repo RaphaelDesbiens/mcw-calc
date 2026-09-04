@@ -1117,7 +1117,7 @@ function formatCoordinate(value: number): string {
                 </tspan>
               </text>
               <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.attackStrengthY">
-                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
                   class="scene-metric-value scene-metric-value--neutral"
@@ -1126,7 +1126,7 @@ function formatCoordinate(value: number): string {
                 </tspan>
               </text>
               <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.sharpnessY">
-                <tspan>{{ t('sulfurCube.attack.sharpness') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
                   class="scene-metric-value scene-metric-value--neutral"
@@ -1135,7 +1135,7 @@ function formatCoordinate(value: number): string {
                 </tspan>
               </text>
               <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.knockbackY">
-                <tspan>{{ t('sulfurCube.attack.knockback') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
                   class="scene-metric-value scene-metric-value--neutral"
@@ -1144,7 +1144,7 @@ function formatCoordinate(value: number): string {
                 </tspan>
               </text>
               <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.sprintingY">
-                <tspan>{{ t('sulfurCube.attack.sprinting') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
                   class="scene-metric-value scene-metric-value--neutral"
@@ -1153,7 +1153,7 @@ function formatCoordinate(value: number): string {
                 </tspan>
               </text>
               <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.criticalHitY">
-                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}:&#160;</tspan>
+                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
                   class="scene-metric-value scene-metric-value--neutral"
@@ -1898,7 +1898,7 @@ figcaption {
 .ground-metrics {
   fill: var(--scene-trajectory-muted);
   stroke: var(--scene-trajectory-muted);
-  font-size: 14px;
+  font-size: calc(var(--scene-minor-font-size) * 0.85);
   font-weight: 700;
   pointer-events: none;
 }

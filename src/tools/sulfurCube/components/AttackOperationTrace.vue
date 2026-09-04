@@ -58,6 +58,143 @@ function providerLabel(result: VelocityOperationResult): string {
 }
 
 const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics)
+
+interface ResolutionRow {
+  readonly id: string
+  readonly label: string
+  readonly value: string | number
+}
+
+const primaryResolutionRows = computed<readonly ResolutionRow[]>(() => [
+  {
+    id: 'damage-argument',
+    label: t('sulfurCube.attack.trace.damage'),
+    value: formatNumber(diagnostics.value.damageArgument),
+  },
+  {
+    id: 'combined-knockback',
+    label: t('sulfurCube.attack.trace.combinedKnockback'),
+    value: formatNumber(diagnostics.value.combinedKnockback),
+  },
+  {
+    id: 'effect-factor',
+    label: t('sulfurCube.attack.trace.effectFactor'),
+    value: formatNumber(diagnostics.value.effectFactor),
+  },
+  {
+    id: 'operation-count',
+    label: t('sulfurCube.attack.trace.operationCount'),
+    value: props.evaluation.operationSequence.operationResults.length,
+  },
+  {
+    id: 'pre-attack-velocity',
+    label: t('sulfurCube.readout.preAttackVelocity'),
+    value: formatVector(props.evaluation.preAttackVelocity),
+  },
+  {
+    id: 'added-velocity',
+    label: t('sulfurCube.readout.addedVelocity'),
+    value: formatVector(props.evaluation.attackAddedVelocity),
+  },
+  {
+    id: 'resulting-velocity',
+    label: t('sulfurCube.readout.resultingVelocity'),
+    value: formatVector(props.evaluation.launchVelocity),
+  },
+])
+
+const detailedResolutionRows = computed<readonly ResolutionRow[]>(() => [
+  {
+    id: 'effective-damage',
+    label: t('sulfurCube.attack.trace.effectiveDamage'),
+    value: formatNumber(diagnostics.value.effectiveAttackDamage),
+  },
+  {
+    id: 'effective-speed',
+    label: t('sulfurCube.attack.trace.effectiveSpeed'),
+    value: formatNumber(props.evaluation.weaponPreset.effectiveAttackSpeed.value),
+  },
+  {
+    id: 'recovery-ticks',
+    label: t('sulfurCube.attack.trace.recoveryTicks'),
+    value: formatNumber(props.evaluation.weaponPreset.recoveryPeriodTicks.value),
+  },
+  {
+    id: 'attack-strength-squared',
+    label: t('sulfurCube.attack.trace.attackStrengthSquared'),
+    value: formatNumber(diagnostics.value.attackStrengthSquared),
+  },
+  {
+    id: 'base-damage-scale',
+    label: t('sulfurCube.attack.trace.baseDamageScale'),
+    value: formatNumber(diagnostics.value.baseDamageScale),
+  },
+  {
+    id: 'scaled-base-damage',
+    label: t('sulfurCube.attack.trace.scaledBaseDamage'),
+    value: formatNumber(diagnostics.value.scaledBaseDamage),
+  },
+  {
+    id: 'sharpness-bonus',
+    label: t('sulfurCube.attack.trace.sharpnessBonus'),
+    value: formatNumber(diagnostics.value.damageEnchantmentBonus),
+  },
+  {
+    id: 'scaled-sharpness-bonus',
+    label: t('sulfurCube.attack.trace.scaledSharpnessBonus'),
+    value: formatNumber(diagnostics.value.magicBoost),
+  },
+  {
+    id: 'base-before-critical',
+    label: t('sulfurCube.attack.trace.baseBeforeCritical'),
+    value: formatNumber(diagnostics.value.baseDamageBeforeCritical),
+  },
+  {
+    id: 'damage-after-critical',
+    label: t('sulfurCube.attack.trace.damageAfterCritical'),
+    value: formatNumber(diagnostics.value.damageAfterCritical),
+  },
+  {
+    id: 'full-strength',
+    label: t('sulfurCube.attack.trace.fullStrength'),
+    value: t(diagnostics.value.fullStrength ? 'sulfurCube.yes' : 'sulfurCube.no'),
+  },
+  {
+    id: 'critical',
+    label: t('sulfurCube.attack.trace.critical'),
+    value: t(diagnostics.value.critical ? 'sulfurCube.yes' : 'sulfurCube.no'),
+  },
+  {
+    id: 'health-damage-applied',
+    label: t('sulfurCube.attack.trace.healthDamageApplied'),
+    value: t(diagnostics.value.healthDamageApplied ? 'sulfurCube.yes' : 'sulfurCube.no'),
+  },
+  {
+    id: 'enchantment-knockback-addition',
+    label: t('sulfurCube.attack.trace.enchantmentKnockbackAddition'),
+    value: formatNumber(diagnostics.value.enchantmentKnockbackAddition),
+  },
+  {
+    id: 'knockback-before-halving',
+    label: t('sulfurCube.attack.trace.knockbackBeforeHalving'),
+    value: formatNumber(diagnostics.value.knockbackBeforeHalving),
+  },
+  {
+    id: 'knockback-after-halving',
+    label: t('sulfurCube.attack.trace.knockbackAfterHalving'),
+    value: formatNumber(diagnostics.value.knockbackAfterHalving),
+  },
+  {
+    id: 'sprint-knockback-bonus',
+    label: t('sulfurCube.attack.trace.sprintKnockbackBonus'),
+    value: formatNumber(diagnostics.value.sprintKnockbackBonus),
+  },
+  {
+    id: 'yaw',
+    label: t('sulfurCube.attack.trace.yaw'),
+    value: `${formatNumber(props.evaluation.attackerYawDegrees)}°`,
+  },
+])
 </script>
 
 <template>
@@ -75,107 +212,21 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
       {{ t('sulfurCube.attack.trace.resolutionValues') }}
     </h4>
     <dl class="attack-trace__summary">
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.effectiveDamage') }}</dt>
-        <dd>{{ formatNumber(diagnostics.effectiveAttackDamage) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.effectiveSpeed') }}</dt>
-        <dd>{{ formatNumber(evaluation.weaponPreset.effectiveAttackSpeed.value) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.recoveryTicks') }}</dt>
-        <dd>{{ formatNumber(evaluation.weaponPreset.recoveryPeriodTicks.value) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.attackStrengthSquared') }}</dt>
-        <dd>{{ formatNumber(diagnostics.attackStrengthSquared) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.baseDamageScale') }}</dt>
-        <dd>{{ formatNumber(diagnostics.baseDamageScale) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.scaledBaseDamage') }}</dt>
-        <dd>{{ formatNumber(diagnostics.scaledBaseDamage) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.sharpnessBonus') }}</dt>
-        <dd>{{ formatNumber(diagnostics.damageEnchantmentBonus) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.scaledSharpnessBonus') }}</dt>
-        <dd>{{ formatNumber(diagnostics.magicBoost) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.baseBeforeCritical') }}</dt>
-        <dd>{{ formatNumber(diagnostics.baseDamageBeforeCritical) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.damageAfterCritical') }}</dt>
-        <dd>{{ formatNumber(diagnostics.damageAfterCritical) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.damage') }}</dt>
-        <dd>{{ formatNumber(diagnostics.damageArgument) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.fullStrength') }}</dt>
-        <dd>{{ diagnostics.fullStrength ? t('sulfurCube.yes') : t('sulfurCube.no') }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.critical') }}</dt>
-        <dd>{{ diagnostics.critical ? t('sulfurCube.yes') : t('sulfurCube.no') }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.healthDamageApplied') }}</dt>
-        <dd>{{ diagnostics.healthDamageApplied ? t('sulfurCube.yes') : t('sulfurCube.no') }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.enchantmentKnockbackAddition') }}</dt>
-        <dd>{{ formatNumber(diagnostics.enchantmentKnockbackAddition) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.knockbackBeforeHalving') }}</dt>
-        <dd>{{ formatNumber(diagnostics.knockbackBeforeHalving) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.knockbackAfterHalving') }}</dt>
-        <dd>{{ formatNumber(diagnostics.knockbackAfterHalving) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.sprintKnockbackBonus') }}</dt>
-        <dd>{{ formatNumber(diagnostics.sprintKnockbackBonus) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.combinedKnockback') }}</dt>
-        <dd>{{ formatNumber(diagnostics.combinedKnockback) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.effectFactor') }}</dt>
-        <dd>{{ formatNumber(diagnostics.effectFactor) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.operationCount') }}</dt>
-        <dd>{{ evaluation.operationSequence.operationResults.length }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.attack.trace.yaw') }}</dt>
-        <dd>{{ formatNumber(evaluation.attackerYawDegrees) }}°</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.readout.preAttackVelocity') }}</dt>
-        <dd>{{ formatVector(evaluation.preAttackVelocity) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.readout.addedVelocity') }}</dt>
-        <dd>{{ formatVector(evaluation.attackAddedVelocity) }}</dd>
-      </div>
-      <div>
-        <dt>{{ t('sulfurCube.readout.resultingVelocity') }}</dt>
-        <dd>{{ formatVector(evaluation.launchVelocity) }}</dd>
+      <div v-for="row in primaryResolutionRows" :key="row.id">
+        <dt>{{ row.label }}</dt>
+        <dd>{{ row.value }}</dd>
       </div>
     </dl>
+
+    <details class="attack-trace__details">
+      <summary>{{ t('sulfurCube.attack.trace.showMore') }}</summary>
+      <dl class="attack-trace__summary attack-trace__summary--details">
+        <div v-for="row in detailedResolutionRows" :key="row.id">
+          <dt>{{ row.label }}</dt>
+          <dd>{{ row.value }}</dd>
+        </div>
+      </dl>
+    </details>
 
     <h4 class="attack-trace__group-title">{{ t('sulfurCube.attack.trace.orderedCalls') }}</h4>
     <ol class="attack-trace__operations">
@@ -230,6 +281,20 @@ const diagnostics = computed(() => props.evaluation.attackResolution.diagnostics
 
 .attack-trace__group-title {
   margin: 0 0 0.5rem;
+}
+
+.attack-trace__details {
+  margin: -0.25rem 0 1rem;
+}
+
+.attack-trace__details summary {
+  width: fit-content;
+  color: var(--color-progressive, #36c);
+  cursor: pointer;
+}
+
+.attack-trace__summary--details {
+  margin-top: 0.75rem;
 }
 
 .attack-trace__summary {

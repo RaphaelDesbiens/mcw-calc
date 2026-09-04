@@ -109,11 +109,6 @@ const currentTransformation = computed(() => {
     verticalFactor: formatFixedNumber(1 + ratio, 2),
     degrees: formatFixedNumber((angle * 180) / Math.PI, 2),
     capFactor: formatFixedNumber(presentation.capFactor, 4),
-    capStatus: t(
-      presentation.capApplied
-        ? 'sulfurCube.power.currentCapApplied'
-        : 'sulfurCube.power.currentCapNotApplied',
-    ),
   }
 })
 
@@ -347,61 +342,59 @@ const view = computed(() => {
           <small v-else>
             {{ t('sulfurCube.power.stages.cappedHelp') }}
           </small>
+          <I18nT
+            v-if="stage.id === 'aim'"
+            keypath="sulfurCube.power.inlineAimTransformation"
+            scope="global"
+            tag="small"
+            class="stage-transformation stage-transformation--aim"
+          >
+            <template #percentage>
+              <span class="stage-transformation__value">
+                {{ currentTransformation.percentage }}
+              </span>
+            </template>
+            <template #horizontalFactor>
+              <span class="stage-transformation__value">
+                {{ currentTransformation.horizontalFactor }}
+              </span>
+            </template>
+            <template #verticalFactor>
+              <span class="stage-transformation__value">
+                {{ currentTransformation.verticalFactor }}
+              </span>
+            </template>
+          </I18nT>
+          <I18nT
+            v-else-if="stage.id === 'elevation'"
+            keypath="sulfurCube.power.inlineHeightTransformation"
+            scope="global"
+            tag="small"
+            class="stage-transformation stage-transformation--elevation"
+          >
+            <template #degrees>
+              <span class="stage-transformation__value">
+                {{ currentTransformation.degrees }}
+              </span>
+            </template>
+          </I18nT>
+          <I18nT
+            v-else-if="stage.id === 'capped'"
+            keypath="sulfurCube.power.inlineCapTransformation"
+            scope="global"
+            tag="small"
+            class="stage-transformation stage-transformation--cap"
+          >
+            <template #factor>
+              <span class="stage-transformation__value">
+                {{ currentTransformation.capFactor }}
+              </span>
+            </template>
+          </I18nT>
         </span>
         <code>{{ formatPowerPair(stage.point.x, stage.point.y) }}</code>
       </li>
     </ol>
-
-    <figcaption class="power-space__details">
-      <strong>{{ t('sulfurCube.power.currentValues') }}</strong>
-      <I18nT
-        keypath="sulfurCube.power.currentAimTransformation"
-        scope="global"
-        tag="p"
-        class="power-space__transformation power-space__transformation--aim"
-      >
-        <template #percentage>
-          <span class="power-space__transformation-value power-space__transformation-value--wide">
-            {{ currentTransformation.percentage }}
-          </span>
-        </template>
-        <template #horizontalFactor>
-          <span class="power-space__transformation-value">
-            {{ currentTransformation.horizontalFactor }}
-          </span>
-        </template>
-        <template #verticalFactor>
-          <span class="power-space__transformation-value">
-            {{ currentTransformation.verticalFactor }}
-          </span>
-        </template>
-      </I18nT>
-      <I18nT
-        keypath="sulfurCube.power.currentHeightTransformation"
-        scope="global"
-        tag="p"
-        class="power-space__transformation power-space__transformation--elevation"
-      >
-        <template #degrees>
-          <span class="power-space__transformation-value power-space__transformation-value--wide">
-            {{ currentTransformation.degrees }}
-          </span>
-        </template>
-      </I18nT>
-      <I18nT
-        keypath="sulfurCube.power.currentCapTransformation"
-        scope="global"
-        tag="p"
-        class="power-space__transformation power-space__transformation--cap"
-      >
-        <template #factor>
-          <span class="power-space__transformation-value power-space__transformation-value--cap">
-            {{ currentTransformation.capFactor }}
-          </span>
-        </template>
-        <template #status>{{ currentTransformation.capStatus }}</template>
-      </I18nT>
-    </figcaption>
   </figure>
 </template>
 
@@ -631,6 +624,30 @@ figcaption {
   font-weight: 700;
 }
 
+.stage-transformation {
+  color: var(--power-muted);
+  font-size: 0.78em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.stage-transformation__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-transformation--aim .stage-transformation__value {
+  color: var(--power-aim);
+}
+
+.stage-transformation--elevation .stage-transformation__value {
+  color: var(--power-elevation);
+}
+
+.stage-transformation--cap .stage-transformation__value {
+  color: var(--power-cap);
+}
+
 :global(.dark) .power-space {
   --power-background: #2a2d30;
   --power-base: #ffd84d;
@@ -646,46 +663,6 @@ figcaption {
   text-align: center;
 }
 
-.power-space__details {
-  display: grid;
-  gap: 0.25rem;
-  margin-top: 0.75rem;
-  font-size: 0.875em;
-}
-
-.power-space__transformation {
-  min-height: 1.5em;
-  margin: 0;
-}
-
-.power-space__transformation-value {
-  display: inline-block;
-  min-width: 4.5ch;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.power-space__transformation-value--wide {
-  min-width: 6.5ch;
-}
-
-.power-space__transformation-value--cap {
-  min-width: 7ch;
-}
-
-.power-space__transformation--aim .power-space__transformation-value {
-  color: var(--power-aim);
-}
-
-.power-space__transformation--elevation .power-space__transformation-value {
-  color: var(--power-elevation);
-}
-
-.power-space__transformation--cap .power-space__transformation-value {
-  color: var(--power-cap);
-}
-
 @media (max-width: 32rem) {
   .power-space__svg {
     font-size: 16px;
@@ -698,5 +675,6 @@ figcaption {
   .power-stages code {
     grid-column: 2;
   }
+
 }
 </style>
