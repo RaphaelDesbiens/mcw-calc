@@ -22,7 +22,9 @@ withDefaults(
     size="small"
     weight="quiet"
     :aria-label="label ?? text"
+    @pointerdown.stop
     @click.stop.prevent
+    @dragstart.stop.prevent
   >
     <CdxIcon :icon="cdxIconInfo" size="x-small" />
   </CdxButton>
@@ -34,6 +36,20 @@ withDefaults(
   min-height: 1.5rem;
   padding: 0.125rem;
   vertical-align: middle;
+  cursor: default;
+  user-select: none;
+}
+
+.info-tooltip *,
+.info-tooltip:hover *,
+.info-tooltip:active * {
+  cursor: default;
+}
+
+.info-tooltip:hover,
+.info-tooltip:active {
+  border-color: transparent;
+  background: transparent;
 }
 
 :global(.cdx-tooltip) {

@@ -16,7 +16,10 @@ import { parseNumericInput, sanitizeNumericInput } from '../presentation/numeric
 import { resolvePlayerMeleeVanillaSurvivalAvailability } from '../presets/playerMelee'
 import InfoTooltip from './InfoTooltip.vue'
 
-const props = defineProps<{ modelValue: PlayerMeleeFormState }>()
+const props = withDefaults(
+  defineProps<{ modelValue: PlayerMeleeFormState; showHeading?: boolean }>(),
+  { showHeading: true },
+)
 const emit = defineEmits<{
   'update:modelValue': [value: PlayerMeleeFormState]
   reset: []
@@ -131,20 +134,24 @@ function updateNonVanillaMode(enabled: boolean): void {
     return
   }
 
-  const sharpness = Math.min(
-    ordinarySharpnessMaximum,
-    Math.max(0, Math.trunc(parseNumericInput(props.modelValue.sharpnessLevel) ?? 0)),
-  )
-  const knockback = Math.min(
-    ordinaryKnockbackMaximum,
-    Math.max(0, Math.trunc(parseNumericInput(props.modelValue.knockbackLevel) ?? 0)),
-  )
+  const selectedSharpness = Math.trunc(parseNumericInput(props.modelValue.sharpnessLevel) ?? 0)
+  const selectedKnockback = Math.trunc(parseNumericInput(props.modelValue.knockbackLevel) ?? 0)
+  const sharpnessIsVanillaCompatible =
+    props.modelValue.sharpnessEnabled &&
+    selectedSharpness >= 1 &&
+    selectedSharpness <= ordinarySharpnessMaximum &&
+    props.modelValue.weaponType !== 'bareHand'
+  const knockbackIsVanillaCompatible =
+    props.modelValue.knockbackEnabled &&
+    selectedKnockback >= 1 &&
+    selectedKnockback <= ordinaryKnockbackMaximum &&
+    props.modelValue.weaponType === 'sword'
   update({
     allowNonVanillaEnchantmentLevels: false,
-    sharpnessEnabled: sharpness > 0,
-    sharpnessLevel: sharpness > 0 ? String(sharpness) : '1',
-    knockbackEnabled: knockback > 0,
-    knockbackLevel: knockback > 0 ? String(knockback) : '1',
+    sharpnessEnabled: sharpnessIsVanillaCompatible,
+    sharpnessLevel: sharpnessIsVanillaCompatible ? String(selectedSharpness) : '1',
+    knockbackEnabled: knockbackIsVanillaCompatible,
+    knockbackLevel: knockbackIsVanillaCompatible ? String(selectedKnockback) : '1',
   })
 }
 
@@ -172,58 +179,60 @@ function warningKey(code: string): string {
 </script>
 
 <template>
-  <section class="player-attack" aria-labelledby="sulfur-cube-player-attack-title">
+  <section
+    class="player-attack"
+    :class="{ 'player-attack--embedded': !showHeading }"
+    :aria-labelledby="showHeading ? 'sulfur-cube-player-attack-title' : undefined"
+    :aria-label="showHeading ? undefined : t('sulfurCube.attack.weapon')"
+  >
     <div class="player-attack__heading">
-      <div class="player-attack__heading-title">
+      <div v-if="showHeading" class="player-attack__heading-title">
         <h4 id="sulfur-cube-player-attack-title">{{ t('sulfurCube.attack.title') }}</h4>
         <InfoTooltip
           :text="t('sulfurCube.attack.help')"
           :label="t('sulfurCube.attack.helpLabel')"
         />
       </div>
-      <CdxButton size="small" action="destructive" @click="emit('reset')">
+      <CdxButton class="sulfur-cube-reset" size="small" @click="emit('reset')">
         {{ t('sulfurCube.reset.weapon') }}
       </CdxButton>
     </div>
 
-    <CdxField is-fieldset>
-      <template #label>{{ t('sulfurCube.attack.weapon') }}</template>
-      <div class="weapon-picker" role="listbox" :aria-label="t('sulfurCube.attack.weapon')">
-        <button
-          class="weapon-picker__item weapon-picker__item--bare"
-          :class="{ 'weapon-picker__item--selected': selectedWeaponId === 'bareHand' }"
-          type="button"
-          role="option"
-          :aria-selected="selectedWeaponId === 'bareHand'"
-          @click="updateWeapon('bareHand')"
-        >
-          {{ t('sulfurCube.attack.weapon.bareHand') }}
-        </button>
-        <button
-          v-for="choice in weaponChoices"
-          :key="choice.id"
-          class="weapon-picker__item"
-          :class="{ 'weapon-picker__item--selected': selectedWeaponId === choice.id }"
-          type="button"
-          role="option"
-          :title="choice.label"
-          :aria-label="choice.label"
-          :aria-selected="selectedWeaponId === choice.id"
-          @click="updateWeapon(choice.id)"
-        >
-          <img
-            class="weapon-picker__image pixel-image"
-            :src="choice.spriteUrl"
-            alt=""
-            width="32"
-            height="32"
-            loading="lazy"
-            decoding="async"
-            draggable="false"
-          />
-        </button>
-      </div>
-    </CdxField>
+    <div class="weapon-picker" role="listbox" :aria-label="t('sulfurCube.attack.weapon')">
+      <button
+        class="weapon-picker__item weapon-picker__item--bare"
+        :class="{ 'weapon-picker__item--selected': selectedWeaponId === 'bareHand' }"
+        type="button"
+        role="option"
+        :aria-selected="selectedWeaponId === 'bareHand'"
+        @click="updateWeapon('bareHand')"
+      >
+        {{ t('sulfurCube.attack.weapon.bareHand') }}
+      </button>
+      <button
+        v-for="choice in weaponChoices"
+        :key="choice.id"
+        class="weapon-picker__item"
+        :class="{ 'weapon-picker__item--selected': selectedWeaponId === choice.id }"
+        type="button"
+        role="option"
+        :title="choice.label"
+        :aria-label="choice.label"
+        :aria-selected="selectedWeaponId === choice.id"
+        @click="updateWeapon(choice.id)"
+      >
+        <img
+          class="weapon-picker__image pixel-image"
+          :src="choice.spriteUrl"
+          alt=""
+          width="32"
+          height="32"
+          loading="lazy"
+          decoding="async"
+          draggable="false"
+        />
+      </button>
+    </div>
 
     <dl class="player-attack__derived">
       <div>
@@ -357,6 +366,13 @@ function warningKey(code: string): string {
   padding: 0.75rem;
   border: 1px solid var(--border-color-subtle, #c8ccd1);
   border-radius: 2px;
+}
+.player-attack--embedded {
+  border: 0;
+  padding: 0;
+}
+.player-attack--embedded .player-attack__heading {
+  justify-content: flex-end;
 }
 .player-attack__heading,
 .player-attack__heading-title,

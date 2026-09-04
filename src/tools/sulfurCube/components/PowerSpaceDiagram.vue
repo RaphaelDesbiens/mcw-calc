@@ -368,7 +368,11 @@ const view = computed(() => {
   --power-ink: var(--color-base, #202122);
   --power-muted: var(--color-subtle, #54595d);
   --power-border: var(--border-color-subtle, #c8ccd1);
-  --power-background: var(--background-color-neutral-subtle, #f8f9fa);
+  --power-background: color-mix(
+    in srgb,
+    var(--color-base, #202122) 5%,
+    var(--background-color-base, #fff)
+  );
   --power-base: #f2a900;
   --power-aim: #00a3d7;
   --power-elevation: #d33682;

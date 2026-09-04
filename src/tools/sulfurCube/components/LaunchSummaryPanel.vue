@@ -6,7 +6,12 @@ import type {
   Je26_2UniformFloorProfileId,
 } from '../data/je26_2'
 import type { CubePropertySelectionResolution, CubePropertySelectionState } from '../resolution'
-import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
+import type {
+  DiagnosticFormState,
+  NumericFormValue,
+  PlayerMeleeFormState,
+  RadialSceneDisplayOptions,
+} from './types'
 import { CdxButton, CdxField, CdxSelect, CdxTextInput } from '@wikimedia/codex'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -35,11 +40,13 @@ const props = defineProps<{
   propertyResolution: CubePropertySelectionResolution
   playerMelee: PlayerMeleeFormState
   trajectoryTicksDefaultActive: boolean
+  radialDisplayOptions: RadialSceneDisplayOptions
 }>()
 const emit = defineEmits<{
   'update:formValue': [value: DiagnosticFormState]
   'update:propertySelection': [value: CubePropertySelectionState]
   'update:playerMelee': [value: PlayerMeleeFormState]
+  'update:radialDisplayOptions': [value: RadialSceneDisplayOptions]
   toggleTrajectoryTicksDefault: []
   resetPositionsAim: []
   resetArchetype: []
@@ -49,6 +56,19 @@ const emit = defineEmits<{
   resetEverything: []
 }>()
 const { t } = useI18n()
+const transparentThumbnailUrl =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/%3E'
+const radialDisplayOptionKeys = [
+  'velocity',
+  'cube',
+  'player',
+  'aim',
+  'heightAngle',
+  'information',
+  'trajectoryLine',
+  'trajectory',
+  'floor',
+] as const satisfies readonly (keyof RadialSceneDisplayOptions)[]
 
 const archetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((id) => ({
   value: id,
@@ -62,7 +82,7 @@ const weaponItems = computed<MenuItemData[]>(() =>
     value: id,
     label: t(`sulfurCube.attack.weapon.${id}`),
     ...(je26_2PlayerMeleeWeaponPresets[id].itemId.value === null
-      ? {}
+      ? { thumbnail: { url: transparentThumbnailUrl } }
       : {
           thumbnail: {
             url: getImageLink(
@@ -235,6 +255,13 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
     trajectoryTicks: sanitizeNumericInput(value),
   })
 }
+
+function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): void {
+  emit('update:radialDisplayOptions', {
+    ...props.radialDisplayOptions,
+    [option]: !props.radialDisplayOptions[option],
+  })
+}
 </script>
 
 <template>
@@ -245,61 +272,16 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
     </div>
 
     <div class="launch-summary__controls">
-      <CdxField>
+      <CdxField class="launch-summary__archetype">
         <template #label>{{ t('sulfurCube.properties.title') }}</template>
         <CdxSelect
           :selected="selectedArchetype"
           :menu-items="archetypeItems"
-          :menu-config="{ showThumbnail: true }"
+          :menu-config="{ showThumbnail: true, renderInPlace: true }"
           @update:selected="updateArchetype"
         />
       </CdxField>
-      <CdxField>
-        <template #label>{{ t('sulfurCube.attack.weapon') }}</template>
-        <CdxSelect
-          :selected="selectedWeapon"
-          :menu-items="weaponItems"
-          :menu-config="{ showThumbnail: true }"
-          @update:selected="updateWeapon"
-        />
-      </CdxField>
-      <CdxField>
-        <template #label>{{ t('sulfurCube.attack.sharpness') }}</template>
-        <CdxTextInput
-          v-if="sharpnessUsesNumericInput"
-          :model-value="String(selectedSharpness)"
-          input-type="number"
-          min="0"
-          :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
-          step="1"
-          @update:model-value="updateNumericEnchantment('sharpness', $event)"
-        />
-        <CdxSelect
-          v-else
-          :selected="selectedSharpness"
-          :menu-items="sharpnessItems"
-          @update:selected="updateEnchantment('sharpness', $event)"
-        />
-      </CdxField>
-      <CdxField>
-        <template #label>{{ t('sulfurCube.attack.knockback') }}</template>
-        <CdxTextInput
-          v-if="knockbackUsesNumericInput"
-          :model-value="String(selectedKnockback)"
-          input-type="number"
-          min="0"
-          :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
-          step="1"
-          @update:model-value="updateNumericEnchantment('knockback', $event)"
-        />
-        <CdxSelect
-          v-else
-          :selected="selectedKnockback"
-          :menu-items="knockbackItems"
-          @update:selected="updateEnchantment('knockback', $event)"
-        />
-      </CdxField>
-      <CdxField>
+      <CdxField class="launch-summary__floor">
         <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
         <CdxSelect
           :selected="formValue.floorProfileId"
@@ -335,32 +317,90 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
           {{ t('sulfurCube.controls.trajectoryTicksDefault') }}
         </CdxButton>
       </div>
+      <div class="launch-summary__attack-controls">
+        <CdxField class="launch-summary__weapon">
+          <template #label>{{ t('sulfurCube.attack.weapon') }}</template>
+          <CdxSelect
+            :selected="selectedWeapon"
+            :menu-items="weaponItems"
+            :menu-config="{ showThumbnail: true, renderInPlace: true }"
+            @update:selected="updateWeapon"
+          />
+        </CdxField>
+        <CdxField class="launch-summary__sharpness">
+          <template #label>{{ t('sulfurCube.attack.sharpness') }}</template>
+          <CdxTextInput
+            v-if="sharpnessUsesNumericInput"
+            :model-value="String(selectedSharpness)"
+            input-type="number"
+            min="0"
+            :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
+            step="1"
+            @update:model-value="updateNumericEnchantment('sharpness', $event)"
+          />
+          <CdxSelect
+            v-else
+            :selected="selectedSharpness"
+            :menu-items="sharpnessItems"
+            @update:selected="updateEnchantment('sharpness', $event)"
+          />
+        </CdxField>
+        <CdxField class="launch-summary__knockback">
+          <template #label>{{ t('sulfurCube.attack.knockback') }}</template>
+          <CdxTextInput
+            v-if="knockbackUsesNumericInput"
+            :model-value="String(selectedKnockback)"
+            input-type="number"
+            min="0"
+            :max="je26_2PlayerMeleeMechanics.maximumDecodedEnchantmentLevel"
+            step="1"
+            @update:model-value="updateNumericEnchantment('knockback', $event)"
+          />
+          <CdxSelect
+            v-else
+            :selected="selectedKnockback"
+            :menu-items="knockbackItems"
+            @update:selected="updateEnchantment('knockback', $event)"
+          />
+        </CdxField>
+      </div>
+    </div>
+
+    <div class="launch-summary__display-options">
+      <strong>{{ t('sulfurCube.summary.radialDisplay') }}</strong>
+      <div class="launch-summary__display-buttons">
+        <CdxButton
+          v-for="option in radialDisplayOptionKeys"
+          :key="option"
+          size="small"
+          :action="radialDisplayOptions[option] ? 'progressive' : 'default'"
+          :aria-pressed="radialDisplayOptions[option]"
+          @click="toggleRadialDisplayOption(option)"
+        >
+          {{ t(`sulfurCube.summary.display.${option}`) }}
+        </CdxButton>
+      </div>
     </div>
 
     <div class="launch-summary__resets">
       <strong>{{ t('sulfurCube.reset.options') }}</strong>
       <div class="launch-summary__reset-buttons">
-        <CdxButton size="small" action="destructive" @click="emit('resetPositionsAim')">
+        <CdxButton class="sulfur-cube-reset" size="small" @click="emit('resetPositionsAim')">
           {{ t('sulfurCube.summary.resetPositionsAim') }}
         </CdxButton>
-        <CdxButton size="small" action="destructive" @click="emit('resetArchetype')">
+        <CdxButton class="sulfur-cube-reset" size="small" @click="emit('resetArchetype')">
           {{ t('sulfurCube.summary.resetArchetype') }}
         </CdxButton>
-        <CdxButton size="small" action="destructive" @click="emit('resetWeapon')">
+        <CdxButton class="sulfur-cube-reset" size="small" @click="emit('resetWeapon')">
           {{ t('sulfurCube.summary.resetWeapon') }}
         </CdxButton>
-        <CdxButton size="small" action="destructive" @click="emit('resetFloor')">
+        <CdxButton class="sulfur-cube-reset" size="small" @click="emit('resetFloor')">
           {{ t('sulfurCube.summary.resetFloor') }}
         </CdxButton>
         <CdxButton size="small" action="destructive" @click="emit('resetEverything')">
           {{ t('sulfurCube.summary.resetEverything') }}
         </CdxButton>
-        <CdxButton
-          class="launch-summary__reset-layout"
-          size="small"
-          action="destructive"
-          @click="emit('resetLayout')"
-        >
+        <CdxButton class="launch-summary__reset-layout" size="small" @click="emit('resetLayout')">
           {{ t('sulfurCube.summary.resetLayout') }}
         </CdxButton>
       </div>
@@ -387,17 +427,41 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
 }
 .launch-summary__controls {
   display: grid;
-  grid-template-columns: 10.25rem 10.5rem 6rem 6rem 11rem 12.5rem;
-  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: clamp(1rem, 2.5vw, 2.5rem);
+  row-gap: 0.75rem;
   align-items: end;
 }
 .launch-summary__controls > * {
   min-width: 0;
 }
 .launch-summary__controls :deep(.cdx-select-vue),
-.launch-summary__controls :deep(.cdx-select-vue__handle) {
+.launch-summary__controls :deep(.cdx-select-vue__handle),
+.launch-summary__controls :deep(.cdx-text-input) {
   width: 100%;
   min-width: 0;
+}
+.launch-summary__controls :deep(.cdx-label__label__text) {
+  white-space: nowrap;
+}
+.launch-summary__archetype {
+  width: min(100%, 13rem);
+}
+.launch-summary__floor {
+  width: min(100%, 12rem);
+}
+.launch-summary__archetype :deep(.cdx-thumbnail),
+.launch-summary__weapon :deep(.cdx-thumbnail) {
+  width: 0.675rem;
+  min-width: 0.675rem;
+  height: 0.675rem;
+}
+.launch-summary__archetype :deep(.cdx-menu-item__text),
+.launch-summary__weapon :deep(.cdx-menu-item__text),
+.launch-summary__controls :deep(.cdx-select-vue__handle__label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .launch-summary__trajectory {
   display: grid;
@@ -405,14 +469,35 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
   gap: 0.4rem;
   align-items: end;
 }
+.launch-summary__attack-controls {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 1fr) 5.4rem 5.4rem;
+  gap: 0.55rem;
+  min-width: 0;
+}
+.launch-summary__attack-controls > * {
+  min-width: 0;
+}
 .launch-summary__label-with-info {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
-.launch-summary__trajectory :deep(.cdx-text-input) {
-  width: 100%;
-  min-width: 0;
+.launch-summary__trajectory > .cdx-button {
+  align-self: end;
+  margin-bottom: 2px;
+  transform: translateY(-2px);
+}
+.launch-summary__display-options,
+.launch-summary__display-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+.launch-summary__display-options {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color-subtle, #c8ccd1);
 }
 .launch-summary__resets {
   display: flex;
@@ -428,20 +513,24 @@ function updateTrajectoryTicks(value: NumericFormValue): void {
   gap: 0.4rem;
 }
 .launch-summary__reset-layout {
-  margin-left: auto;
+  margin-left: 2cm;
+  border-color: var(--border-color-error, #b32424);
 }
 @media (max-width: 72rem) {
-  .launch-summary__controls {
-    grid-template-columns: repeat(3, minmax(9rem, 1fr));
-  }
-}
-@media (max-width: 42rem) {
   .launch-summary__controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 28rem) {
+@media (max-width: 42rem) {
   .launch-summary__controls {
+    grid-template-columns: 1fr;
+  }
+  .launch-summary__reset-layout {
+    margin-left: 0;
+  }
+}
+@media (max-width: 28rem) {
+  .launch-summary__attack-controls {
     grid-template-columns: 1fr;
   }
 }

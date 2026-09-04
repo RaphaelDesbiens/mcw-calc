@@ -48,3 +48,16 @@ export interface SceneAttackSummary {
   readonly sprinting: boolean
   readonly criticalHit: boolean
 }
+
+/** Purely visual switches for the radial scene; mechanics remain unchanged. */
+export interface RadialSceneDisplayOptions {
+  readonly velocity: boolean
+  readonly cube: boolean
+  readonly player: boolean
+  readonly aim: boolean
+  readonly heightAngle: boolean
+  readonly information: boolean
+  readonly trajectoryLine: boolean
+  readonly trajectory: boolean
+  readonly floor: boolean
+}

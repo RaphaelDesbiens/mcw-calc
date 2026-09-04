@@ -101,19 +101,7 @@ const minimumCameraWidth = initialCameraWidth / 4
 const maximumCameraWidth = initialCameraWidth * 8
 const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
 const metricsPanelHeight = computed(() => {
-  const attack = props.attackSummary
-
-  if (attack?.criticalHit) return 291
-  if (attack?.sprinting) return 270
-  if (attack?.knockbackLabel) return 249
-  if (attack?.sharpnessLabel) return 228
-  if (
-    attack !== null &&
-    attack !== undefined &&
-    Math.abs(attack.attackStrengthPercent - 100) > 1e-9
-  )
-    return 207
-  if (attack !== null && attack !== undefined) return 186
+  if (props.attackSummary !== null && props.attackSummary !== undefined) return 299
   return 151
 })
 const maximumMetricsScale = computed(() =>
@@ -195,27 +183,17 @@ const view = computed(() => {
     blockY: 82,
     archetypeY: 103,
     floorY: 138,
-    weaponY: 173,
-    attackStrengthY: 194,
-    sharpnessY: 215,
-    knockbackY: 236,
-    sprintingY: 257,
-    criticalHitY: 278,
+    weaponY: 180,
+    attackStrengthY: 201,
+    sharpnessY: 222,
+    knockbackY: 243,
+    sprintingY: 264,
+    criticalHitY: 285,
     aimErrorDegrees: ((scene.aimErrorRadians * 180) / Math.PI).toFixed(1),
     launchOffsetDegrees: ((scene.launchOffsetRadians * 180) / Math.PI).toFixed(1),
-    attackGroupEndY: props.attackSummary?.criticalHit
-      ? 278
-      : props.attackSummary?.sprinting
-        ? 257
-        : props.attackSummary?.knockbackLevel !== null
-          ? 236
-          : props.attackSummary?.sharpnessLevel !== null
-            ? 215
-            : props.attackSummary !== null &&
-                props.attackSummary !== undefined &&
-                Math.abs(props.attackSummary.attackStrengthPercent - 100) > 1e-9
-              ? 194
-              : 173,
+    attackGroupEndY: 285,
+    attackDetailX: 32,
+    attackDetailValueX: 218,
   }
 
   return {
@@ -846,65 +824,49 @@ onBeforeUnmount(() => {
                   {{ attackSummary.weaponLabel }}
                 </tspan>
               </text>
-              <text
-                v-if="Math.abs(attackSummary.attackStrengthPercent - 100) > 1e-9"
-                :x="view.metrics.x"
-                :y="view.metrics.attackStrengthY"
-              >
-                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;=&#160;</tspan>
+              <text :x="view.metrics.attackDetailX" :y="view.metrics.attackStrengthY">
+                <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}:&#160;</tspan>
                 <tspan
-                  :x="view.metrics.valueX"
+                  :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
                 >
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
               </text>
-              <text
-                v-if="attackSummary.sharpnessLevel !== null"
-                :x="view.metrics.x"
-                :y="view.metrics.sharpnessY"
-              >
-                <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;=&#160;</tspan>
+              <text :x="view.metrics.attackDetailX" :y="view.metrics.sharpnessY">
+                <tspan>{{ t('sulfurCube.attack.sharpness') }}:&#160;</tspan>
                 <tspan
-                  :x="view.metrics.valueX"
+                  :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
                 >
-                  {{ attackSummary.sharpnessLevel }}
+                  {{ attackSummary.sharpnessLevel ?? 0 }}
                 </tspan>
               </text>
-              <text
-                v-if="attackSummary.knockbackLevel !== null"
-                :x="view.metrics.x"
-                :y="view.metrics.knockbackY"
-              >
-                <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;=&#160;</tspan>
+              <text :x="view.metrics.attackDetailX" :y="view.metrics.knockbackY">
+                <tspan>{{ t('sulfurCube.attack.knockback') }}:&#160;</tspan>
                 <tspan
-                  :x="view.metrics.valueX"
+                  :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
                 >
-                  {{ attackSummary.knockbackLevel }}
+                  {{ attackSummary.knockbackLevel ?? 0 }}
                 </tspan>
               </text>
-              <text v-if="attackSummary.sprinting" :x="view.metrics.x" :y="view.metrics.sprintingY">
-                <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;=&#160;</tspan>
+              <text :x="view.metrics.attackDetailX" :y="view.metrics.sprintingY">
+                <tspan>{{ t('sulfurCube.attack.sprinting') }}:&#160;</tspan>
                 <tspan
-                  :x="view.metrics.valueX"
+                  :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
                 >
-                  {{ t('sulfurCube.yes') }}
+                  {{ t(attackSummary.sprinting ? 'sulfurCube.yes' : 'sulfurCube.no') }}
                 </tspan>
               </text>
-              <text
-                v-if="attackSummary.criticalHit"
-                :x="view.metrics.x"
-                :y="view.metrics.criticalHitY"
-              >
-                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;=&#160;</tspan>
+              <text :x="view.metrics.attackDetailX" :y="view.metrics.criticalHitY">
+                <tspan>{{ t('sulfurCube.attack.criticalConditions') }}:&#160;</tspan>
                 <tspan
-                  :x="view.metrics.valueX"
+                  :x="view.metrics.attackDetailValueX"
                   class="topdown-metric-value topdown-metric-value--neutral"
                 >
-                  {{ t('sulfurCube.yes') }}
+                  {{ t(attackSummary.criticalHit ? 'sulfurCube.yes' : 'sulfurCube.no') }}
                 </tspan>
               </text>
             </g>
@@ -1165,6 +1127,10 @@ onBeforeUnmount(() => {
         {{ ' ' }}
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
+      <details class="projection-details">
+        <summary>{{ t('sulfurCube.scene.projectionAdvancedTitle') }}</summary>
+        <p>{{ t('sulfurCube.topDown.projectionAdvanced') }}</p>
+      </details>
     </figcaption>
   </figure>
 </template>
@@ -1335,7 +1301,7 @@ figcaption {
   fill: var(--topdown-launch);
 }
 .topdown-metric-value--cube {
-  fill: #9c6900;
+  fill: var(--topdown-ink);
 }
 .topdown-metric-value--neutral {
   fill: var(--topdown-ink);
@@ -1516,6 +1482,12 @@ figcaption {
 }
 .scene-interaction-help {
   display: block;
+}
+.projection-details summary {
+  cursor: pointer;
+}
+.projection-details p {
+  margin-top: 0.25rem;
 }
 .open-point-example {
   margin-inline: 0.2rem;

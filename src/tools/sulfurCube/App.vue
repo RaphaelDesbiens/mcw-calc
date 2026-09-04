@@ -3,11 +3,14 @@ import type { MenuItemData } from '@wikimedia/codex'
 import type {
   DiagnosticFormState,
   PlayerMeleeFormState,
+  RadialSceneDisplayOptions,
   SceneAttackSummary,
 } from './components/types'
 import type { Je26_2ArchetypeId, Je26_2UniformFloorProfileId } from './data/je26_2'
 import type { Vec3 } from './model/types'
 import type {
+  SulfurCubeSectionColumn,
+  SulfurCubeSectionColumnLayout,
   SulfurCubeSectionDropPosition,
   SulfurCubeSectionId,
   SulfurCubeSectionLayouts,
@@ -48,9 +51,11 @@ import { blockSpriteFileName, humanizeIdentifier } from './presentation/blockSel
 import { parseNumericInput } from './presentation/numericInput'
 import {
   defaultSulfurCubeSectionLayouts,
+  findSulfurCubeSectionColumn,
   moveSulfurCubeSection,
   normalizeSulfurCubeSectionLayouts,
-  sulfurCubeSectionWidth,
+  sulfurCubeSectionColumns,
+  sulfurCubeSectionIds,
 } from './presentation/sectionLayout'
 import { createFullSulfurCubeToolUrl } from './presentation/viewMode'
 import {
@@ -86,6 +91,7 @@ const initialPropertySelection = isCompactView
 
 const { t } = useI18n()
 const sceneSize = ref<'regular' | 'compact'>('compact')
+const radialSceneSizeControlEnabled = false
 const compactSceneKind = ref<'radial' | 'topDown'>('radial')
 const sceneResetVersion = ref(0)
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
@@ -94,7 +100,19 @@ const playerMeleeState = ref<PlayerMeleeFormState>(
 )
 const propertySelection = ref<CubePropertySelectionState>(initialPropertySelection)
 const trajectoryTicksDefaultActive = ref(true)
-const sectionLayoutStorageKey = 'mcwCalc:sulfurCube:sectionLayouts:v2'
+const sectionLayoutStorageKey = 'mcwCalc:sulfurCube:sectionLayouts:v3'
+const defaultCollapsedSectionIds: readonly SulfurCubeSectionId[] = ['power', 'trace', 'details']
+const radialSceneDisplayOptions = ref<RadialSceneDisplayOptions>({
+  velocity: true,
+  cube: true,
+  player: true,
+  aim: true,
+  heightAngle: true,
+  information: true,
+  trajectoryLine: true,
+  trajectory: true,
+  floor: true,
+})
 
 function loadSectionLayouts(): SulfurCubeSectionLayouts {
   try {
@@ -108,11 +126,15 @@ function loadSectionLayouts(): SulfurCubeSectionLayouts {
 
 const sectionLayouts = ref<SulfurCubeSectionLayouts>(loadSectionLayouts())
 const draggedSectionId = ref<SulfurCubeSectionId | null>(null)
+const draggedSectionHeight = ref(0)
+const dragPreviewLayout = ref<SulfurCubeSectionColumnLayout | null>(null)
 const sectionDropTarget = ref<{
-  readonly sectionId: SulfurCubeSectionId
+  readonly column: SulfurCubeSectionColumn
+  readonly sectionId: SulfurCubeSectionId | null
   readonly position: SulfurCubeSectionDropPosition
 } | null>(null)
-const collapsedSectionIds = ref<readonly SulfurCubeSectionId[]>([])
+const collapsedSectionIds = ref<readonly SulfurCubeSectionId[]>([...defaultCollapsedSectionIds])
+let suppressSectionHeaderClick = false
 const propertyResolution = computed(() => resolveCubePropertySelection(propertySelection.value))
 const selectedCubeVisual = computed(() => {
   if (propertySelection.value.mode === 'custom') {
@@ -143,6 +165,19 @@ const compactFloorItems: MenuItemData[] = je26_2UniformFloorProfileOrder.map((fl
   label: t(`sulfurCube.floor.${floorProfileId}`),
 }))
 const selectedFloorLabel = computed(() => t(`sulfurCube.floor.${formState.value.floorProfileId}`))
+const selectedFloorSpriteUrl = computed(() => {
+  const blockIds: Record<Je26_2UniformFloorProfileId, string> = {
+    ordinary_full_block: 'minecraft:grass_block',
+    slime_block: 'minecraft:slime_block',
+    honey_block: 'minecraft:honey_block',
+    ice_0_98: 'minecraft:packed_ice',
+    blue_ice: 'minecraft:blue_ice',
+    soul_sand: 'minecraft:soul_sand',
+    bed: 'minecraft:red_bed',
+  }
+
+  return getImageLink(`en:${blockSpriteFileName(blockIds[formState.value.floorProfileId])}`)
+})
 const sulfurCubeImageUrl = getImageLink('en:Sulfur Cube JE2 BE2.png')
 const visualTrajectoryTicks = computed(() => {
   const value = parseNumericInput(formState.value.trajectoryTicks)
@@ -264,19 +299,53 @@ watch(
 const sceneEvaluation = computed(() => evaluation.value ?? lastValidSceneEvaluation.value)
 const sceneInputsInvalid = computed(() => evaluation.value === null)
 
-const visibleSectionOrder = computed(() =>
-  sectionLayouts.value[sceneSize.value].filter((sectionId) => {
-    if (sectionId === 'scene' || sectionId === 'topDown' || sectionId === 'controls') {
-      return true
-    }
+function isSectionVisible(sectionId: SulfurCubeSectionId): boolean {
+  if (sectionId === 'scene' || sectionId === 'topDown' || sectionId === 'controls') {
+    return true
+  }
 
-    if (sectionId === 'trace') {
-      return playerMeleeEvaluation.value !== null
-    }
+  if (sectionId === 'trace') {
+    return playerMeleeEvaluation.value !== null
+  }
 
-    return evaluation.value !== null
-  }),
-)
+  return evaluation.value !== null
+}
+
+const visibleSectionColumns = computed(() => {
+  const layout = sectionLayouts.value[sceneSize.value]
+
+  return {
+    left: layout.left.filter(isSectionVisible),
+    right: layout.right.filter(isSectionVisible),
+  }
+})
+
+const dragPreviewColumn = computed(() => {
+  const sourceId = draggedSectionId.value
+  const layout = dragPreviewLayout.value
+
+  return sourceId === null || layout === null ? null : findSulfurCubeSectionColumn(layout, sourceId)
+})
+
+function sectionVisualOrder(
+  column: SulfurCubeSectionColumn,
+  sectionId: SulfurCubeSectionId,
+): number {
+  const layout = dragPreviewLayout.value ?? sectionLayouts.value[sceneSize.value]
+  const index = layout[column].indexOf(sectionId)
+
+  return index < 0 ? sulfurCubeSectionIds.length * 2 : index * 2
+}
+
+function dragPreviewOrder(column: SulfurCubeSectionColumn): number {
+  const sourceId = draggedSectionId.value
+  const layout = dragPreviewLayout.value
+
+  if (sourceId === null || layout === null) return sulfurCubeSectionIds.length * 2
+
+  const index = layout[column].indexOf(sourceId)
+  return index < 0 ? sulfurCubeSectionIds.length * 2 : index * 2
+}
 
 function sectionTitle(sectionId: SulfurCubeSectionId): string {
   switch (sectionId) {
@@ -297,10 +366,13 @@ function sectionTitle(sectionId: SulfurCubeSectionId): string {
   }
 }
 
-function updateActiveSectionOrder(order: readonly SulfurCubeSectionId[]): void {
+function updateActiveSectionLayout(layout: SulfurCubeSectionColumnLayout): void {
   sectionLayouts.value = {
     ...sectionLayouts.value,
-    [sceneSize.value]: [...order],
+    [sceneSize.value]: {
+      left: [...layout.left],
+      right: [...layout.right],
+    },
   }
 }
 
@@ -310,29 +382,49 @@ async function focusSectionHandle(sectionId: SulfurCubeSectionId): Promise<void>
 }
 
 function moveSectionByKeyboard(sectionId: SulfurCubeSectionId, event: KeyboardEvent): void {
-  const order = sectionLayouts.value[sceneSize.value]
-  const visibleOrder = visibleSectionOrder.value
-  const sourceIndex = visibleOrder.indexOf(sectionId)
-  let targetId: SulfurCubeSectionId | undefined
-  let position: SulfurCubeSectionDropPosition
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleSectionCollapsed(sectionId)
+    return
+  }
+
+  const layout = sectionLayouts.value[sceneSize.value]
+  const sourceColumn = findSulfurCubeSectionColumn(layout, sectionId)
+
+  if (sourceColumn === null) return
+
+  const sourceSections = visibleSectionColumns.value[sourceColumn]
+  const sourceIndex = sourceSections.indexOf(sectionId)
+  let targetColumn = sourceColumn
+  let targetId: SulfurCubeSectionId | null | undefined
+  let position: SulfurCubeSectionDropPosition = 'after'
 
   switch (event.key) {
-    case 'ArrowLeft':
     case 'ArrowUp':
-      targetId = visibleOrder[sourceIndex - 1]
+      targetId = sourceSections[sourceIndex - 1]
       position = 'before'
       break
-    case 'ArrowRight':
     case 'ArrowDown':
-      targetId = visibleOrder[sourceIndex + 1]
+      targetId = sourceSections[sourceIndex + 1]
       position = 'after'
       break
+    case 'ArrowLeft':
+    case 'ArrowRight': {
+      const requestedColumn = event.key === 'ArrowLeft' ? 'left' : 'right'
+      if (requestedColumn === sourceColumn) return
+      targetColumn = requestedColumn
+      const targetSections = visibleSectionColumns.value[targetColumn]
+      targetId =
+        targetSections[Math.min(sourceIndex, Math.max(0, targetSections.length - 1))] ?? null
+      position = 'before'
+      break
+    }
     case 'Home':
-      targetId = visibleOrder[0]
+      targetId = sourceSections[0]
       position = 'before'
       break
     case 'End':
-      targetId = visibleOrder[visibleOrder.length - 1]
+      targetId = sourceSections[sourceSections.length - 1]
       position = 'after'
       break
     default:
@@ -341,16 +433,25 @@ function moveSectionByKeyboard(sectionId: SulfurCubeSectionId, event: KeyboardEv
 
   event.preventDefault()
 
-  if (targetId === undefined || targetId === sectionId) {
-    return
-  }
+  if (targetId === undefined || (targetId === sectionId && targetColumn === sourceColumn)) return
 
-  updateActiveSectionOrder(moveSulfurCubeSection(order, sectionId, targetId, position))
+  updateActiveSectionLayout(
+    moveSulfurCubeSection(layout, sectionId, targetColumn, targetId, position),
+  )
   void focusSectionHandle(sectionId)
 }
 
 function startSectionDrag(sectionId: SulfurCubeSectionId, event: DragEvent): void {
+  suppressSectionHeaderClick = true
   draggedSectionId.value = sectionId
+  draggedSectionHeight.value =
+    event.currentTarget instanceof HTMLElement
+      ? (event.currentTarget.closest<HTMLElement>('.interaction-grid__slot')?.offsetHeight ?? 0)
+      : 0
+  dragPreviewLayout.value = {
+    left: [...sectionLayouts.value[sceneSize.value].left],
+    right: [...sectionLayouts.value[sceneSize.value].right],
+  }
   sectionDropTarget.value = null
 
   if (event.dataTransfer !== null) {
@@ -359,13 +460,32 @@ function startSectionDrag(sectionId: SulfurCubeSectionId, event: DragEvent): voi
   }
 }
 
-function updateSectionDropTarget(sectionId: SulfurCubeSectionId, event: DragEvent): void {
+function previewSectionDrop(
+  column: SulfurCubeSectionColumn,
+  sectionId: SulfurCubeSectionId | null,
+  position: SulfurCubeSectionDropPosition,
+): void {
   const sourceId = draggedSectionId.value
 
-  if (sourceId === null || sourceId === sectionId) {
-    sectionDropTarget.value = null
-    return
-  }
+  if (sourceId === null || sourceId === sectionId) return
+
+  const currentLayout = dragPreviewLayout.value ?? sectionLayouts.value[sceneSize.value]
+  dragPreviewLayout.value = moveSulfurCubeSection(
+    currentLayout,
+    sourceId,
+    column,
+    sectionId,
+    position,
+  )
+  sectionDropTarget.value = { column, sectionId, position }
+}
+
+function updateSectionDropTarget(
+  column: SulfurCubeSectionColumn,
+  sectionId: SulfurCubeSectionId,
+  event: DragEvent,
+): void {
+  if (draggedSectionId.value === null) return
 
   event.preventDefault()
 
@@ -380,51 +500,67 @@ function updateSectionDropTarget(sectionId: SulfurCubeSectionId, event: DragEven
   }
 
   const bounds = target.getBoundingClientRect()
-  const width = sulfurCubeSectionWidth(sectionId, sceneSize.value)
-  const isSingleColumn = window.matchMedia('(max-width: 52rem)').matches
-  const position =
-    width === 'full' || isSingleColumn
-      ? event.clientY < bounds.top + bounds.height / 2
-        ? 'before'
-        : 'after'
-      : event.clientX < bounds.left + bounds.width / 2
-        ? 'before'
-        : 'after'
-
-  sectionDropTarget.value = { sectionId, position }
+  const position = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after'
+  previewSectionDrop(column, sectionId, position)
 }
 
-function dropSection(sectionId: SulfurCubeSectionId, event: DragEvent): void {
+function updateColumnDropTarget(column: SulfurCubeSectionColumn, event: DragEvent): void {
+  if (draggedSectionId.value === null || event.target !== event.currentTarget) return
+
+  event.preventDefault()
+
+  if (event.dataTransfer !== null) event.dataTransfer.dropEffect = 'move'
+  previewSectionDrop(column, null, 'after')
+}
+
+function dropSection(event: DragEvent): void {
   event.preventDefault()
   const sourceId = draggedSectionId.value
-  const position =
-    sectionDropTarget.value?.sectionId === sectionId ? sectionDropTarget.value.position : 'after'
+  const preview = dragPreviewLayout.value
 
   draggedSectionId.value = null
+  draggedSectionHeight.value = 0
+  dragPreviewLayout.value = null
   sectionDropTarget.value = null
 
-  if (sourceId === null || sourceId === sectionId) {
-    return
-  }
+  if (sourceId === null || preview === null) return
 
-  updateActiveSectionOrder(
-    moveSulfurCubeSection(sectionLayouts.value[sceneSize.value], sourceId, sectionId, position),
-  )
+  updateActiveSectionLayout(preview)
   void focusSectionHandle(sourceId)
 }
 
 function endSectionDrag(): void {
   draggedSectionId.value = null
+  draggedSectionHeight.value = 0
+  dragPreviewLayout.value = null
   sectionDropTarget.value = null
+  window.setTimeout(() => {
+    suppressSectionHeaderClick = false
+  }, 0)
+}
+
+function activateSectionHeader(sectionId: SulfurCubeSectionId): void {
+  if (suppressSectionHeaderClick) return
+  toggleSectionCollapsed(sectionId)
 }
 
 function resetPageLayout(): void {
   sectionLayouts.value = {
-    regular: [...defaultSulfurCubeSectionLayouts.regular],
-    compact: [...defaultSulfurCubeSectionLayouts.compact],
+    regular: {
+      left: [...defaultSulfurCubeSectionLayouts.regular.left],
+      right: [...defaultSulfurCubeSectionLayouts.regular.right],
+    },
+    compact: {
+      left: [...defaultSulfurCubeSectionLayouts.compact.left],
+      right: [...defaultSulfurCubeSectionLayouts.compact.right],
+    },
   }
-  collapsedSectionIds.value = []
+  collapsedSectionIds.value = [...defaultCollapsedSectionIds]
   sceneSize.value = 'compact'
+}
+
+function updateRadialSceneDisplayOptions(value: RadialSceneDisplayOptions): void {
+  radialSceneDisplayOptions.value = value
 }
 
 function isSectionCollapsed(sectionId: SulfurCubeSectionId): boolean {
@@ -658,7 +794,7 @@ watch(
             @update:selected="updateCompactFloor"
           />
         </CdxField>
-        <CdxButton action="destructive" @click="resetEverything">
+        <CdxButton class="sulfur-cube-reset" @click="resetEverything">
           {{ t('sulfurCube.reset.everything') }}
         </CdxButton>
         <CdxButton @click="switchCompactScene">
@@ -691,6 +827,8 @@ watch(
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
         :attack-summary="sceneAttackSummary"
         :floor-surface-label="selectedFloorLabel"
+        :floor-surface-sprite-url="selectedFloorSpriteUrl"
+        :display-options="radialSceneDisplayOptions"
         :trajectory-tick-limit="visualTrajectoryTicks"
         @update-aim-point="updateAimPoint"
         @translate-attacker="translateAttacker"
@@ -736,6 +874,7 @@ watch(
         :property-resolution="propertyResolution"
         :player-melee="playerMeleeState"
         :trajectory-ticks-default-active="trajectoryTicksDefaultActive"
+        :radial-display-options="radialSceneDisplayOptions"
         @update:form-value="updateFormStateFromControls"
         @update:property-selection="updatePropertySelection"
         @update:player-melee="updatePlayerMeleeState"
@@ -746,74 +885,58 @@ watch(
         @reset-floor="resetFloor"
         @reset-layout="resetPageLayout"
         @reset-everything="resetEverything"
+        @update:radial-display-options="updateRadialSceneDisplayOptions"
       />
 
-      <div class="interaction-grid">
-        <section
-          v-for="sectionId in visibleSectionOrder"
-          :key="sectionId"
-          class="interaction-grid__slot"
-          :class="[
-            `interaction-grid__slot--${sulfurCubeSectionWidth(sectionId, sceneSize)}`,
-            {
+      <div
+        class="interaction-grid"
+        :class="{ 'interaction-grid--drag-active': draggedSectionId !== null }"
+        @drop.stop="dropSection"
+      >
+        <div
+          v-for="column in sulfurCubeSectionColumns"
+          :key="column"
+          class="interaction-grid__column"
+          :class="`interaction-grid__column--${column}`"
+          @dragover="updateColumnDropTarget(column, $event)"
+        >
+          <div
+            v-if="dragPreviewColumn === column && sectionDropTarget !== null"
+            class="interaction-grid__drop-preview"
+            :style="{
+              height: `${draggedSectionHeight}px`,
+              order: dragPreviewOrder(column),
+            }"
+            aria-hidden="true"
+            @dragover.stop.prevent
+            @drop.stop="dropSection"
+          />
+          <section
+            v-for="sectionId in visibleSectionColumns[column]"
+            :key="sectionId"
+            class="interaction-grid__slot"
+            :style="{ order: sectionVisualOrder(column, sectionId) }"
+            :class="{
               'interaction-grid__slot--dragging': draggedSectionId === sectionId,
+              'interaction-grid__slot--dragging-active':
+                draggedSectionId === sectionId && sectionDropTarget !== null,
               'interaction-grid__slot--drop-before':
                 sectionDropTarget?.sectionId === sectionId &&
                 sectionDropTarget.position === 'before',
               'interaction-grid__slot--drop-after':
                 sectionDropTarget?.sectionId === sectionId &&
                 sectionDropTarget.position === 'after',
-            },
-          ]"
-          :data-section-id="sectionId"
-          @dragover="updateSectionDropTarget(sectionId, $event)"
-          @drop="dropSection(sectionId, $event)"
-        >
-          <div class="section-layout-handle-bar">
+            }"
+            :data-section-id="sectionId"
+            @dragover.stop="updateSectionDropTarget(column, sectionId, $event)"
+            @drop.stop="dropSection"
+          >
             <div
-              class="section-layout-heading"
+              class="section-layout-handle-bar"
+              role="button"
+              tabindex="0"
               :draggable="true"
-              @dragstart="startSectionDrag(sectionId, $event)"
-              @dragend="endSectionDrag"
-            >
-              <CdxButton
-                class="section-layout-handle"
-                size="small"
-                weight="quiet"
-                :data-section-move-handle="sectionId"
-                :aria-label="
-                  t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })
-                "
-                aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
-                :title="t('sulfurCube.layout.moveSection', { section: sectionTitle(sectionId) })"
-                @keydown="moveSectionByKeyboard(sectionId, $event)"
-              >
-                <span class="section-layout-handle__grip" aria-hidden="true">⠿</span>
-                <span>{{ sectionTitle(sectionId) }}</span>
-              </CdxButton>
-              <InfoTooltip
-                v-if="sectionId === 'scene'"
-                :text="t('sulfurCube.scene.projectionHelp')"
-                :label="t('sulfurCube.scene.projectionHelpLabel')"
-                placement="right"
-              />
-              <InfoTooltip
-                v-else-if="sectionId === 'topDown'"
-                :text="t('sulfurCube.topDown.help')"
-                :label="t('sulfurCube.topDown.helpLabel')"
-                placement="right"
-              />
-              <InfoTooltip
-                v-else-if="sectionId === 'power'"
-                :text="t('sulfurCube.power.caveat')"
-                :label="t('sulfurCube.power.caveatLabel')"
-                placement="right"
-              />
-            </div>
-            <CdxButton
-              class="section-layout-collapse"
-              size="small"
-              weight="quiet"
+              :data-section-move-handle="sectionId"
               :aria-expanded="!isSectionCollapsed(sectionId)"
               :aria-controls="`sulfur-cube-section-content-${sectionId}`"
               :aria-label="
@@ -824,119 +947,144 @@ watch(
                   { section: sectionTitle(sectionId) },
                 )
               "
-              :title="
-                t(
-                  isSectionCollapsed(sectionId)
-                    ? 'sulfurCube.layout.expandSection'
-                    : 'sulfurCube.layout.collapseSection',
-                  { section: sectionTitle(sectionId) },
-                )
-              "
-              @click="toggleSectionCollapsed(sectionId)"
+              aria-keyshortcuts="Enter Space ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
+              @click="activateSectionHeader(sectionId)"
+              @keydown="moveSectionByKeyboard(sectionId, $event)"
+              @dragstart="startSectionDrag(sectionId, $event)"
+              @dragend="endSectionDrag"
             >
-              <span aria-hidden="true">{{ isSectionCollapsed(sectionId) ? '▸' : '▾' }}</span>
-            </CdxButton>
-          </div>
+              <div class="section-layout-heading">
+                <span class="section-layout-handle__grip" aria-hidden="true">⠿</span>
+                <span class="section-layout-title">{{ sectionTitle(sectionId) }}</span>
+                <InfoTooltip
+                  v-if="sectionId === 'scene'"
+                  class="section-layout-info"
+                  :text="t('sulfurCube.scene.projectionHelp')"
+                  :label="t('sulfurCube.scene.projectionHelpLabel')"
+                  placement="top"
+                />
+                <InfoTooltip
+                  v-else-if="sectionId === 'topDown'"
+                  class="section-layout-info"
+                  :text="t('sulfurCube.topDown.help')"
+                  :label="t('sulfurCube.topDown.helpLabel')"
+                  placement="top"
+                />
+                <InfoTooltip
+                  v-else-if="sectionId === 'power'"
+                  class="section-layout-info"
+                  :text="t('sulfurCube.power.caveat')"
+                  :label="t('sulfurCube.power.caveatLabel')"
+                  placement="top"
+                />
+              </div>
+              <span class="section-layout-collapse" aria-hidden="true">
+                {{ isSectionCollapsed(sectionId) ? '▸' : '▾' }}
+              </span>
+            </div>
 
-          <div
-            v-show="!isSectionCollapsed(sectionId)"
-            :id="`sulfur-cube-section-content-${sectionId}`"
-            class="section-layout-content"
-          >
-            <ControlsPanel
-              v-if="sectionId === 'controls'"
-              class="interaction-grid__controls"
-              :model-value="formState"
-              :property-selection="propertySelection"
-              :property-resolution="propertyResolution"
-              :player-melee="playerMeleeState"
-              :show-title="false"
-              @update:model-value="updateFormStateFromControls"
-              @update:property-selection="updatePropertySelection"
-              @update:player-melee="updatePlayerMeleeState"
-              @reset-attacker-eye-standing="resetAttackerEyeStanding"
-              @reset-positions-aim="resetPositionsAim"
-              @reset-archetype="resetArchetype"
-              @reset-weapon="resetWeapon"
-              @reset-floor="resetFloor"
-            />
+            <div
+              v-show="!isSectionCollapsed(sectionId)"
+              :id="`sulfur-cube-section-content-${sectionId}`"
+              class="section-layout-content"
+            >
+              <ControlsPanel
+                v-if="sectionId === 'controls'"
+                class="interaction-grid__controls"
+                :model-value="formState"
+                :property-selection="propertySelection"
+                :property-resolution="propertyResolution"
+                :player-melee="playerMeleeState"
+                :show-title="false"
+                @update:model-value="updateFormStateFromControls"
+                @update:property-selection="updatePropertySelection"
+                @update:player-melee="updatePlayerMeleeState"
+                @reset-attacker-eye-standing="resetAttackerEyeStanding"
+                @reset-positions-aim="resetPositionsAim"
+                @reset-archetype="resetArchetype"
+                @reset-weapon="resetWeapon"
+                @reset-floor="resetFloor"
+              />
 
-            <template v-else-if="sectionId === 'scene'">
-              <SulfurCubeScene
-                v-if="sceneEvaluation"
-                :key="sceneResetVersion"
-                v-model:scene-size="sceneSize"
-                class="interaction-grid__scene"
+              <template v-else-if="sectionId === 'scene'">
+                <SulfurCubeScene
+                  v-if="sceneEvaluation"
+                  :key="sceneResetVersion"
+                  v-model:scene-size="sceneSize"
+                  class="interaction-grid__scene"
+                  :evaluation="sceneEvaluation"
+                  :inputs-invalid="sceneInputsInvalid"
+                  :show-heading-title="false"
+                  :show-size-control="radialSceneSizeControlEnabled"
+                  :selected-block-label="selectedCubeVisual.blockLabel"
+                  :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+                  :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+                  :attack-summary="sceneAttackSummary"
+                  :floor-surface-label="selectedFloorLabel"
+                  :floor-surface-sprite-url="selectedFloorSpriteUrl"
+                  :display-options="radialSceneDisplayOptions"
+                  :trajectory-tick-limit="visualTrajectoryTicks"
+                  @update-aim-point="updateAimPoint"
+                  @translate-attacker="translateAttacker"
+                  @translate-cube="translateCube"
+                />
+
+                <CdxMessage v-else class="interaction-grid__scene" type="warning">
+                  {{ t('sulfurCube.invalidInputs') }}
+                </CdxMessage>
+              </template>
+
+              <TopDownScene
+                v-else-if="sectionId === 'topDown' && sceneEvaluation"
+                :key="`top-down-${sceneResetVersion}`"
+                class="interaction-grid__horizontal"
                 :evaluation="sceneEvaluation"
                 :inputs-invalid="sceneInputsInvalid"
-                :show-heading-title="false"
-                :show-size-control="true"
+                :scene-size="sceneSize"
                 :selected-block-label="selectedCubeVisual.blockLabel"
                 :selected-archetype-label="selectedCubeVisual.archetypeLabel"
                 :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
                 :attack-summary="sceneAttackSummary"
                 :floor-surface-label="selectedFloorLabel"
-                :trajectory-tick-limit="visualTrajectoryTicks"
+                :show-heading-title="false"
                 @update-aim-point="updateAimPoint"
-                @translate-attacker="translateAttacker"
+                @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
                 @translate-cube="translateCube"
               />
 
-              <CdxMessage v-else class="interaction-grid__scene" type="warning">
-                {{ t('sulfurCube.invalidInputs') }}
-              </CdxMessage>
-            </template>
+              <PowerSpaceDiagram
+                v-else-if="sectionId === 'power' && evaluation"
+                class="interaction-grid__power"
+                :evaluation="evaluation"
+                :show-heading-title="false"
+              />
 
-            <TopDownScene
-              v-else-if="sectionId === 'topDown' && sceneEvaluation"
-              :key="`top-down-${sceneResetVersion}`"
-              class="interaction-grid__horizontal"
-              :evaluation="sceneEvaluation"
-              :inputs-invalid="sceneInputsInvalid"
-              :scene-size="sceneSize"
-              :selected-block-label="selectedCubeVisual.blockLabel"
-              :selected-archetype-label="selectedCubeVisual.archetypeLabel"
-              :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
-              :attack-summary="sceneAttackSummary"
-              :floor-surface-label="selectedFloorLabel"
-              :show-heading-title="false"
-              @update-aim-point="updateAimPoint"
-              @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
-              @translate-cube="translateCube"
-            />
+              <MechanicsReadout
+                v-else-if="sectionId === 'readout' && evaluation"
+                class="interaction-grid__readout"
+                :evaluation="evaluation"
+                :show-details="false"
+                :show-title="false"
+                :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
+              />
 
-            <PowerSpaceDiagram
-              v-else-if="sectionId === 'power' && evaluation"
-              class="interaction-grid__power"
-              :evaluation="evaluation"
-              :show-heading-title="false"
-            />
+              <AttackOperationTrace
+                v-else-if="sectionId === 'trace' && playerMeleeEvaluation"
+                class="interaction-grid__trace"
+                :evaluation="playerMeleeEvaluation"
+                :show-title="false"
+              />
 
-            <MechanicsReadout
-              v-else-if="sectionId === 'readout' && evaluation"
-              class="interaction-grid__readout"
-              :evaluation="evaluation"
-              :show-details="false"
-              :show-title="false"
-              :summary-layout="sceneSize === 'compact' ? 'single' : 'grid'"
-            />
-
-            <AttackOperationTrace
-              v-else-if="sectionId === 'trace' && playerMeleeEvaluation"
-              class="interaction-grid__trace"
-              :evaluation="playerMeleeEvaluation"
-              :show-title="false"
-            />
-
-            <MechanicsReadout
-              v-else-if="sectionId === 'details' && evaluation"
-              class="interaction-grid__details"
-              :evaluation="evaluation"
-              :show-details-title="false"
-              :show-summary="false"
-            />
-          </div>
-        </section>
+              <MechanicsReadout
+                v-else-if="sectionId === 'details' && evaluation"
+                class="interaction-grid__details"
+                :evaluation="evaluation"
+                :show-details-title="false"
+                :show-summary="false"
+              />
+            </div>
+          </section>
+        </div>
       </div>
 
       <CdxAccordion class="assumptions-disclosure" separation="outline">
@@ -1013,6 +1161,20 @@ watch(
   margin-top: 0.75rem;
 }
 
+:global(.sulfur-cube-reset.cdx-button),
+:global(.launch-summary__reset-layout.cdx-button) {
+  border-color: var(--border-color-error, #b32424);
+  background-color: var(--background-color-interactive-subtle, #f8f9fa);
+  color: var(--color-base, #202122);
+}
+
+:global(.sulfur-cube-reset.cdx-button:hover),
+:global(.launch-summary__reset-layout.cdx-button:hover) {
+  border-color: var(--border-color-error--hover, #9f2626);
+  background-color: var(--background-color-interactive-subtle--hover, #eaecf0);
+  color: var(--color-base, #202122);
+}
+
 .tool-title-band {
   position: relative;
   display: flex;
@@ -1085,9 +1247,27 @@ watch(
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
-  align-items: start;
   min-width: 0;
   max-width: 100%;
+}
+
+.interaction-grid__column {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+  min-width: 0;
+  min-height: 5rem;
+  border-radius: 4px;
+  transition: background-color 120ms ease;
+}
+
+.interaction-grid--drag-active .interaction-grid__column {
+  background: color-mix(
+    in srgb,
+    var(--background-color-progressive-subtle, #eaf3ff) 45%,
+    transparent
+  );
 }
 
 .interaction-grid__slot {
@@ -1095,21 +1275,41 @@ watch(
   display: grid;
   gap: 0;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 2px solid #c69732;
   border-radius: 3px;
 }
 
-.interaction-grid__slot--half {
-  grid-column: span 1;
-}
-
-.interaction-grid__slot--full {
-  grid-column: 1 / -1;
-}
-
 .interaction-grid__slot--dragging {
-  opacity: 0.5;
+  border-color: var(--border-color-progressive, #36c);
+  opacity: 0.62;
+}
+
+.interaction-grid__slot--dragging-active {
+  position: absolute;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.interaction-grid__drop-preview {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 3.25rem;
+  border: 3px dashed var(--border-color-progressive, #36c);
+  border-radius: 4px;
+  background: color-mix(
+    in srgb,
+    var(--background-color-progressive-subtle, #eaf3ff) 72%,
+    transparent
+  );
+  outline: 3px dashed var(--border-color-progressive, #36c);
+  outline-offset: -5px;
+  pointer-events: auto;
+  transition: height 120ms ease;
 }
 
 .interaction-grid__slot--drop-before::after,
@@ -1120,36 +1320,20 @@ watch(
   pointer-events: none;
 }
 
-.interaction-grid__slot--half.interaction-grid__slot--drop-before::after,
-.interaction-grid__slot--half.interaction-grid__slot--drop-after::after {
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--border-color-progressive, #36c);
-}
-
-.interaction-grid__slot--half.interaction-grid__slot--drop-before::after {
-  left: -0.75rem;
-}
-
-.interaction-grid__slot--half.interaction-grid__slot--drop-after::after {
-  right: -0.75rem;
-}
-
-.interaction-grid__slot--full.interaction-grid__slot--drop-before::after,
-.interaction-grid__slot--full.interaction-grid__slot--drop-after::after {
+.interaction-grid__slot--drop-before::after,
+.interaction-grid__slot--drop-after::after {
   right: 0;
   left: 0;
   height: 4px;
   background: var(--border-color-progressive, #36c);
 }
 
-.interaction-grid__slot--full.interaction-grid__slot--drop-before::after {
-  top: -0.75rem;
+.interaction-grid__slot--drop-before::after {
+  top: 0;
 }
 
-.interaction-grid__slot--full.interaction-grid__slot--drop-after::after {
-  bottom: -0.75rem;
+.interaction-grid__slot--drop-after::after {
+  bottom: 0;
 }
 
 .section-layout-handle-bar {
@@ -1160,8 +1344,22 @@ watch(
   min-width: 0;
   border-bottom: 2px solid #c69732;
   padding: 0.2rem 0.35rem;
-  background: #fff1b8;
+  background: linear-gradient(135deg, #fff1b8, #f5c65d);
   color: var(--color-base, #202122);
+  user-select: none;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
+      8 7,
+    grab;
+}
+
+.section-layout-handle-bar:active {
+  cursor: grabbing;
+}
+
+.section-layout-handle-bar:focus-visible {
+  outline: 3px solid var(--border-color-progressive, #36c);
+  outline-offset: 2px;
 }
 
 .section-layout-heading {
@@ -1170,35 +1368,25 @@ watch(
   align-items: center;
   min-width: 0;
   align-self: stretch;
-  cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
-      8 7,
-    grab;
 }
 
-.section-layout-heading:active {
-  cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M7.5 10.5V7a1.5 1.5 0 0 1 3 0V9 5.5a1.5 1.5 0 0 1 3 0V9 6.5a1.5 1.5 0 0 1 3 0V10 8a1.5 1.5 0 0 1 3 0v5c0 4.2-2.6 7-6.5 7h-1c-2.4 0-4.3-1.4-5.4-3.4l-2-3.4a1.5 1.5 0 0 1 2.5-1.7z'/%3E%3C/svg%3E")
-      8 7,
-    grabbing;
-}
-
-.section-layout-handle {
+.section-layout-title {
   min-width: 0;
   color: var(--color-base, #202122);
   font-size: 1.05rem;
   font-weight: 700;
-  cursor: inherit;
 }
 
-.section-layout-handle *,
-.section-layout-handle:active,
-.section-layout-handle:active * {
-  cursor: inherit;
+.section-layout-info {
+  position: relative;
+  z-index: 4;
+  cursor: default;
+  user-select: none;
 }
 
-.section-layout-handle :deep(.cdx-button__content) {
-  min-width: 0;
+.section-layout-info :deep(*) {
+  cursor: default;
+  user-select: none;
 }
 
 .section-layout-handle__grip {
@@ -1211,19 +1399,21 @@ watch(
   flex: 0 0 auto;
   color: var(--color-base, #202122);
   font-size: 1rem;
+  pointer-events: none;
 }
 
 .section-layout-content {
   min-width: 0;
+  overflow: hidden;
   padding: 0.75rem;
 }
 
 :global(.dark) .section-layout-handle-bar {
-  background: #594914;
+  background: linear-gradient(135deg, #594914, #80671a);
   color: #eaecf0;
 }
 
-:global(.dark) .section-layout-handle,
+:global(.dark) .section-layout-title,
 :global(.dark) .section-layout-collapse {
   color: #eaecf0;
 }
@@ -1242,29 +1432,6 @@ watch(
 @media (max-width: 52rem) {
   .interaction-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .interaction-grid__slot--half,
-  .interaction-grid__slot--full {
-    grid-column: 1;
-  }
-
-  .interaction-grid__slot--half.interaction-grid__slot--drop-before::after,
-  .interaction-grid__slot--half.interaction-grid__slot--drop-after::after {
-    right: 0;
-    left: 0;
-    width: auto;
-    height: 4px;
-  }
-
-  .interaction-grid__slot--half.interaction-grid__slot--drop-before::after {
-    top: -0.75rem;
-    bottom: auto;
-  }
-
-  .interaction-grid__slot--half.interaction-grid__slot--drop-after::after {
-    top: auto;
-    bottom: -0.75rem;
   }
 }
 

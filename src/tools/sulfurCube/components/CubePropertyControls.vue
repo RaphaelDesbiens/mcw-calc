@@ -41,10 +41,14 @@ import {
 } from '../resolution'
 import InfoTooltip from './InfoTooltip.vue'
 
-const props = defineProps<{
-  modelValue: CubePropertySelectionState
-  resolution: CubePropertySelectionResolution
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: CubePropertySelectionState
+    resolution: CubePropertySelectionResolution
+    showHeading?: boolean
+  }>(),
+  { showHeading: true },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: CubePropertySelectionState]
@@ -398,9 +402,14 @@ function hideBlockTooltip(): void {
 </script>
 
 <template>
-  <section class="property-controls" aria-labelledby="sulfur-cube-properties-title">
+  <section
+    class="property-controls"
+    :class="{ 'property-controls--embedded': !showHeading }"
+    :aria-labelledby="showHeading ? 'sulfur-cube-properties-title' : undefined"
+    :aria-label="showHeading ? undefined : t('sulfurCube.properties.title')"
+  >
     <div class="property-controls__heading">
-      <div class="property-controls__heading-title">
+      <div v-if="showHeading" class="property-controls__heading-title">
         <h4 id="sulfur-cube-properties-title">{{ t('sulfurCube.properties.title') }}</h4>
         <InfoTooltip
           :text="t('sulfurCube.properties.archetypeDefinition')"
@@ -408,7 +417,7 @@ function hideBlockTooltip(): void {
           placement="right"
         />
       </div>
-      <CdxButton size="small" action="destructive" @click="emit('reset')">
+      <CdxButton class="sulfur-cube-reset" size="small" @click="emit('reset')">
         {{ t('sulfurCube.reset.archetype') }}
       </CdxButton>
     </div>
@@ -634,8 +643,7 @@ function hideBlockTooltip(): void {
           </CdxField>
         </div>
         <CdxButton
-          class="property-controls__reset-custom"
-          action="destructive"
+          class="property-controls__reset-custom sulfur-cube-reset"
           @click="copyCurrentResolvedValues"
         >
           <span>{{ t('sulfurCube.properties.resetCustomTo') }}</span>
@@ -685,6 +693,16 @@ function hideBlockTooltip(): void {
   padding: 0.75rem;
   border: 1px solid var(--border-color-subtle, #c8ccd1);
   background: var(--background-color-neutral-subtle, #f8f9fa);
+}
+
+.property-controls--embedded {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.property-controls--embedded .property-controls__heading {
+  justify-content: flex-end;
 }
 
 .property-controls__heading,

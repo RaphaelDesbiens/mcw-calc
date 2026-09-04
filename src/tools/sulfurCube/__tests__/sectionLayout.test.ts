@@ -1,84 +1,74 @@
 import { describe, expect, it } from 'vitest'
 import {
   defaultSulfurCubeSectionLayouts,
+  findSulfurCubeSectionColumn,
   moveSulfurCubeSection,
   normalizeSulfurCubeSectionLayouts,
   sulfurCubeSectionIds,
-  sulfurCubeSectionWidth,
 } from '../presentation/sectionLayout'
 
 describe('sulfur cube section layout', () => {
-  it('preserves the established larger- and smaller-scene arrangements', () => {
-    expect(defaultSulfurCubeSectionLayouts.regular).toEqual([
-      'scene',
-      'topDown',
-      'controls',
-      'readout',
-      'power',
-      'trace',
-      'details',
-    ])
-    expect(defaultSulfurCubeSectionLayouts.compact).toEqual([
-      'scene',
-      'topDown',
-      'controls',
-      'readout',
-      'power',
-      'trace',
-      'details',
-    ])
+  it('stacks the default sections independently in two columns', () => {
+    expect(defaultSulfurCubeSectionLayouts.regular).toEqual({
+      left: ['scene', 'readout'],
+      right: ['topDown', 'controls', 'power', 'trace', 'details'],
+    })
+    expect(defaultSulfurCubeSectionLayouts.compact).toEqual(defaultSulfurCubeSectionLayouts.regular)
   })
 
-  it('assigns only fixed half- and full-width slots', () => {
-    expect(sulfurCubeSectionWidth('scene', 'regular')).toBe('full')
-    expect(sulfurCubeSectionWidth('scene', 'compact')).toBe('half')
-    expect(sulfurCubeSectionWidth('controls', 'regular')).toBe('half')
-    expect(sulfurCubeSectionWidth('controls', 'compact')).toBe('half')
+  it('moves a section within or across columns without changing membership', () => {
+    const layout = defaultSulfurCubeSectionLayouts.regular
+    const acrossColumns = moveSulfurCubeSection(layout, 'power', 'right', 'readout', 'before')
 
-    for (const sceneSize of ['regular', 'compact'] as const) {
-      expect(sulfurCubeSectionWidth('topDown', sceneSize)).toBe('half')
-      expect(sulfurCubeSectionWidth('power', sceneSize)).toBe('half')
-      expect(sulfurCubeSectionWidth('readout', sceneSize)).toBe('half')
-      expect(sulfurCubeSectionWidth('trace', sceneSize)).toBe('half')
-      expect(sulfurCubeSectionWidth('details', sceneSize)).toBe('half')
-    }
-  })
-
-  it('moves a section before or after another section without changing membership', () => {
-    const order = defaultSulfurCubeSectionLayouts.regular
-
-    expect(moveSulfurCubeSection(order, 'power', 'scene', 'before')).toEqual([
-      'power',
-      'scene',
-      'topDown',
-      'controls',
-      'readout',
-      'trace',
-      'details',
-    ])
-    expect(moveSulfurCubeSection(order, 'scene', 'readout', 'after')).toEqual([
-      'topDown',
-      'controls',
-      'readout',
-      'scene',
-      'power',
-      'trace',
-      'details',
-    ])
-    expect(new Set(moveSulfurCubeSection(order, 'scene', 'readout', 'after'))).toEqual(
+    expect(acrossColumns).toEqual({
+      left: ['scene', 'readout'],
+      right: ['topDown', 'controls', 'trace', 'details', 'power'],
+    })
+    expect(moveSulfurCubeSection(layout, 'scene', 'left', 'details', 'after')).toEqual({
+      left: ['readout', 'scene'],
+      right: ['topDown', 'controls', 'power', 'trace', 'details'],
+    })
+    expect(new Set([...acrossColumns.left, ...acrossColumns.right])).toEqual(
       new Set(sulfurCubeSectionIds),
     )
+    expect(findSulfurCubeSectionColumn(acrossColumns, 'power')).toBe('right')
   })
 
-  it('repairs stale persisted layouts and appends newly introduced sections', () => {
+  it('appends a section when a column itself is the drop target', () => {
+    expect(
+      moveSulfurCubeSection(defaultSulfurCubeSectionLayouts.regular, 'scene', 'right', null),
+    ).toEqual({
+      left: ['readout'],
+      right: ['topDown', 'controls', 'power', 'trace', 'details', 'scene'],
+    })
+  })
+
+  it('migrates the prior linear saved order into alternating columns', () => {
     expect(
       normalizeSulfurCubeSectionLayouts({
         regular: ['power', 'power', 'removed', 'scene'],
         compact: 'invalid',
       }),
     ).toEqual({
-      regular: ['power', 'scene', 'topDown', 'controls', 'readout', 'trace', 'details'],
-      compact: [...defaultSulfurCubeSectionLayouts.compact],
+      regular: {
+        left: ['power', 'topDown', 'readout', 'details'],
+        right: ['scene', 'controls', 'trace'],
+      },
+      compact: defaultSulfurCubeSectionLayouts.compact,
+    })
+  })
+
+  it('repairs duplicate and missing IDs in a saved two-column layout', () => {
+    expect(
+      normalizeSulfurCubeSectionLayouts({
+        regular: {
+          left: ['trace', 'scene', 'trace'],
+          right: ['topDown', 'removed', 'scene'],
+        },
+      }).regular,
+    ).toEqual({
+      left: ['trace', 'scene', 'readout'],
+      right: ['topDown', 'controls', 'power', 'details'],
     })
   })
 })

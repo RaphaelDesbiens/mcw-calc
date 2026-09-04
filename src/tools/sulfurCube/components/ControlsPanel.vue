@@ -117,22 +117,51 @@ function updateFloor(value: string | number | null): void {
       {{ t('sulfurCube.controls.title') }}
     </h3>
 
-    <div class="controls-group controls-group--properties">
+    <CdxAccordion
+      class="controls-group controls-group--properties"
+      heading-level="h4"
+      separation="outline"
+      open
+    >
+      <template #title>
+        <span class="field-label-with-info">
+          {{ t('sulfurCube.properties.title') }}
+          <InfoTooltip
+            :text="t('sulfurCube.properties.archetypeDefinition')"
+            :label="t('sulfurCube.properties.archetypeDefinitionLabel')"
+          />
+        </span>
+      </template>
       <CubePropertyControls
         :model-value="propertySelection"
         :resolution="propertyResolution"
+        :show-heading="false"
         @update:model-value="emit('update:propertySelection', $event)"
         @reset="emit('resetArchetype')"
       />
-    </div>
+    </CdxAccordion>
 
-    <div class="controls-group controls-group--weapon">
+    <CdxAccordion
+      class="controls-group controls-group--weapon"
+      heading-level="h4"
+      separation="outline"
+    >
+      <template #title>
+        <span class="field-label-with-info">
+          {{ t('sulfurCube.attack.weapon') }}
+          <InfoTooltip
+            :text="t('sulfurCube.attack.help')"
+            :label="t('sulfurCube.attack.helpLabel')"
+          />
+        </span>
+      </template>
       <PlayerMeleeControls
         :model-value="playerMelee"
+        :show-heading="false"
         @update:model-value="emit('update:playerMelee', $event)"
         @reset="emit('resetWeapon')"
       />
-    </div>
+    </CdxAccordion>
 
     <CdxAccordion class="controls-group--coordinates" heading-level="h4" separation="outline">
       <template #title>
@@ -147,8 +176,7 @@ function updateFloor(value: string | number | null): void {
 
       <div class="coordinate-sections">
         <CdxButton
-          class="controls-group__reset"
-          action="destructive"
+          class="controls-group__reset sulfur-cube-reset"
           @click="emit('resetPositionsAim')"
         >
           {{ t('sulfurCube.reset.positionsAim') }}
@@ -247,7 +275,7 @@ function updateFloor(value: string | number | null): void {
           </template>
 
           <div class="eye-preset-row">
-            <CdxButton action="destructive" @click="emit('resetAttackerEyeStanding')">
+            <CdxButton class="sulfur-cube-reset" @click="emit('resetAttackerEyeStanding')">
               {{ t('sulfurCube.controls.attackerEyesStandingDefault') }}
             </CdxButton>
           </div>
@@ -325,41 +353,43 @@ function updateFloor(value: string | number | null): void {
       </div>
     </CdxAccordion>
 
-    <section class="floor-controls controls-group--floor" aria-labelledby="sulfur-cube-floor-title">
-      <div class="floor-controls__heading">
-        <div class="field-label-with-info">
-          <h4 id="sulfur-cube-floor-title">{{ t('sulfurCube.controls.uniformFloor') }}</h4>
+    <CdxAccordion class="controls-group--floor" heading-level="h4" separation="outline">
+      <template #title>
+        <span class="field-label-with-info">
+          {{ t('sulfurCube.controls.uniformFloor') }}
           <InfoTooltip
             :text="t('sulfurCube.controls.uniformFloorHelp')"
             :label="t('sulfurCube.controls.uniformFloorHelpLabel')"
           />
-        </div>
-        <CdxButton size="small" action="destructive" @click="emit('resetFloor')">
+        </span>
+      </template>
+      <div class="floor-controls">
+        <CdxButton class="sulfur-cube-reset" size="small" @click="emit('resetFloor')">
           {{ t('sulfurCube.reset.floor') }}
         </CdxButton>
-      </div>
-      <div class="floor-controls__body">
-        <CdxField :hide-label="true">
-          <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
-          <CdxSelect
-            :selected="modelValue.floorProfileId"
-            :menu-items="floorItems"
-            @update:selected="updateFloor"
-          />
-        </CdxField>
-        <div class="floor-controls__details">
-          <dl class="floor-controls__values">
-            <template v-for="row in floorPropertyRows" :key="row.label">
-              <dt>{{ row.label }}</dt>
-              <dd>{{ row.value }}</dd>
-            </template>
-          </dl>
-          <p v-if="selectedFloorScopeNote" class="floor-controls__note">
-            {{ selectedFloorScopeNote }}
-          </p>
+        <div class="floor-controls__body">
+          <CdxField :hide-label="true">
+            <template #label>{{ t('sulfurCube.controls.uniformFloor') }}</template>
+            <CdxSelect
+              :selected="modelValue.floorProfileId"
+              :menu-items="floorItems"
+              @update:selected="updateFloor"
+            />
+          </CdxField>
+          <div class="floor-controls__details">
+            <dl class="floor-controls__values">
+              <template v-for="row in floorPropertyRows" :key="row.label">
+                <dt>{{ row.label }}</dt>
+                <dd>{{ row.value }}</dd>
+              </template>
+            </dl>
+            <p v-if="selectedFloorScopeNote" class="floor-controls__note">
+              {{ selectedFloorScopeNote }}
+            </p>
+          </div>
         </div>
       </div>
-    </section>
+    </CdxAccordion>
   </section>
 </template>
 
@@ -449,23 +479,9 @@ function updateFloor(value: string | number | null): void {
 .floor-controls {
   display: grid;
   gap: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color-subtle, #c8ccd1);
 }
-
-.floor-controls__heading,
-.floor-controls__heading > div {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.floor-controls__heading {
-  justify-content: space-between;
-}
-
-.floor-controls__heading h4 {
-  margin: 0;
+.floor-controls > .sulfur-cube-reset {
+  justify-self: end;
 }
 
 .floor-controls__values {
@@ -477,9 +493,14 @@ function updateFloor(value: string | number | null): void {
 }
 .floor-controls__body {
   display: grid;
-  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  grid-template-columns: 11rem minmax(0, 1fr);
   gap: 1rem 2rem;
   align-items: center;
+}
+.floor-controls__body :deep(.cdx-select-vue),
+.floor-controls__body :deep(.cdx-select-vue__handle) {
+  width: 100%;
+  min-width: 0;
 }
 .floor-controls__details {
   display: grid;
