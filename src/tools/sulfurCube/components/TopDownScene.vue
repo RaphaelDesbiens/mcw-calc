@@ -45,16 +45,20 @@ const props = withDefaults(
   defineProps<{
     evaluation: DiagnosticEvaluation
     sceneSize: SceneSize
+    compactEmbed?: boolean
     selectedBlockLabel: string
     selectedArchetypeLabel: string
     selectedBlockSpriteUrl: string | null
     attackSummary?: SceneAttackSummary | null
     floorSurfaceLabel: string
     showHeadingTitle?: boolean
+    otherSceneLabel?: string
     inputsInvalid?: boolean
   }>(),
   {
     showHeadingTitle: true,
+    compactEmbed: false,
+    otherSceneLabel: undefined,
     inputsInvalid: false,
   },
 )
@@ -63,6 +67,7 @@ const emit = defineEmits<{
   translateAttackerPreservingCubeBearing: [delta: Vec3]
   translateCube: [delta: Vec3]
   updateAimPoint: [point: Vec3]
+  showOtherScene: []
 }>()
 
 const { t } = useI18n()
@@ -101,7 +106,9 @@ const minimumCameraWidth = initialCameraWidth / 4
 const maximumCameraWidth = initialCameraWidth * 8
 const cameraBounds = shallowRef<WorldBounds>(initialScene.bounds)
 const metricsPanelHeight = computed(() => {
-  if (props.attackSummary !== null && props.attackSummary !== undefined) return 299
+  if (props.attackSummary !== null && props.attackSummary !== undefined) {
+    return props.compactEmbed ? 201 : 299
+  }
   return 151
 })
 const maximumMetricsScale = computed(() =>
@@ -647,7 +654,10 @@ onBeforeUnmount(() => {
 <template>
   <figure
     class="topdown-figure"
-    :class="`topdown-figure--${sceneSize}`"
+    :class="[
+      `topdown-figure--${sceneSize}`,
+      { 'topdown-figure--compact-embed': compactEmbed },
+    ]"
     :aria-labelledby="showHeadingTitle ? 'sulfur-cube-topdown-heading' : undefined"
     :aria-label="showHeadingTitle ? undefined : t('sulfurCube.topDown.title')"
   >
@@ -665,6 +675,14 @@ onBeforeUnmount(() => {
 
     <div class="topdown-frame">
       <div class="topdown-overlay">
+        <CdxButton
+          v-if="otherSceneLabel"
+          size="small"
+          weight="quiet"
+          @click="emit('showOtherScene')"
+        >
+          {{ otherSceneLabel }}
+        </CdxButton>
         <CdxButton
           size="small"
           weight="quiet"
@@ -813,7 +831,7 @@ onBeforeUnmount(() => {
                 :x1="view.metrics.x - 6"
                 :y1="view.metrics.weaponY - 15"
                 :x2="view.metrics.x - 6"
-                :y2="view.metrics.attackGroupEndY + 5"
+                :y2="compactEmbed ? view.metrics.weaponY + 5 : view.metrics.attackGroupEndY + 5"
               />
               <text :x="view.metrics.x" :y="view.metrics.weaponY">
                 <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
@@ -824,7 +842,7 @@ onBeforeUnmount(() => {
                   {{ attackSummary.weaponLabel }}
                 </tspan>
               </text>
-              <text :x="view.metrics.attackDetailX" :y="view.metrics.attackStrengthY">
+              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.attackStrengthY">
                 <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -833,7 +851,7 @@ onBeforeUnmount(() => {
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
               </text>
-              <text :x="view.metrics.attackDetailX" :y="view.metrics.sharpnessY">
+              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.sharpnessY">
                 <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -842,7 +860,7 @@ onBeforeUnmount(() => {
                   {{ attackSummary.sharpnessLevel ?? 0 }}
                 </tspan>
               </text>
-              <text :x="view.metrics.attackDetailX" :y="view.metrics.knockbackY">
+              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.knockbackY">
                 <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -851,7 +869,7 @@ onBeforeUnmount(() => {
                   {{ attackSummary.knockbackLevel ?? 0 }}
                 </tspan>
               </text>
-              <text :x="view.metrics.attackDetailX" :y="view.metrics.sprintingY">
+              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.sprintingY">
                 <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -860,7 +878,7 @@ onBeforeUnmount(() => {
                   {{ t(attackSummary.sprinting ? 'sulfurCube.yes' : 'sulfurCube.no') }}
                 </tspan>
               </text>
-              <text :x="view.metrics.attackDetailX" :y="view.metrics.criticalHitY">
+              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.criticalHitY">
                 <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -903,7 +921,7 @@ onBeforeUnmount(() => {
             <tspan class="reach-warning-main" :x="view.reachWarning.x">
               {{ t('sulfurCube.scene.reachMissWarningMain') }}
             </tspan>
-            <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
+            <tspan v-if="!compactEmbed" class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
               {{
                 t('sulfurCube.scene.reachMissWarningDetail', {
                   scene: t('sulfurCube.scene.otherRadial'),
@@ -1127,7 +1145,7 @@ onBeforeUnmount(() => {
         {{ ' ' }}
         <span>{{ t('sulfurCube.scene.openPointsAfter') }}</span>
       </p>
-      <details class="projection-details">
+      <details v-if="!compactEmbed" class="projection-details">
         <summary>{{ t('sulfurCube.scene.projectionAdvancedTitle') }}</summary>
         <p>{{ t('sulfurCube.topDown.projectionAdvanced') }}</p>
       </details>
@@ -1502,6 +1520,16 @@ figcaption {
   border-radius: 50%;
   background: var(--background-color-base, #fff);
   vertical-align: -0.05em;
+}
+
+.topdown-figure--compact-embed .open-point-symbol {
+  width: 0.5em;
+  height: 0.5em;
+  border-width: 0.12em;
+}
+
+.topdown-figure--compact-embed .topdown-metrics {
+  text-rendering: optimizeLegibility;
 }
 
 @media (max-width: 40rem) {

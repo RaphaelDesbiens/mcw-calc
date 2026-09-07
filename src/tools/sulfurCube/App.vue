@@ -788,11 +788,15 @@ watch(
 
 <template>
   <CalcField v-if="isCompactView">
-    <template #heading>
-      {{ t('sulfurCube.title') }}
-    </template>
-
     <div class="sulfur-cube-compact" lang="en">
+      <header class="tool-title-band tool-title-band--compact">
+        <img class="tool-title-band__image" :src="sulfurCubeImageUrl" alt="" />
+        <div class="tool-title-band__text">
+          <h2>{{ t('sulfurCube.title') }}</h2>
+        </div>
+        <span class="tool-title-band__edition">{{ t('sulfurCube.scope') }}</span>
+      </header>
+
       <div class="compact-toolbar">
         <CdxField class="compact-toolbar__archetype">
           <template #label>{{ t('sulfurCube.compact.archetype') }}</template>
@@ -811,16 +815,7 @@ watch(
           />
         </CdxField>
         <CdxButton class="sulfur-cube-reset" @click="resetEverything">
-          {{ t('sulfurCube.reset.everything') }}
-        </CdxButton>
-        <CdxButton @click="switchCompactScene">
-          {{
-            t(
-              compactSceneKind === 'radial'
-                ? 'sulfurCube.compact.showTopDown'
-                : 'sulfurCube.compact.showRadial',
-            )
-          }}
+          {{ t('sulfurCube.compact.reset') }}
         </CdxButton>
         <a class="compact-toolbar__full-link" :href="fullToolUrl" target="_blank" rel="noopener">
           {{ t('sulfurCube.compact.openFullTool') }}
@@ -833,6 +828,7 @@ watch(
         :key="sceneResetVersion"
         v-model:scene-size="sceneSize"
         :evaluation="sceneEvaluation"
+        compact-embed
         :inputs-invalid="sceneInputsInvalid"
         :initial-zoom-steps="2"
         :show-aim-q-label="false"
@@ -846,6 +842,8 @@ watch(
         :floor-surface-sprite-url="selectedFloorSpriteUrl"
         :display-options="radialSceneDisplayOptions"
         :trajectory-tick-limit="visualTrajectoryTicks"
+        :other-scene-label="t('sulfurCube.compact.showTopDown')"
+        @show-other-scene="switchCompactScene"
         @update-aim-point="updateAimPoint"
         @translate-attacker="translateAttacker"
         @translate-cube="translateCube"
@@ -855,6 +853,7 @@ watch(
         v-else-if="sceneEvaluation"
         :key="`compact-top-down-${sceneResetVersion}`"
         :evaluation="sceneEvaluation"
+        compact-embed
         :inputs-invalid="sceneInputsInvalid"
         scene-size="compact"
         :selected-block-label="selectedCubeVisual.blockLabel"
@@ -862,6 +861,8 @@ watch(
         :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
         :attack-summary="sceneAttackSummary"
         :floor-surface-label="selectedFloorLabel"
+        :other-scene-label="t('sulfurCube.compact.showRadial')"
+        @show-other-scene="switchCompactScene"
         @update-aim-point="updateAimPoint"
         @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
         @translate-cube="translateCube"
@@ -1135,10 +1136,25 @@ watch(
   gap: 0.75rem;
 }
 
+.compact-toolbar__archetype,
+.compact-toolbar__floor {
+  width: calc(100% - 1.8cm);
+}
+
 .compact-toolbar__archetype :deep(.cdx-select),
 .compact-toolbar__floor :deep(.cdx-select) {
   width: 100%;
-  max-width: 24rem;
+  max-width: calc(24rem - 1.8cm);
+}
+
+.tool-title-band.tool-title-band--compact {
+  min-height: 5rem;
+  padding-block: 0.75rem;
+}
+
+.tool-title-band--compact .tool-title-band__image {
+  width: 56px;
+  height: 56px;
 }
 
 .compact-toolbar__full-link {
@@ -1463,6 +1479,7 @@ watch(
   .compact-toolbar__archetype,
   .compact-toolbar__floor {
     grid-column: 1 / -1;
+    width: calc(100% - 1.8cm);
   }
 }
 

@@ -55,6 +55,7 @@ const props = withDefaults(
   defineProps<{
     evaluation: DiagnosticEvaluation
     sceneSize: SceneSize
+    compactEmbed?: boolean
     initialZoomSteps?: number
     showAimQLabel?: boolean
     showComparisonHelp?: boolean
@@ -69,15 +70,18 @@ const props = withDefaults(
     displayOptions: RadialSceneDisplayOptions
     trajectoryTickLimit?: number
     inputsInvalid?: boolean
+    otherSceneLabel?: string
   }>(),
   {
     initialZoomSteps: 0,
+    compactEmbed: false,
     showAimQLabel: true,
     showComparisonHelp: true,
     showHeadingTitle: true,
     showSizeControl: true,
     trajectoryTickLimit: maximumRenderedTrajectoryTicks,
     inputsInvalid: false,
+    otherSceneLabel: undefined,
   },
 )
 
@@ -86,6 +90,7 @@ const emit = defineEmits<{
   translateCube: [delta: Vec3]
   'update:sceneSize': [size: SceneSize]
   updateAimPoint: [point: Vec3]
+  showOtherScene: []
 }>()
 
 const { t } = useI18n()
@@ -142,7 +147,9 @@ const sceneSizeButtonLabel = computed(() =>
     : t('sulfurCube.scene.switchToRegular'),
 )
 const metricsPanelHeight = computed(() => {
-  if (props.attackSummary !== null && props.attackSummary !== undefined) return 375
+  if (props.attackSummary !== null && props.attackSummary !== undefined) {
+    return props.compactEmbed ? 278 : 375
+  }
   return 235
 })
 const maximumMetricsScale = computed(() =>
@@ -853,7 +860,10 @@ function formatCoordinate(value: number): string {
 <template>
   <figure
     class="scene-figure"
-    :class="`scene-figure--${sceneSize}`"
+    :class="[
+      `scene-figure--${sceneSize}`,
+      { 'scene-figure--compact-embed': compactEmbed },
+    ]"
     :aria-labelledby="showHeadingTitle ? 'sulfur-cube-scene-heading' : undefined"
     :aria-label="showHeadingTitle ? undefined : t('sulfurCube.scene.title')"
   >
@@ -871,6 +881,14 @@ function formatCoordinate(value: number): string {
 
     <div class="scene-frame">
       <div class="scene-frame__overlay scene-frame__overlay--right">
+        <CdxButton
+          v-if="otherSceneLabel"
+          size="small"
+          weight="quiet"
+          @click="emit('showOtherScene')"
+        >
+          {{ otherSceneLabel }}
+        </CdxButton>
         <CdxButton
           v-if="showSizeControl !== false"
           size="small"
@@ -1105,7 +1123,7 @@ function formatCoordinate(value: number): string {
                 :x1="view.sceneMetrics.x - 6"
                 :y1="view.sceneMetrics.weaponY - 15"
                 :x2="view.sceneMetrics.x - 6"
-                :y2="view.sceneMetrics.attackGroupEndY + 5"
+                :y2="compactEmbed ? view.sceneMetrics.weaponY + 5 : view.sceneMetrics.attackGroupEndY + 5"
               />
               <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.weaponY">
                 <tspan>{{ t('sulfurCube.attack.weapon') }}&#160;=&#160;</tspan>
@@ -1116,7 +1134,7 @@ function formatCoordinate(value: number): string {
                   {{ attackSummary.weaponLabel }}
                 </tspan>
               </text>
-              <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.attackStrengthY">
+              <text v-if="!compactEmbed" :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.attackStrengthY">
                 <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
@@ -1125,7 +1143,7 @@ function formatCoordinate(value: number): string {
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
               </text>
-              <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.sharpnessY">
+              <text v-if="!compactEmbed" :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.sharpnessY">
                 <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
@@ -1134,7 +1152,7 @@ function formatCoordinate(value: number): string {
                   {{ attackSummary.sharpnessLevel ?? 0 }}
                 </tspan>
               </text>
-              <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.knockbackY">
+              <text v-if="!compactEmbed" :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.knockbackY">
                 <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
@@ -1143,7 +1161,7 @@ function formatCoordinate(value: number): string {
                   {{ attackSummary.knockbackLevel ?? 0 }}
                 </tspan>
               </text>
-              <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.sprintingY">
+              <text v-if="!compactEmbed" :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.sprintingY">
                 <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
@@ -1152,7 +1170,7 @@ function formatCoordinate(value: number): string {
                   {{ t(attackSummary.sprinting ? 'sulfurCube.yes' : 'sulfurCube.no') }}
                 </tspan>
               </text>
-              <text :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.criticalHitY">
+              <text v-if="!compactEmbed" :x="view.sceneMetrics.attackDetailX" :y="view.sceneMetrics.criticalHitY">
                 <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;</tspan>
                 <tspan
                   :x="view.sceneMetrics.attackDetailValueX"
@@ -1180,7 +1198,7 @@ function formatCoordinate(value: number): string {
           </g>
         </g>
 
-        <g v-if="displayOptions.trajectory" class="ground-metrics" aria-hidden="true">
+        <g v-if="displayOptions.trajectory && !compactEmbed" class="ground-metrics" aria-hidden="true">
           <g v-if="view.firstBounceGroundLabel">
             <line
               :x1="view.firstBounceGroundLabel.arrow.x1"
@@ -1228,7 +1246,7 @@ function formatCoordinate(value: number): string {
             <tspan class="reach-warning-main" :x="view.reachWarning.x">
               {{ t('sulfurCube.scene.reachMissWarningMain') }}
             </tspan>
-            <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
+            <tspan v-if="!compactEmbed" class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
               {{
                 t('sulfurCube.scene.reachMissWarningDetail', {
                   scene: t('sulfurCube.scene.otherTopDown'),
@@ -2148,6 +2166,16 @@ figcaption {
   border-radius: 50%;
   background: #fff;
   vertical-align: -0.05em;
+}
+
+.scene-figure--compact-embed .open-point-symbol {
+  width: 0.5em;
+  height: 0.5em;
+  border-width: 0.12em;
+}
+
+.scene-figure--compact-embed .scene-metrics {
+  text-rendering: optimizeLegibility;
 }
 
 :global(.dark) .scene-figure {
