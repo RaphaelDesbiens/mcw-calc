@@ -665,10 +665,7 @@ onBeforeUnmount(() => {
 <template>
   <figure
     class="topdown-figure"
-    :class="[
-      `topdown-figure--${sceneSize}`,
-      { 'topdown-figure--compact-embed': compactEmbed },
-    ]"
+    :class="[`topdown-figure--${sceneSize}`, { 'topdown-figure--compact-embed': compactEmbed }]"
     :aria-labelledby="showHeadingTitle ? 'sulfur-cube-topdown-heading' : undefined"
     :aria-label="showHeadingTitle ? undefined : t('sulfurCube.topDown.title')"
   >
@@ -856,7 +853,11 @@ onBeforeUnmount(() => {
                   {{ attackSummary.weaponLabel }}
                 </tspan>
               </text>
-              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.attackStrengthY">
+              <text
+                v-if="!compactEmbed"
+                :x="view.metrics.attackDetailX"
+                :y="view.metrics.attackStrengthY"
+              >
                 <tspan>{{ t('sulfurCube.scene.attackStrengthLabel') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -865,7 +866,11 @@ onBeforeUnmount(() => {
                   {{ attackSummary.attackStrengthPercent.toFixed(1) }}%
                 </tspan>
               </text>
-              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.sharpnessY">
+              <text
+                v-if="!compactEmbed"
+                :x="view.metrics.attackDetailX"
+                :y="view.metrics.sharpnessY"
+              >
                 <tspan>{{ t('sulfurCube.attack.sharpness') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -874,7 +879,11 @@ onBeforeUnmount(() => {
                   {{ attackSummary.sharpnessLevel ?? 0 }}
                 </tspan>
               </text>
-              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.knockbackY">
+              <text
+                v-if="!compactEmbed"
+                :x="view.metrics.attackDetailX"
+                :y="view.metrics.knockbackY"
+              >
                 <tspan>{{ t('sulfurCube.attack.knockback') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -883,7 +892,11 @@ onBeforeUnmount(() => {
                   {{ attackSummary.knockbackLevel ?? 0 }}
                 </tspan>
               </text>
-              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.sprintingY">
+              <text
+                v-if="!compactEmbed"
+                :x="view.metrics.attackDetailX"
+                :y="view.metrics.sprintingY"
+              >
                 <tspan>{{ t('sulfurCube.attack.sprinting') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"
@@ -892,7 +905,11 @@ onBeforeUnmount(() => {
                   {{ t(attackSummary.sprinting ? 'sulfurCube.yes' : 'sulfurCube.no') }}
                 </tspan>
               </text>
-              <text v-if="!compactEmbed" :x="view.metrics.attackDetailX" :y="view.metrics.criticalHitY">
+              <text
+                v-if="!compactEmbed"
+                :x="view.metrics.attackDetailX"
+                :y="view.metrics.criticalHitY"
+              >
                 <tspan>{{ t('sulfurCube.attack.criticalConditions') }}&#160;</tspan>
                 <tspan
                   :x="view.metrics.attackDetailValueX"

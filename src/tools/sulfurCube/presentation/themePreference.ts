@@ -4,9 +4,7 @@ export type SulfurCubeThemePreference = 'auto' | Theme
 
 export const sulfurCubeThemePreferenceStorageKey = 'mcwCalc:sulfurCube:theme:v1'
 
-export function parseSulfurCubeThemePreference(
-  value: unknown,
-): SulfurCubeThemePreference | null {
+export function parseSulfurCubeThemePreference(value: unknown): SulfurCubeThemePreference | null {
   return value === 'auto' || value === 'light' || value === 'dark' ? value : null
 }
 

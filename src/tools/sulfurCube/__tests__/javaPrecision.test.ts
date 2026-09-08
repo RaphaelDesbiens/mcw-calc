@@ -1,18 +1,11 @@
-import type {
-  Je26_2ToolMaterialId,
-  Je26_2UniformFloorProfileId,
-} from '../data/je26_2'
+import type { Je26_2ToolMaterialId, Je26_2UniformFloorProfileId } from '../data/je26_2'
 import type { DiagnosticInputs } from '../presets/diagnostic'
 import type { PlayerMeleeEvaluation, PlayerMeleeInputs } from '../presets/playerMelee'
 import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { je26_2Constants } from '../data/je26_2'
 import { normalizeVec3 } from '../model/vectors'
-import {
-  javaPrecisionNumerics,
-  minecraftCos,
-  minecraftSin,
-} from '../numerics/javaPrecision'
+import { javaPrecisionNumerics, minecraftCos, minecraftSin } from '../numerics/javaPrecision'
 import {
   calculateJe26_2ViewVector,
   deriveJe26_2PlayerAim,
@@ -109,10 +102,7 @@ interface NumericEdgeFixture {
 }
 
 const fixtureUrl = new URL('./fixtures/je26_2MeleeEndpointValidation.csv', import.meta.url)
-const extremeFixtureUrl = new URL(
-  './fixtures/je26_2MeleeExtremeValidation.json',
-  import.meta.url,
-)
+const extremeFixtureUrl = new URL('./fixtures/je26_2MeleeExtremeValidation.json', import.meta.url)
 const numericEdgeFixtureUrl = new URL(
   './fixtures/je26_2NumericEdgeValidation.json',
   import.meta.url,
@@ -136,11 +126,7 @@ function parseFixtureCsv(): readonly EndpointFixture[] {
       knockbackLevel: number('knockback_level'),
       floorSurface: columns.floor_surface!,
       cubeFeet: [number('cube_feet_x'), number('cube_feet_y'), number('cube_feet_z')],
-      playerFeet: [
-        number('player_feet_x'),
-        number('player_feet_y'),
-        number('player_feet_z'),
-      ],
+      playerFeet: [number('player_feet_x'), number('player_feet_y'), number('player_feet_z')],
       aimPoint: [number('aim_point_x'), number('aim_point_y'), number('aim_point_z')],
       standardEndpoint: [
         number('predicted_final_cube_feet_x'),
@@ -177,8 +163,9 @@ function floorProfile(blockId: string): Je26_2UniformFloorProfileId {
 function weaponChoice(itemId: string): PlayerMeleeInputs['weapon'] {
   if (itemId === 'none') return { type: 'bareHand' }
 
-  const match =
-    /^minecraft:(wooden|stone|copper|golden|iron|diamond|netherite)_(sword|axe)$/.exec(itemId)
+  const match = /^minecraft:(wooden|stone|copper|golden|iron|diamond|netherite)_(sword|axe)$/.exec(
+    itemId,
+  )
   if (match === null) throw new RangeError(`unknown fixture weapon: ${itemId}`)
 
   return {
@@ -243,10 +230,7 @@ function resolvedProperties(blockId: string) {
   return resolution.values
 }
 
-function evaluationFor(
-  fixture: EndpointFixture,
-  mode: 'standard' | 'java',
-): PlayerMeleeEvaluation {
+function evaluationFor(fixture: EndpointFixture, mode: 'standard' | 'java'): PlayerMeleeEvaluation {
   const numerics = mode === 'java' ? javaPrecisionNumerics : standardNumerics
   const eyeHeight =
     mode === 'java'
@@ -276,7 +260,6 @@ function evaluationFor(
     properties,
     javaAim?.lookDirection,
   )
-
 }
 
 function endpointFor(fixture: EndpointFixture, mode: 'standard' | 'java') {
@@ -292,9 +275,7 @@ describe('je 26.2 Java-precision numerics', () => {
     expect(javaPrecisionNumerics.sourceFloat(1 / 3)).toBe(Math.fround(1 / 3))
     expect(javaPrecisionNumerics.sqrt(2)).toBe(Math.sqrt(2))
     expect(
-      Math.fround(
-        javaPrecisionNumerics.sqrt(Math.fround(numericEdgeFixtures.mthSqrtFloat.input)),
-      ),
+      Math.fround(javaPrecisionNumerics.sqrt(Math.fround(numericEdgeFixtures.mthSqrtFloat.input))),
     ).toBe(numericEdgeFixtures.mthSqrtFloat.expected)
   })
 
@@ -374,11 +355,7 @@ describe('je 26.2 Java-precision numerics', () => {
     for (const fixture of cases) {
       expect(
         vectorTuple(
-          normalizeVec3(
-            { x: fixture.component, y: 0, z: 0 },
-            javaPrecisionNumerics,
-            floatCutoff,
-          ),
+          normalizeVec3({ x: fixture.component, y: 0, z: 0 }, javaPrecisionNumerics, floatCutoff),
         ),
         fixture.name,
       ).toEqual(fixture.result)
@@ -426,9 +403,7 @@ describe('je 26.2 in-game melee endpoint validation', () => {
     expect(vectorTuple(diagnostic.attackerEyePosition)).toEqual(extreme.commandDerived.eyePosition)
     expect(aim.pitchDegrees).toBe(extreme.commandDerived.pitchDegrees)
     expect(aim.yawDegrees).toBe(extreme.commandDerived.yawDegrees)
-    expect(vectorTuple(aim.lookDirection)).toEqual(
-      extreme.commandDerived.reconstructedLookVector,
-    )
+    expect(vectorTuple(aim.lookDirection)).toEqual(extreme.commandDerived.reconstructedLookVector)
     expect(vectorTuple(evaluation.launchVelocity)).toEqual(extreme.postHitMotion)
     expect(vectorTuple(evaluation.trajectory.endpoint.feetPosition)).toEqual(
       extreme.observedFinalEndpoint,

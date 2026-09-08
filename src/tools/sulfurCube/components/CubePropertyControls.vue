@@ -558,6 +558,7 @@ function hideBlockTooltip(): void {
       <CdxSelect
         :selected="modelValue.selectedArchetypeId"
         :menu-items="archetypeItems"
+        :aria-label="t('sulfurCube.properties.archetype')"
         @update:selected="updateArchetype"
       />
     </CdxField>

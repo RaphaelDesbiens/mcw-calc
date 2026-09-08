@@ -400,6 +400,7 @@ function updateFloor(value: string | number | null): void {
             <CdxSelect
               :selected="modelValue.floorProfileId"
               :menu-items="floorItems"
+              :aria-label="t('sulfurCube.controls.uniformFloor')"
               :menu-config="{ renderInPlace: true }"
               @update:selected="updateFloor"
             />

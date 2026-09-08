@@ -271,6 +271,7 @@ function warningKey(code: string): string {
           v-else
           :selected="selectedLevel(modelValue.sharpnessEnabled, modelValue.sharpnessLevel)"
           :menu-items="ordinarySharpnessItems"
+          :aria-label="t('sulfurCube.attack.sharpness')"
           :menu-config="{ renderInPlace: true }"
           @update:selected="updateOrdinaryEnchantment('sharpness', $event)"
         />
@@ -290,6 +291,7 @@ function warningKey(code: string): string {
           v-else
           :selected="selectedLevel(modelValue.knockbackEnabled, modelValue.knockbackLevel)"
           :menu-items="ordinaryKnockbackItems"
+          :aria-label="t('sulfurCube.attack.knockback')"
           :menu-config="{ renderInPlace: true }"
           @update:selected="updateOrdinaryEnchantment('knockback', $event)"
         />

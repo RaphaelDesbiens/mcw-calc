@@ -252,8 +252,7 @@ export function deriveMinecraftYawDegreesFromAim(
   const horizontalLength = numerics.sqrt(horizontalX * horizontalX + horizontalZ * horizontalZ)
 
   if (
-    horizontalLength <
-    numerics.sourceFloat(je26_2KnockbackMechanics.vectorNormalizationThreshold)
+    horizontalLength < numerics.sourceFloat(je26_2KnockbackMechanics.vectorNormalizationThreshold)
   ) {
     return fallbackYawDegrees
   }

@@ -675,6 +675,5 @@ figcaption {
   .power-stages code {
     grid-column: 2;
   }
-
 }
 </style>

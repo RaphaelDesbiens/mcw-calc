@@ -508,9 +508,7 @@ function moveSectionByKeyboard(sectionId: SulfurCubeSectionId, event: KeyboardEv
 }
 
 function isSectionInformationTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element && target.closest('.info-tooltip, .cdx-tooltip') !== null
-  )
+  return target instanceof Element && target.closest('.info-tooltip, .cdx-tooltip') !== null
 }
 
 function startSectionDrag(sectionId: SulfurCubeSectionId, event: DragEvent): void {
@@ -868,6 +866,7 @@ watch(
           <CdxSelect
             :selected="propertySelection.selectedArchetypeId"
             :menu-items="compactArchetypeItems"
+            :aria-label="t('sulfurCube.compact.archetype')"
             @update:selected="updateCompactArchetype"
           />
         </CdxField>
@@ -876,13 +875,11 @@ watch(
           <CdxSelect
             :selected="formState.floorProfileId"
             :menu-items="compactFloorItems"
+            :aria-label="t('sulfurCube.controls.uniformFloor')"
             @update:selected="updateCompactFloor"
           />
         </CdxField>
-        <CdxButton
-          class="compact-toolbar__action sulfur-cube-reset"
-          @click="resetEverything"
-        >
+        <CdxButton class="compact-toolbar__action sulfur-cube-reset" @click="resetEverything">
           {{ t('sulfurCube.compact.reset') }}
         </CdxButton>
         <a

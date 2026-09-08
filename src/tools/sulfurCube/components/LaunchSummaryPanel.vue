@@ -301,6 +301,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
         <CdxSelect
           :selected="selectedArchetype"
           :menu-items="archetypeItems"
+          :aria-label="t('sulfurCube.properties.title')"
           :menu-config="{ showThumbnail: true, renderInPlace: true }"
           @update:selected="updateArchetype"
         />
@@ -310,6 +311,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
         <CdxSelect
           :selected="formValue.floorProfileId"
           :menu-items="floorItems"
+          :aria-label="t('sulfurCube.controls.uniformFloor')"
           @update:selected="updateFloor"
         />
       </CdxField>
@@ -350,6 +352,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
           <CdxSelect
             :selected="selectedWeapon"
             :menu-items="weaponItems"
+            :aria-label="t('sulfurCube.attack.weapon')"
             :menu-config="{ showThumbnail: true, renderInPlace: true }"
             @update:selected="updateWeapon"
           />
@@ -369,6 +372,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
             v-else
             :selected="selectedSharpness"
             :menu-items="sharpnessItems"
+            :aria-label="t('sulfurCube.attack.sharpness')"
             @update:selected="updateEnchantment('sharpness', $event)"
           />
         </CdxField>
@@ -387,6 +391,7 @@ function toggleRadialDisplayOption(option: keyof RadialSceneDisplayOptions): voi
             v-else
             :selected="selectedKnockback"
             :menu-items="knockbackItems"
+            :aria-label="t('sulfurCube.attack.knockback')"
             @update:selected="updateEnchantment('knockback', $event)"
           />
         </CdxField>

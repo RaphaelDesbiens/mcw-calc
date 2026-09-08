@@ -3,7 +3,8 @@ import { applyTheme } from './utils/theme'
 import './common.css'
 import './common.less'
 
-const trustedWikiOriginPattern = /^(?:https?:\/\/)?(?:www\.)?(?:minecraft\.wiki|.*\.minecraft\.wiki)$/
+const trustedWikiOriginPattern =
+  /^(?:https?:\/\/)?(?:www\.)?(?:minecraft\.wiki|.*\.minecraft\.wiki)$/
 
 function sendHeightChange() {
   return () => {

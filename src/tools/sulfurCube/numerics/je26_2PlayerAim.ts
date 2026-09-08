@@ -127,9 +127,7 @@ export function deriveJe26_2PlayerAim(eyePosition: Vec3, aimPoint: Vec3): Je26_2
   const xDifference = aimPoint.x - eyePosition.x
   const yDifference = aimPoint.y - eyePosition.y
   const zDifference = aimPoint.z - eyePosition.z
-  const horizontalDistance = Math.sqrt(
-    xDifference * xDifference + zDifference * zDifference,
-  )
+  const horizontalDistance = Math.sqrt(xDifference * xDifference + zDifference * zDifference)
 
   const pitchBeforeWrap = Math.fround(
     -(minecraftAtan2(yDifference, horizontalDistance) * Math.fround(180)) / piFloat,

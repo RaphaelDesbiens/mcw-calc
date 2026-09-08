@@ -10,7 +10,6 @@ import {
   provenance,
 } from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
-import { resolveArchetype } from '../resolution/cubeProperties'
 import {
   createAdultSulfurCubeGeometry,
   createBouncyTrajectoryAssumptions,
@@ -18,6 +17,7 @@ import {
   createRestingGroundVelocity,
 } from '../presets/milestone1'
 import { createStandingPlayerGeometry } from '../presets/standingPlayer'
+import { resolveArchetype } from '../resolution/cubeProperties'
 
 const sourceFloatNumerics: NumericBackend = Object.freeze({
   ...standardNumerics,
