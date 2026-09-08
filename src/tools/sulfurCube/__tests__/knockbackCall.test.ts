@@ -7,7 +7,7 @@ import type {
 import { describe, expect, it } from 'vitest'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
 import { standardNumerics } from '../numerics/standard'
-import { createMilestone1Context } from '../presets/milestone1'
+import { createSulfurCubeContext } from '../presets/defaults'
 import { createStandingPlayerGeometry } from '../presets/standingPlayer'
 import {
   createFixtureInputs,
@@ -27,7 +27,7 @@ function expectVec3Within(actual: Vec3, expected: Vec3, tolerance: number): void
 function createQZeroContext(properties?: CubeMechanicsProperties): SulfurCubeKnockbackContext {
   const feetPosition = { x: 0, y: 0, z: 2 }
   const eyePosition = { x: 0, y: 1.62, z: 2 }
-  const context = createMilestone1Context(
+  const context = createSulfurCubeContext(
     createStandingPlayerGeometry(feetPosition, { x: 0, y: 0, z: -1 }),
     { x: 0, y: 0, z: 0 },
   )
@@ -204,7 +204,7 @@ describe('one sulfur cube knockback call', () => {
             eyePosition: eye,
             lookDirection: createLookDirection(eye, { x: aimX, y: aimY, z: 0 }),
           }
-          const context = createMilestone1Context(attacker, { x: 0, y: 0, z: 0 })
+          const context = createSulfurCubeContext(attacker, { x: 0, y: 0, z: 0 })
           const { h0, v0, h3, v3 } = applySulfurCubeKnockbackCall(
             { x: 0, y: 0, z: 0 },
             ordinaryCall,
@@ -330,7 +330,7 @@ describe('one sulfur cube knockback call', () => {
       verticalityFixture.attackerFeetPosition,
       createLookDirection(eyePosition, verticalityFixture.aimPoint),
     )
-    const context = createMilestone1Context(attacker, { x: 0, y: 0, z: 0 })
+    const context = createSulfurCubeContext(attacker, { x: 0, y: 0, z: 0 })
     const result = applySulfurCubeKnockbackCall(
       verticalityFixture.existingVelocity,
       ordinaryCall,

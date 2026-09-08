@@ -8,7 +8,11 @@ import type {
 import type { DiagnosticEvaluation } from '../presets/diagnostic'
 import type { PlanePoint, WorldBounds } from './types'
 import { je26_2Constants } from '../data/je26_2'
-import { aimArrowLength, launchVectorDisplayLength, maximumRenderedTrajectoryTicks } from './scene'
+import {
+  aimArrowLength,
+  launchVectorDisplayLength,
+  maximumRenderedTrajectoryTicks,
+} from './verticalScene'
 
 export const topDownDirectionVectorLength = 2.25
 export const topDownAimArcRadius = 1.15

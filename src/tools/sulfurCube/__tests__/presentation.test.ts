@@ -19,6 +19,13 @@ import {
   unprojectPointFromRadialPlane,
 } from '../presentation/radialPlane'
 import {
+  createTopDownScenePresentation,
+  topDownAimArcRadius,
+  topDownDirectionAdjustmentArcRadius,
+  topDownDirectionVectorLength,
+  topDownLaunchOffsetArcRadius,
+} from '../presentation/topDown'
+import {
   aimArrowLength,
   createRadialScenePresentation,
   launchElevationArcRadius,
@@ -28,14 +35,7 @@ import {
   thetaArcRadius,
   thetaLabelHorizontalOffset,
   thetaLabelVerticalOffset,
-} from '../presentation/scene'
-import {
-  createTopDownScenePresentation,
-  topDownAimArcRadius,
-  topDownDirectionAdjustmentArcRadius,
-  topDownDirectionVectorLength,
-  topDownLaunchOffsetArcRadius,
-} from '../presentation/topDown'
+} from '../presentation/verticalScene'
 import {
   clampPointToBoundsFromOrigin,
   createViewportWorldBounds,
@@ -44,16 +44,13 @@ import {
   scaleWorldBoundsAroundPoint,
   translateWorldBounds,
 } from '../presentation/worldToSvg'
-import {
-  diagnosticPresets,
-  evaluateDiagnosticInputs,
-  getDiagnosticPreset,
-} from '../presets/diagnostic'
+import { evaluateDiagnosticInputs } from '../presets/diagnostic'
 import {
   createDefaultPlayerMeleeInputs,
   deriveMinecraftYawDegreesFromAim,
   evaluatePlayerMeleeInputs,
 } from '../presets/playerMelee'
+import { getRecordedLaunchPreset, recordedLaunchPresets } from './recordedLaunchPresets'
 
 describe('radial-plane presentation', () => {
   it('keeps a visual aim handle on its projected axis without changing the mechanics endpoint', () => {
@@ -200,7 +197,7 @@ describe('radial scene presentation', () => {
   } as const
 
   it('derives the M1 scene entirely from model inputs and outputs', () => {
-    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M1').inputs)
+    const evaluation = evaluateDiagnosticInputs(getRecordedLaunchPreset('M1').inputs)
     const scene = createRadialScenePresentation(evaluation)
 
     expect(scene.cube.feet).toEqual({ x: 0, y: 0 })
@@ -278,7 +275,7 @@ describe('radial scene presentation', () => {
   })
 
   it('hides the launch-elevation annotation when its rendered vector is too short', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const scene = createRadialScenePresentation(
       evaluateDiagnosticInputs({ ...inputs, damageArgument: 0.000001 }),
     )
@@ -291,7 +288,7 @@ describe('radial scene presentation', () => {
 
   it('anchors the theta arc and label to the attacker-feet angle corner', () => {
     const scene = createRadialScenePresentation(
-      evaluateDiagnosticInputs(getDiagnosticPreset('M6').inputs),
+      evaluateDiagnosticInputs(getRecordedLaunchPreset('M6').inputs),
     )
 
     expect(scene.thetaArc).toHaveLength(17)
@@ -310,10 +307,10 @@ describe('radial scene presentation', () => {
 
   it('draws the full 3D mechanics theta when lateral feet offset is hidden by the plane', () => {
     const baseScene = createRadialScenePresentation(
-      evaluateDiagnosticInputs(getDiagnosticPreset('M1').inputs),
+      evaluateDiagnosticInputs(getRecordedLaunchPreset('M1').inputs),
     )
     const evaluation = evaluateDiagnosticInputs({
-      ...getDiagnosticPreset('M1').inputs,
+      ...getRecordedLaunchPreset('M1').inputs,
       attackerFeetPosition: { x: 2, y: 1, z: 0 },
       attackerEyePosition: { x: 2, y: 2.62, z: 0 },
       aimPoint: { x: 0, y: 0.49, z: 0 },
@@ -333,7 +330,7 @@ describe('radial scene presentation', () => {
   })
 
   it('preserves lateral aim information outside the simplified radial view', () => {
-    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M2').inputs)
+    const evaluation = evaluateDiagnosticInputs(getRecordedLaunchPreset('M2').inputs)
     const scene = createRadialScenePresentation(evaluation)
 
     expect(scene.aimPoint).toEqual({ x: -0.48, y: 0.49 })
@@ -341,7 +338,7 @@ describe('radial scene presentation', () => {
   })
 
   it('widens the radial cube projection at diagonal X/Z orientations', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const evaluation = evaluateDiagnosticInputs({
       ...inputs,
       attackerFeetPosition: { x: 2, y: inputs.attackerFeetPosition.y, z: 2 },
@@ -355,7 +352,7 @@ describe('radial scene presentation', () => {
 
   it('stops drawing at settlement while preserving the requested maximum length', () => {
     const evaluation = evaluateDiagnosticInputs({
-      ...getDiagnosticPreset('M1').inputs,
+      ...getRecordedLaunchPreset('M1').inputs,
       trajectoryTicks: 200,
     })
     const scene = createRadialScenePresentation(evaluation)
@@ -379,7 +376,7 @@ describe('radial scene presentation', () => {
 
   it('can truncate only the drawn trajectory while retaining full-stop metrics', () => {
     const evaluation = evaluateDiagnosticInputs({
-      ...getDiagnosticPreset('M1').inputs,
+      ...getRecordedLaunchPreset('M1').inputs,
       trajectoryTicks: 1000,
     })
     const scene = createRadialScenePresentation(evaluation, undefined, {
@@ -398,7 +395,7 @@ describe('radial scene presentation', () => {
   })
 
   it('counts a source-emitted tick-one rebound as the first bounce for a downward launch', () => {
-    const inputs = { ...getDiagnosticPreset('M1').inputs, trajectoryTicks: 3 }
+    const inputs = { ...getRecordedLaunchPreset('M1').inputs, trajectoryTicks: 3 }
     const base = evaluateDiagnosticInputs(inputs)
     const evaluation = evaluateDiagnosticInputs(inputs, undefined, {
       ...base.properties,
@@ -413,7 +410,7 @@ describe('radial scene presentation', () => {
   })
 
   it('supports a fixed projection and camera while interactive objects move', () => {
-    const baseInputs = getDiagnosticPreset('M1').inputs
+    const baseInputs = getRecordedLaunchPreset('M1').inputs
     const baseScene = createRadialScenePresentation(evaluateDiagnosticInputs(baseInputs))
     const baseTransform = createWorldToSvgTransform(baseScene.bounds, sceneViewport)
     const baseCubeFeet = baseTransform.toSvg(baseScene.cube.feet)
@@ -454,7 +451,7 @@ describe('radial scene presentation', () => {
 
 describe('top-down scene presentation', () => {
   it('maps X/Z aim, direction diagnostics, launch velocity, and trajectory without projection loss', () => {
-    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M2').inputs)
+    const evaluation = evaluateDiagnosticInputs(getRecordedLaunchPreset('M2').inputs)
     const scene = createTopDownScenePresentation(evaluation)
     const call = scene.calls[0]!
 
@@ -527,7 +524,7 @@ describe('top-down scene presentation', () => {
   })
 
   it('shows every ordered sulfur-cube call while the launch arrow uses final cumulative velocity', () => {
-    const inputs = getDiagnosticPreset('M2').inputs
+    const inputs = getRecordedLaunchPreset('M2').inputs
     const evaluation = evaluatePlayerMeleeInputs(
       inputs,
       {
@@ -558,7 +555,7 @@ describe('top-down scene presentation', () => {
 
 describe('scene interaction form updates', () => {
   it('moves feet, eyes, and aim together when the attacker is translated', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const translated = parseDiagnosticFormState(
       translateAttackerInFormState(createDiagnosticFormState(inputs), {
         x: 0.25,
@@ -573,7 +570,7 @@ describe('scene interaction form updates', () => {
   })
 
   it('applies an exact feet-coordinate edit as the same attacker translation', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const current = createDiagnosticFormState(inputs)
     const updated = parseDiagnosticFormState(
       translateAttackerForFeetFormEdit(current, {
@@ -590,7 +587,7 @@ describe('scene interaction form updates', () => {
   })
 
   it('rotates horizontal aim with a top-down attacker move while preserving aim error', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const moved = parseDiagnosticFormState(
       translateAttackerPreservingCubeBearingInFormState(createDiagnosticFormState(inputs), {
         x: 2.6,
@@ -623,7 +620,7 @@ describe('scene interaction form updates', () => {
   })
 
   it('changes only the aim coordinates when the aim handle moves', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const form = createDiagnosticFormState(inputs)
     const updated = updateAimPointInFormState(form, { x: -0, y: 0.123456, z: 2 })
 
@@ -634,7 +631,7 @@ describe('scene interaction form updates', () => {
   })
 
   it('changes only cube feet when the cube-center handle moves', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const translated = parseDiagnosticFormState(
       translateCubeInFormState(createDiagnosticFormState(inputs), {
         x: -0.25,
@@ -650,7 +647,7 @@ describe('scene interaction form updates', () => {
   })
 
   it('restores standing-preset eyes from the current attacker feet', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const form = createDiagnosticFormState({
       ...inputs,
       attackerFeetPosition: { x: 1, y: 2, z: 3 },
@@ -667,7 +664,7 @@ describe('scene interaction form updates', () => {
 
 describe('power-space presentation', () => {
   it('maps the four model-returned power stages without recalculating them', () => {
-    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M1').inputs)
+    const evaluation = evaluateDiagnosticInputs(getRecordedLaunchPreset('M1').inputs)
     const values = evaluation.callResult.diagnostics
     const powerSpace = createPowerSpacePresentation(evaluation.callResult)
 
@@ -708,7 +705,7 @@ describe('power-space presentation', () => {
 
   it('includes every stage and the component-limit rectangle in its fitted bounds', () => {
     const powerSpace = createPowerSpacePresentation(
-      evaluateDiagnosticInputs(getDiagnosticPreset('M6').inputs).callResult,
+      evaluateDiagnosticInputs(getRecordedLaunchPreset('M6').inputs).callResult,
     )
 
     for (const stage of powerSpace.stages) {
@@ -720,7 +717,7 @@ describe('power-space presentation', () => {
   })
 
   it('shortens the elevation arrow before the point when elevation rotation occurs', () => {
-    const evaluation = evaluateDiagnosticInputs(getDiagnosticPreset('M6').inputs)
+    const evaluation = evaluateDiagnosticInputs(getRecordedLaunchPreset('M6').inputs)
     const values = evaluation.callResult.diagnostics
     const powerSpace = createPowerSpacePresentation(evaluation.callResult)
 
@@ -735,7 +732,7 @@ describe('power-space presentation', () => {
   })
 
   it('keeps the elevation arrow pointing toward its stage for very small rotations', () => {
-    const inputs = getDiagnosticPreset('M1').inputs
+    const inputs = getRecordedLaunchPreset('M1').inputs
     const evaluation = evaluateDiagnosticInputs({
       ...inputs,
       attackerFeetPosition: { ...inputs.attackerFeetPosition, y: 0.001 },
@@ -756,7 +753,7 @@ describe('power-space presentation', () => {
     expect(toArrowEnd.x * toTarget.x + toArrowEnd.y * toTarget.y).toBeGreaterThan(0)
   })
 
-  it.each(diagnosticPresets)('keeps the $id scene and power SVG mappings finite', (preset) => {
+  it.each(recordedLaunchPresets)('keeps the $id scene and power SVG mappings finite', (preset) => {
     const evaluation = evaluateDiagnosticInputs(preset.inputs)
     const scene = createRadialScenePresentation(evaluation)
     const powerSpace = createPowerSpacePresentation(evaluation.callResult)

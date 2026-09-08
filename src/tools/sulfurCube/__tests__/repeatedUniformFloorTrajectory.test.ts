@@ -7,7 +7,7 @@ import {
   simulateRepeatedUniformFloorTrajectory,
 } from '../model/trajectory'
 import { standardNumerics } from '../numerics/standard'
-import { createUniformFloorTrajectoryAssumptions } from '../presets/milestone1'
+import { createUniformFloorTrajectoryAssumptions } from '../presets/defaults'
 
 const sourceFloatNumerics: NumericBackend = Object.freeze({
   ...standardNumerics,
@@ -310,7 +310,7 @@ function expectVectorClose(
   expect(actual.z).toBeCloseTo(expected[2], 9)
 }
 
-describe('jE 26.2 repeated uniform-floor trajectory', () => {
+describe('repeated uniform-floor trajectory for JE 26.2', () => {
   it.each(acceptedFixtures)('matches the accepted $id summary fixture', (fixture) => {
     const [bounciness, frictionModifier, airDragModifier, entitySuppressesBounce] = fixture.cube
     const initialState: UniformFloorState = {

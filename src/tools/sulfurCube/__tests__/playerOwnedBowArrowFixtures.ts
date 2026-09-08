@@ -6,11 +6,9 @@ export const playerOwnedBowArrowFixtureProvenance = {
   edition: 'Java Edition',
   version: '26.2',
   source:
-    '.codex-reference/sulfur-cube/research/stage7/player-arrow-source-audit/albookice-output/player-arrow-resolution-fixtures.json',
-  sourceLedger:
-    '.codex-reference/sulfur-cube/research/stage7/player-arrow-source-audit/albookice-output/player-arrow-source-ledger.md',
-  notes:
-    'Tracked transcription of independently audited fixtures. Ignored research artifacts are not runtime or test inputs.',
+    'versions/26.2/decompiled/src/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java',
+  sourceLedger: 'src/tools/sulfurCube/data/je26_2/provenance.ts',
+  notes: 'Frozen player-owned arrow results derived from the recorded JE 26.2 source paths.',
 } as const
 
 export function createAcceptedPlayerOwnedBowArrowContext(): SulfurCubeKnockbackContext {

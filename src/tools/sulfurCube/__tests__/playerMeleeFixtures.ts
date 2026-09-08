@@ -8,12 +8,11 @@ import { je26_2KnockbackMechanics } from '../data/je26_2'
 export const playerMeleeFixtureProvenance = {
   edition: 'Java Edition',
   version: '26.2',
-  source:
-    '.codex-reference/sulfur-cube/research/stage6/source-audit/albookice-output/velocity-operation-fixtures.json',
+  source: 'versions/26.2/decompiled/src/net/minecraft/world/entity/player/Player.java',
   independentDirectionSource:
-    '.codex-reference/sulfur-cube/research/stage7/source-audit/albookice-output/horizontal-direction-fixtures.json',
+    'versions/26.2/decompiled/src/net/minecraft/world/entity/monster/cubemob/SulfurCube.java',
   notes:
-    'Tracked transcription of the accepted primary-player-melee fixtures. Ignored research files are not runtime or test inputs.',
+    'Frozen primary-player-melee results derived from the source paths recorded in data/je26_2/provenance.ts.',
 } as const
 
 export const groundedCriticalEligibility: PlayerCriticalEligibilityState = {

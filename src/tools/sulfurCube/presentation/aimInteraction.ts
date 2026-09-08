@@ -1,6 +1,6 @@
 import type { Vec3 } from '../model/types'
 import type { PlanePoint, RadialProjection } from './types'
-import { aimArrowLength } from './scene'
+import { aimArrowLength } from './verticalScene'
 
 function endpointFromDirection(eyePosition: Vec3, direction: Vec3, distance: number): Vec3 {
   return {

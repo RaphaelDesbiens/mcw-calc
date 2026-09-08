@@ -24,8 +24,8 @@ import {
   je26_2UniformFloorProfileOrder,
   resolveJe26_2PlayerMeleeWeaponPreset,
 } from '../data/je26_2'
+import { parseNumericInput, sanitizeNumericInput } from '../input/numericInput'
 import { blockSpriteFileName, humanizeIdentifier } from '../presentation/blockSelector'
-import { parseNumericInput, sanitizeNumericInput } from '../presentation/numericInput'
 import { maximumTrajectoryTicks } from '../presets/diagnostic'
 import {
   je26_2ArchetypeRepresentativeBlocks,

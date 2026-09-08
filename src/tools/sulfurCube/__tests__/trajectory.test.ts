@@ -7,7 +7,7 @@ import {
   simulateFreeFlightTrajectory,
 } from '../model/trajectory'
 import { standardNumerics } from '../numerics/standard'
-import { createBouncyTrajectoryAssumptions } from '../presets/milestone1'
+import { createBouncyTrajectoryAssumptions } from '../presets/defaults'
 import { createFixtureInputs, directMeleeFixtures, m1TenTickFixture } from './experimentFixtures'
 import { flatFloorFixtures } from './flatFloorFixtures'
 

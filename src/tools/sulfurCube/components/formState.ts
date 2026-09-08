@@ -4,8 +4,8 @@ import type { DiagnosticInputs } from '../presets/diagnostic'
 import type { PlayerMeleeInputs } from '../presets/playerMelee'
 import type { DiagnosticFormState, NumericFormValue, PlayerMeleeFormState } from './types'
 import { je26_2Constants, je26_2PlayerMeleeMechanics } from '../data/je26_2'
+import { parseNumericInput } from '../input/numericInput'
 import { standardNumerics } from '../numerics/standard'
-import { parseNumericInput } from '../presentation/numericInput'
 
 function stringifyNumber(value: number): string {
   return String(value)

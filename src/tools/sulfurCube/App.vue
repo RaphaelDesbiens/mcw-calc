@@ -51,13 +51,13 @@ import InfoTooltip from './components/InfoTooltip.vue'
 import LaunchSummaryPanel from './components/LaunchSummaryPanel.vue'
 import MechanicsReadout from './components/MechanicsReadout.vue'
 import PowerSpaceDiagram from './components/PowerSpaceDiagram.vue'
-import SulfurCubeScene from './components/SulfurCubeScene.vue'
 import TopDownScene from './components/TopDownScene.vue'
+import VerticalScene from './components/VerticalScene.vue'
 import { je26_2ArchetypeRegistryOrder, je26_2UniformFloorProfileOrder } from './data/je26_2'
+import { parseNumericInput } from './input/numericInput'
 import { javaPrecisionNumerics } from './numerics/javaPrecision'
 import { deriveJe26_2PlayerAim } from './numerics/je26_2PlayerAim'
 import { blockSpriteFileName, humanizeIdentifier } from './presentation/blockSelector'
-import { parseNumericInput } from './presentation/numericInput'
 import {
   defaultSulfurCubeSectionLayouts,
   findSulfurCubeSectionColumn,
@@ -74,7 +74,7 @@ import {
 } from './presentation/themePreference'
 import { createFullSulfurCubeToolUrl } from './presentation/viewMode'
 import {
-  createMilestone1DefaultInputs,
+  createDefaultDiagnosticInputs,
   evaluateDiagnosticInputs,
   findDefaultTrajectoryTicks,
   maximumTrajectoryTicks,
@@ -97,7 +97,7 @@ const props = defineProps<{
 }>()
 
 const toolNumerics = javaPrecisionNumerics
-const defaultInputs = createMilestone1DefaultInputs(toolNumerics)
+const defaultInputs = createDefaultDiagnosticInputs(toolNumerics)
 const defaultPlayerMeleeInputs = createDefaultPlayerMeleeInputs()
 const isCompactView = props.viewMode === 'compact'
 const defaultPropertySelection = createDefaultCubePropertySelectionState()
@@ -902,7 +902,7 @@ watch(
       </div>
 
       <template v-if="sceneEvaluation">
-        <SulfurCubeScene
+        <VerticalScene
           v-show="compactSceneKind === 'radial'"
           :key="sceneResetVersion"
           v-model:scene-size="sceneSize"
@@ -1116,7 +1116,7 @@ watch(
               />
 
               <template v-else-if="sectionId === 'scene'">
-                <SulfurCubeScene
+                <VerticalScene
                   v-if="sceneEvaluation"
                   :key="sceneResetVersion"
                   v-model:scene-size="sceneSize"

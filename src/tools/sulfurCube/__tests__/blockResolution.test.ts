@@ -57,7 +57,7 @@ function recursiveSourceDigest(): string {
   return createHash('sha256').update(serialized).digest('hex')
 }
 
-describe('jE 26.2 sulfur cube block membership data', () => {
+describe('sulfur cube block membership data for JE 26.2', () => {
   it('preserves the audited registry order and per-archetype counts', () => {
     expect(je26_2BlockMembershipGroups.map(({ archetypeId }) => archetypeId)).toEqual(
       je26_2ArchetypeRegistryOrder,

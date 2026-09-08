@@ -254,7 +254,7 @@ describe('primary player melee attack resolution', () => {
     expect(resolution.status).toBe('success')
   })
 
-  it('keeps fixture provenance explicit without reading ignored research at runtime', () => {
+  it('keeps fixture provenance explicit', () => {
     expect(playerMeleeFixtureProvenance).toMatchObject({
       edition: 'Java Edition',
       version: '26.2',

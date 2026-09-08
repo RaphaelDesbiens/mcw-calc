@@ -2,14 +2,14 @@ import type { HorizontalVector, SulfurCubeKnockbackContext, Vec3 } from '../mode
 import { describe, expect, it } from 'vitest'
 import { applySulfurCubeKnockbackCall } from '../model/knockbackCall'
 import { standardNumerics } from '../numerics/standard'
-import { createBouncyCubeLaunchProperties, createMilestone1Context } from '../presets/milestone1'
+import { createBouncyCubeLaunchProperties, createSulfurCubeContext } from '../presets/defaults'
 import {
   directHorizontalDirectionFixtures,
   horizontalProviderFixtures,
   horizontalProviderSharedGeometry,
+  javaDirectionFixtureTolerance,
   playerOwnedArrowDirectionFixtures,
-  stage7JavaFixtureTolerance,
-  stage7StandardMathTolerance,
+  standardDirectionTolerance,
 } from './horizontalDirectionFixtures'
 
 function expectHorizontalWithin(
@@ -44,7 +44,7 @@ function createHorizontalFixtureContext(
   cubeCenterOffset: HorizontalVector,
 ): SulfurCubeKnockbackContext {
   const cubeFeet = { x: cubeCenterOffset.x, y: 0, z: cubeCenterOffset.z }
-  const context = createMilestone1Context(
+  const context = createSulfurCubeContext(
     {
       feetPosition: { x: 0, y: 0, z: 0 },
       eyePosition: { x: 0, y: 0.49, z: 0 },
@@ -56,7 +56,7 @@ function createHorizontalFixtureContext(
   return context
 }
 
-describe('jE 26.2 horizontal sulfur-cube direction', () => {
+describe('horizontal sulfur-cube direction for JE 26.2', () => {
   it.each(directHorizontalDirectionFixtures)('matches $id in standard math', (fixture) => {
     const result = applySulfurCubeKnockbackCall(
       { x: 0, y: 0, z: 0 },
@@ -73,7 +73,7 @@ describe('jE 26.2 horizontal sulfur-cube direction', () => {
     expectHorizontalWithin(
       result.diagnostics.normalizedHorizontalDirection,
       fixture.expectedNormalizedDirection,
-      stage7StandardMathTolerance,
+      standardDirectionTolerance,
     )
     expect(result.diagnostics.transformedHorizontalLength).toBeCloseTo(5, 12)
   })
@@ -130,7 +130,7 @@ describe('jE 26.2 horizontal sulfur-cube direction', () => {
     'matches source-derived base-provider fixture $id',
     (fixture) => {
       const shared = horizontalProviderSharedGeometry
-      const baseContext = createMilestone1Context(
+      const baseContext = createSulfurCubeContext(
         {
           feetPosition: shared.causingFeet,
           eyePosition: shared.causingEye,
@@ -154,28 +154,28 @@ describe('jE 26.2 horizontal sulfur-cube direction', () => {
 
       expect(result.diagnostics.originalHorizontalDirection).toEqual(fixture.baseDirection)
       expect(Math.abs(result.diagnostics.horizontalCross - shared.expectedCross)).toBeLessThan(
-        stage7JavaFixtureTolerance,
+        javaDirectionFixtureTolerance,
       )
       expect(Math.abs(result.diagnostics.horizontalDot - shared.expectedDot)).toBeLessThan(
-        stage7JavaFixtureTolerance,
+        javaDirectionFixtureTolerance,
       )
       expect(
         Math.abs(result.diagnostics.horizontalAngleDelta - shared.expectedAngleDelta),
-      ).toBeLessThan(stage7JavaFixtureTolerance)
+      ).toBeLessThan(javaDirectionFixtureTolerance)
       expectHorizontalWithin(
         result.diagnostics.transformedHorizontalDirection,
         fixture.expectedTransformedDirection,
-        stage7JavaFixtureTolerance,
+        javaDirectionFixtureTolerance,
       )
       expect(
         Math.abs(
           result.diagnostics.transformedHorizontalLength - fixture.expectedTransformedLength,
         ),
-      ).toBeLessThan(stage7JavaFixtureTolerance)
+      ).toBeLessThan(javaDirectionFixtureTolerance)
       expectHorizontalWithin(
         result.diagnostics.normalizedHorizontalDirection,
         fixture.expectedNormalizedDirection,
-        stage7JavaFixtureTolerance,
+        javaDirectionFixtureTolerance,
       )
     },
   )
@@ -183,7 +183,7 @@ describe('jE 26.2 horizontal sulfur-cube direction', () => {
   it.each(playerOwnedArrowDirectionFixtures)(
     'matches source-derived player-owned arrow fixture $id within standard-mode tolerance',
     (fixture) => {
-      const context = createMilestone1Context(
+      const context = createSulfurCubeContext(
         {
           feetPosition: fixture.ownerFeet,
           eyePosition: fixture.ownerEye,
@@ -209,16 +209,16 @@ describe('jE 26.2 horizontal sulfur-cube direction', () => {
 
       expect(
         Math.abs(result.diagnostics.horizontalAngleDelta - fixture.expectedAngleDelta),
-      ).toBeLessThanOrEqual(stage7JavaFixtureTolerance)
+      ).toBeLessThanOrEqual(javaDirectionFixtureTolerance)
       expectHorizontalWithin(
         result.diagnostics.normalizedHorizontalDirection,
         fixture.expectedNormalizedDirection,
-        stage7JavaFixtureTolerance,
+        javaDirectionFixtureTolerance,
       )
       expectVec3Within(
         result.addedVelocity,
         fixture.expectedAddedVelocity,
-        stage7JavaFixtureTolerance,
+        javaDirectionFixtureTolerance,
       )
     },
   )

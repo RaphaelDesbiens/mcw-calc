@@ -1,5 +1,5 @@
 {
-  "schema": "mcw-calc-stage8-focused-endpoint-fixture-v1",
+  "schema": "mcw-calc-je26_2-melee-extreme-fixture-v1",
   "rows": [
     {
       "name": "extreme-row-44",
@@ -21,9 +21,7 @@
         "reconstructedLookVector": [0.06429610401391983, -0.5455660820007324, 0.835597813129425]
       },
       "postHitMotion": [0.228310348164654, 1.928538172841072, 1.2768623342842746],
-      "observedFinalEndpoint": [21.94703060725239, -60, 121.09173249544935],
-      "temporaryJavaReproductionEndpoint": [21.94703060725239, -60, 121.09173249544935],
-      "explicitLookJavaEndpoint": [21.94703060725239, -60, 121.09173249544935]
+      "observedFinalEndpoint": [21.94703060725239, -60, 121.09173249544935]
     },
     {
       "name": "extreme-row-85",
@@ -45,9 +43,7 @@
         "reconstructedLookVector": [0.7116414904594421, -0.6866186261177063, 0.1487320065498352]
       },
       "postHitMotion": [1.515307322160239, 0.8774241173267364, 0.33990365392773936],
-      "observedFinalEndpoint": [137.0381480105832, -60, 31.108848600586388],
-      "temporaryJavaReproductionEndpoint": [137.0381480105832, -60, 31.108848600586388],
-      "explicitLookJavaEndpoint": [137.0381480105832, -60, 31.108848600586388]
+      "observedFinalEndpoint": [137.0381480105832, -60, 31.108848600586388]
     },
     {
       "name": "extreme-row-93",
@@ -69,9 +65,7 @@
         "reconstructedLookVector": [-0.06898941844701767, -0.30401602387428284, 0.9501590728759766]
       },
       "postHitMotion": [-0.42791486623047625, 3.033863821029663, 3.0887806848895494],
-      "observedFinalEndpoint": [-53.294560621113924, -60, 389.01768069047796],
-      "temporaryJavaReproductionEndpoint": [-53.294560621113924, -60, 389.01768069047796],
-      "explicitLookJavaEndpoint": [-53.294560621113924, -60, 389.01768069047796]
+      "observedFinalEndpoint": [-53.294560621113924, -60, 389.01768069047796]
     },
     {
       "name": "extreme-row-94",
@@ -93,9 +87,7 @@
         "reconstructedLookVector": [-0.7989290356636047, -0.5948519110679626, 0.08860050141811371]
       },
       "postHitMotion": [-3.400262850361087, 2.279952425956726, 0.3487459505331928],
-      "observedFinalEndpoint": [-189.1752072162929, -60, 19.933701067896806],
-      "temporaryJavaReproductionEndpoint": [-189.1752072162929, -60, 19.933701067896806],
-      "explicitLookJavaEndpoint": [-189.1752072162929, -60, 19.933701067896806]
+      "observedFinalEndpoint": [-189.1752072162929, -60, 19.933701067896806]
     },
     {
       "name": "extreme-row-97",
@@ -117,9 +109,7 @@
         "reconstructedLookVector": [-0.6590135097503662, -0.6165911555290222, 0.4306531548500061]
       },
       "postHitMotion": [-1.187264501357573, 0.4664046609401702, 0.9867009470596598],
-      "observedFinalEndpoint": [-59.78179228113147, -60, 50.59563760740901],
-      "temporaryJavaReproductionEndpoint": [-59.78179228113147, -60, 50.59563760740901],
-      "explicitLookJavaEndpoint": [-59.78179228113147, -60, 50.59563760740901]
+      "observedFinalEndpoint": [-59.78179228113147, -60, 50.59563760740901]
     }
   ]
 }

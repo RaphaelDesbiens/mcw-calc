@@ -244,7 +244,7 @@ export interface FlatFloorTrajectoryTick {
   readonly effectiveVelocity: Vec3
   readonly appliedMovement: Vec3
   readonly resultingPosition: Vec3
-  /** Null on first floor contact because post-contact rebound is outside this milestone. */
+  /** Null on first floor contact because this result ends at contact. */
   readonly resultingVelocity: Vec3 | null
   readonly firstFloorContact: boolean
 }

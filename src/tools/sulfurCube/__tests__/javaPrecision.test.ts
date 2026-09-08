@@ -270,7 +270,7 @@ function vectorTuple(vector: { readonly x: number; readonly y: number; readonly 
   return [vector.x, vector.y, vector.z]
 }
 
-describe('je 26.2 Java-precision numerics', () => {
+describe('java-precision numerics for JE 26.2', () => {
   it('uses source Float32 boundaries without changing Java double primitives', () => {
     expect(javaPrecisionNumerics.sourceFloat(1 / 3)).toBe(Math.fround(1 / 3))
     expect(javaPrecisionNumerics.sqrt(2)).toBe(Math.sqrt(2))
@@ -363,7 +363,7 @@ describe('je 26.2 Java-precision numerics', () => {
   })
 })
 
-describe('je 26.2 in-game melee endpoint validation', () => {
+describe('in-game melee endpoint validation for JE 26.2', () => {
   it('contains all 100 completed experiment rows', () => {
     expect(endpointFixtures).toHaveLength(100)
     expect(endpointFixtures.map(({ row }) => row)).toEqual(

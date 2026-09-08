@@ -1,6 +1,6 @@
 import type { KnockbackCall, Vec3 } from '../model/types'
 import { je26_2Constants } from '../data/je26_2'
-import { createMilestone1Context } from '../presets/milestone1'
+import { createSulfurCubeContext } from '../presets/defaults'
 import { createStandingPlayerGeometry } from '../presets/standingPlayer'
 
 export const launchDirectionExperimentProvenance = {
@@ -173,7 +173,7 @@ export function createFixtureInputs(fixture: DirectMeleeExperimentFixture) {
 
   return {
     call,
-    context: createMilestone1Context(attacker, cubeFeetPosition),
+    context: createSulfurCubeContext(attacker, cubeFeetPosition),
   }
 }
 

@@ -23,12 +23,12 @@ import { subtractVec3 } from '../model/vectors'
 import { applyVelocityOperations } from '../model/velocityOperations'
 import { standardNumerics } from '../numerics/standard'
 import { resolveAttackConfiguration } from '../resolution'
-import { createDiagnosticKnockbackContext, maximumTrajectoryTicks } from './diagnostic'
 import {
   createBouncyCubeLaunchProperties,
   createRestingGroundVelocity,
   createUniformFloorTrajectoryAssumptions,
-} from './milestone1'
+} from './defaults'
+import { createDiagnosticKnockbackContext, maximumTrajectoryTicks } from './diagnostic'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
 
 export type PlayerMeleeEnchantmentSelection =

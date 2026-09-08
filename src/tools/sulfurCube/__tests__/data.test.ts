@@ -13,9 +13,9 @@ import { standardNumerics } from '../numerics/standard'
 import {
   createAdultSulfurCubeGeometry,
   createBouncyTrajectoryAssumptions,
-  createMilestone1Scenario,
   createRestingGroundVelocity,
-} from '../presets/milestone1'
+  createSulfurCubeScenario,
+} from '../presets/defaults'
 import { createStandingPlayerGeometry } from '../presets/standingPlayer'
 import { resolveArchetype } from '../resolution/cubeProperties'
 
@@ -25,7 +25,7 @@ const sourceFloatNumerics: NumericBackend = Object.freeze({
   sourceFloat: Math.fround,
 })
 
-describe('java Edition 26.2 milestone data', () => {
+describe('source data for Java Edition 26.2', () => {
   it('transcribes the Bouncy archetype without discarding later physical properties', () => {
     expect(bouncyArchetype.knockbackModifiers.horizontalPower.value).toBe(0.4125)
     expect(bouncyArchetype.knockbackModifiers.verticalPower.value).toBe(0.105)
@@ -103,8 +103,8 @@ describe('java Edition 26.2 milestone data', () => {
     ).toEqual({ x: 0, y: -0.07927999973297119, z: 0 })
   })
 
-  it('keeps the first milestone to one ordinary call from grounded tick-boundary Motion', () => {
-    const scenario = createMilestone1Scenario(
+  it('creates one ordinary call from grounded tick-boundary Motion', () => {
+    const scenario = createSulfurCubeScenario(
       createStandingPlayerGeometry({ x: 0, y: 0, z: 1.5 }, { x: 0, y: -0.5, z: -1 }),
       { x: 0, y: 0, z: 0 },
       { x: 0, z: 1.5 },

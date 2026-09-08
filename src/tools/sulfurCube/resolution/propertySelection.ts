@@ -3,7 +3,7 @@ import type { CubeLaunchProperties } from '../model/types'
 import type { BlockResolutionDiagnostic } from './blockResolution'
 import type { AttributeFoldDiagnostic, ResolvedCubeProfile } from './types'
 import { je26_2ArchetypesById, je26_2BlockMembershipIndex } from '../data/je26_2'
-import { parseNumericInput } from '../presentation/numericInput'
+import { parseNumericInput } from '../input/numericInput'
 import { resolveJe26_2Block } from './blockResolution'
 import { resolveArchetype, toCubeMechanicsProperties } from './cubeProperties'
 

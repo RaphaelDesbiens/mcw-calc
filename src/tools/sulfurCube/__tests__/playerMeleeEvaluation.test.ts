@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { projectVectorToRadialPlane } from '../presentation/radialPlane'
-import { createRadialScenePresentation, launchVectorDisplayLength } from '../presentation/scene'
-import { createMilestone1DefaultInputs, evaluateDiagnosticInputs } from '../presets/diagnostic'
+import {
+  createRadialScenePresentation,
+  launchVectorDisplayLength,
+} from '../presentation/verticalScene'
+import { createDefaultDiagnosticInputs, evaluateDiagnosticInputs } from '../presets/diagnostic'
 import {
   createDefaultPlayerMeleeInputs,
   deriveMinecraftYawDegreesFromAim,
@@ -42,7 +45,7 @@ describe('full-tool primary player melee evaluation', () => {
   })
 
   it('preserves the existing one-call launch for the default bare-hand attack', () => {
-    const diagnosticInputs = createMilestone1DefaultInputs()
+    const diagnosticInputs = createDefaultDiagnosticInputs()
     const yaw = deriveMinecraftYawDegreesFromAim(diagnosticInputs, 0)
     const existing = evaluateDiagnosticInputs(diagnosticInputs)
     const melee = evaluatePlayerMeleeInputs(diagnosticInputs, createDefaultPlayerMeleeInputs(), yaw)
@@ -55,7 +58,7 @@ describe('full-tool primary player melee evaluation', () => {
   })
 
   it('keeps a Knockback II sprint hit as two cumulative calls', () => {
-    const diagnosticInputs = createMilestone1DefaultInputs()
+    const diagnosticInputs = createDefaultDiagnosticInputs()
     const melee = evaluatePlayerMeleeInputs(
       diagnosticInputs,
       {
@@ -96,7 +99,7 @@ describe('full-tool primary player melee evaluation', () => {
   })
 
   it('derives critical status rather than accepting the requested conditions as sufficient', () => {
-    const diagnosticInputs = createMilestone1DefaultInputs()
+    const diagnosticInputs = createDefaultDiagnosticInputs()
     const yaw = deriveMinecraftYawDegreesFromAim(diagnosticInputs, 0)
     const airborne = evaluatePlayerMeleeInputs(
       diagnosticInputs,
@@ -127,7 +130,7 @@ describe('full-tool primary player melee evaluation', () => {
   })
 
   it('retains the previous yaw at a vertically aimed look-direction singularity', () => {
-    const inputs = createMilestone1DefaultInputs()
+    const inputs = createDefaultDiagnosticInputs()
 
     expect(
       deriveMinecraftYawDegreesFromAim(
@@ -145,7 +148,7 @@ describe('full-tool primary player melee evaluation', () => {
   })
 
   it('produces and strength-scales the Sharpness bonus without critical multiplication', () => {
-    const diagnosticInputs = createMilestone1DefaultInputs()
+    const diagnosticInputs = createDefaultDiagnosticInputs()
     const evaluation = evaluatePlayerMeleeInputs(
       diagnosticInputs,
       {
@@ -167,7 +170,7 @@ describe('full-tool primary player melee evaluation', () => {
   })
 
   it('finds settlement from the cumulative velocity', () => {
-    const inputs = createMilestone1DefaultInputs()
+    const inputs = createDefaultDiagnosticInputs()
     const meleeInputs = {
       ...createDefaultPlayerMeleeInputs(),
       weapon: { type: 'sword' as const, material: 'iron' as const },

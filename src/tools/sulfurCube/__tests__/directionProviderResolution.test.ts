@@ -6,7 +6,7 @@ import { resolveDirectionProvider } from '../resolution'
 
 const mechanics = je26_2PlayerMeleeMechanics
 
-describe('je 26.2 horizontal base-direction provider resolution', () => {
+describe('horizontal base-direction provider resolution for JE 26.2', () => {
   it.each([
     {
       id: 'non-projectile source position',

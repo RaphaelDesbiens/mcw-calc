@@ -5,7 +5,7 @@ import {
   je26_2BlockMembershipIndex,
 } from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
-import { createMilestone1DefaultInputs, evaluateDiagnosticInputs } from '../presets/diagnostic'
+import { createDefaultDiagnosticInputs, evaluateDiagnosticInputs } from '../presets/diagnostic'
 import {
   copyCurrentResolvedCubeProperties,
   createDefaultCubePropertySelectionState,
@@ -223,7 +223,7 @@ describe('cube property selection modes', () => {
 
     expect(properties).not.toBeNull()
     const evaluation = evaluateDiagnosticInputs(
-      createMilestone1DefaultInputs(),
+      createDefaultDiagnosticInputs(),
       standardNumerics,
       properties!,
     )

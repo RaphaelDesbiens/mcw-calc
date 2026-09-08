@@ -18,6 +18,6 @@ The `predicted_*` columns preserve the exact former Standard-backend results.
 The `actual_*` columns are the full-precision stable feet positions decoded
 from command storage after 40 unchanged samples. The endpoint fixture
 deliberately excludes harness bookkeeping that does not affect model
-evaluation. The focused JSON fixtures were produced by the audited handoff 010
+evaluation. The focused JSON fixtures were produced by the source-audit
 generator with SHA-256
 `9386d4df2306d40f82ea6d83777eeec011760309c3dc3b47a9473f01e58cd5fe`.

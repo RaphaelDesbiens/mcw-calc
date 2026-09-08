@@ -21,13 +21,11 @@ import { lengthVec3, normalizeVec3, subtractVec3 } from '../model/vectors'
 import { standardNumerics } from '../numerics/standard'
 import {
   createBouncyCubeLaunchProperties,
-  createMilestone1Context,
   createRestingGroundVelocity,
+  createSulfurCubeContext,
   createUniformFloorTrajectoryAssumptions,
-} from './milestone1'
+} from './defaults'
 import { resolveOrdinarySurvivalPlayerMeleeReach } from './playerMeleeReach'
-
-export type DiagnosticPresetId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'
 
 export interface DiagnosticInputs {
   readonly cubeFeetPosition: Vec3
@@ -37,11 +35,6 @@ export interface DiagnosticInputs {
   readonly damageArgument: number
   readonly trajectoryTicks: number
   readonly floorProfileId: Je26_2UniformFloorProfileId
-}
-
-export interface DiagnosticPreset {
-  readonly id: DiagnosticPresetId
-  readonly inputs: DiagnosticInputs
 }
 
 export interface DiagnosticEvaluation {
@@ -59,16 +52,11 @@ export interface DiagnosticEvaluation {
   readonly reach: ClearRayEntityReachResult
 }
 
-const sharedFeet = { x: 0, y: 0, z: 1.5 } as const
-const sharedEyes = { x: 0, y: 1.62, z: 1.5 } as const
-const sharedAim = { x: 0, y: 0.49, z: 0.48 } as const
-const sharedCubeFeet = { x: 0, y: 0, z: 0 } as const
-const standardDefaultTrajectoryTicks = 15
 /** Hard safety limit for complete uniform-floor settlement calculations. */
 export const maximumTrajectoryTicks = 6000
 export const defaultUniformFloorProfileId: Je26_2UniformFloorProfileId = 'ordinary_full_block'
 
-export function createMilestone1DefaultInputs(
+export function createDefaultDiagnosticInputs(
   numerics: NumericBackend = standardNumerics,
 ): DiagnosticInputs {
   const attackerFeetPosition = { x: 0, y: -0.3, z: -2.6 } as const
@@ -93,119 +81,6 @@ export function createMilestone1DefaultInputs(
     trajectoryTicks: findDefaultTrajectoryTicks(inputs, numerics),
   }
 }
-
-// Source: minecraft-je-research/notes/in-game-data/sulfur_cube_launch_direction/
-// sulfur_cube_launch_direction_results.csv, direct-melee runs M1-M9.
-export const diagnosticPresets: readonly DiagnosticPreset[] = [
-  {
-    id: 'M1',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: sharedAim,
-      damageArgument: 1,
-      trajectoryTicks: standardDefaultTrajectoryTicks,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M2',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: { x: -0.4, y: 0.49, z: 0.48 },
-      damageArgument: 1,
-      trajectoryTicks: standardDefaultTrajectoryTicks,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M3',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: { x: 0.4, y: 0.49, z: 0.48 },
-      damageArgument: 1,
-      trajectoryTicks: standardDefaultTrajectoryTicks,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M4',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: { x: 0, y: 0.88, z: 0.48 },
-      damageArgument: 1,
-      trajectoryTicks: standardDefaultTrajectoryTicks,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M5',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: { x: 0, y: 0.1, z: 0.48 },
-      damageArgument: 1,
-      trajectoryTicks: standardDefaultTrajectoryTicks,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M6',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: { x: 0, y: 1, z: 1.5 },
-      attackerEyePosition: { x: 0, y: 2.62, z: 1.5 },
-      aimPoint: sharedAim,
-      damageArgument: 1,
-      trajectoryTicks: 11,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M7',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: { x: 0, y: -1, z: 1.5 },
-      attackerEyePosition: { x: 0, y: 0.62, z: 1.5 },
-      aimPoint: sharedAim,
-      damageArgument: 1,
-      trajectoryTicks: standardDefaultTrajectoryTicks,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M8',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: sharedAim,
-      damageArgument: 4,
-      trajectoryTicks: 23,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-  {
-    id: 'M9',
-    inputs: {
-      cubeFeetPosition: sharedCubeFeet,
-      attackerFeetPosition: sharedFeet,
-      attackerEyePosition: sharedEyes,
-      aimPoint: sharedAim,
-      damageArgument: 9,
-      trajectoryTicks: 31,
-      floorProfileId: defaultUniformFloorProfileId,
-    },
-  },
-]
 
 function assertFiniteVec3(vector: Vec3, name: string): void {
   for (const [component, value] of Object.entries(vector)) {
@@ -259,7 +134,7 @@ export function createDiagnosticKnockbackContext(
       ? normalizeVec3(eyeToAim, numerics, vectorNormalizationThreshold)
       : { ...attackerLookDirection }
 
-  return createMilestone1Context(
+  return createSulfurCubeContext(
     {
       feetPosition: inputs.attackerFeetPosition,
       eyePosition: inputs.attackerEyePosition,
@@ -269,16 +144,6 @@ export function createDiagnosticKnockbackContext(
     numerics,
     properties,
   )
-}
-
-export function getDiagnosticPreset(id: DiagnosticPresetId): DiagnosticPreset {
-  const preset = diagnosticPresets.find((candidate) => candidate.id === id)
-
-  if (preset === undefined) {
-    throw new RangeError(`unknown diagnostic preset: ${id}`)
-  }
-
-  return preset
 }
 
 export function evaluateDiagnosticInputs(

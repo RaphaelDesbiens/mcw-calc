@@ -7,7 +7,7 @@ import type { ResolvableAttributeModifier, ResolvableCubeDefinition } from '../r
 import { describe, expect, it } from 'vitest'
 import { je26_2Archetypes, je26_2ArchetypesById } from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
-import { createBouncyTrajectoryAssumptions } from '../presets/milestone1'
+import { createBouncyTrajectoryAssumptions } from '../presets/defaults'
 import {
   foldAttributeModifiers,
   foldMatchingDefinitions,
@@ -109,7 +109,7 @@ const expectedVanillaAttributes = [
   ['minecraft:sticky', -2, 0, 0, 2, 0.009999999776482582],
 ] as const
 
-describe('jE 26.2 attribute folding', () => {
+describe('attribute folding for JE 26.2', () => {
   it('applies add, multiplied-base, and multiplied-total operations in source order', () => {
     const result = foldAttributeModifiers([
       {
@@ -225,7 +225,7 @@ describe('jE 26.2 attribute folding', () => {
   })
 })
 
-describe('jE 26.2 cube property folding', () => {
+describe('cube property folding for JE 26.2', () => {
   it('resolves the source-audited effective attributes for every vanilla archetype', () => {
     expect(
       je26_2Archetypes.map((definition) => {

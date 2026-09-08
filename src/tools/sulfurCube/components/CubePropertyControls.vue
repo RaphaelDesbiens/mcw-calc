@@ -25,13 +25,13 @@ import {
   je26_2BlockMembershipIndex,
   je26_2SwallowableItemIds,
 } from '../data/je26_2'
+import { sanitizeNumericInput } from '../input/numericInput'
 import {
   blockGridNavigationTargetIndex,
   blockSelectorSearchText,
   blockSpriteFileName,
   humanizeIdentifier,
 } from '../presentation/blockSelector'
-import { sanitizeNumericInput } from '../presentation/numericInput'
 import {
   copyCurrentResolvedCubeProperties,
   selectCubePropertyArchetype,

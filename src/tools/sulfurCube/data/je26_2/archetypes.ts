@@ -445,10 +445,7 @@ const bouncyAttributeModifiers: readonly {
   operation: modifier.operation.value,
 }))
 
-/**
- * Stage 4 compatibility projection. Stage 5's pure resolver will replace the
- * precomputed effective values without changing the existing call contract.
- */
+/** Precomputed Bouncy profile used by fixed-scenario factories. */
 export const bouncyArchetype = {
   id: bouncyArchetypeDefinition.id,
   items: sourcedValue(bouncyArchetypeDefinition.items.value, ['bouncyArchetype']),

@@ -83,19 +83,6 @@ export function rotateHorizontalVector(
   }
 }
 
-export function normalizeVec2(vector: Vec2, numerics: NumericBackend, minimumLength: number): Vec2 {
-  const length = lengthVec2(vector, numerics)
-
-  if (length < minimumLength) {
-    return { x: 0, y: 0 }
-  }
-
-  return {
-    x: vector.x / length,
-    y: vector.y / length,
-  }
-}
-
 export function normalizeVec3(vector: Vec3, numerics: NumericBackend, minimumLength: number): Vec3 {
   const length = lengthVec3(vector, numerics)
 

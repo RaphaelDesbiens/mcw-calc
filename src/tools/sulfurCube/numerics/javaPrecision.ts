@@ -1,7 +1,7 @@
 import type { NumericBackend } from './types'
 
 // JE 26.2: net.minecraft.util.Mth.SIN_SCALE and its 65,536-entry float table.
-// Source: minecraft-je-research/versions/26.2/decompiled/src/net/minecraft/util/Mth.java
+// Source: versions/26.2/decompiled/src/net/minecraft/util/Mth.java
 const sineTableScale = 10430.378350470453
 const sineTableMask = 65535
 const cosineTableOffset = 16384

@@ -1,9 +1,9 @@
 import type { HorizontalVector, Vec3 } from '../model/types'
 
-export const stage7StandardMathTolerance = 1e-9
+export const standardDirectionTolerance = 1e-9
 // Standard mode deliberately omits the source float boundaries and sine table.
 // This matches the tolerance already used for the recorded launch experiments.
-export const stage7JavaFixtureTolerance = 0.00015
+export const javaDirectionFixtureTolerance = 0.00015
 
 export interface DirectHorizontalDirectionFixture {
   readonly id: string
@@ -138,8 +138,7 @@ export interface ProjectileDirectionFixture {
 /**
  * Player-owned arrow observations P1-P11 from the accepted JE 26.2 source audit.
  * The projectile-motion provider resolves base X/Z as negative current motion.
- * Recorded provenance: notes/in-game-data/sulfur_cube_launch_direction/ in the
- * read-only minecraft-je-research workspace; see handoff 002's accepted ledger.
+ * Recorded provenance: notes/in-game-data/sulfur_cube_launch_direction/.
  */
 export const playerOwnedArrowDirectionFixtures = [
   {

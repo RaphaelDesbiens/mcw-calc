@@ -3,7 +3,6 @@ import type {
   CubeGeometry,
   CubeLaunchProperties,
   CubeMechanicsProperties,
-  FlatFloorTrajectoryAssumptions,
   HorizontalVector,
   KnockbackCall,
   SulfurCubeKnockbackContext,
@@ -22,7 +21,7 @@ import {
 import { computeModifiedFriction } from '../model/trajectory'
 import { standardNumerics } from '../numerics/standard'
 
-export interface Milestone1Scenario {
+export interface SulfurCubeScenario {
   readonly initialVelocity: Vec3
   readonly call: KnockbackCall
   readonly context: SulfurCubeKnockbackContext
@@ -44,7 +43,7 @@ export function createAdultSulfurCubeGeometry(
   }
 }
 
-export function createMilestone1Context(
+export function createSulfurCubeContext(
   attacker: AttackerGeometry,
   cubeFeetPosition: Vec3,
   numerics: NumericBackend = standardNumerics,
@@ -58,14 +57,14 @@ export function createMilestone1Context(
   }
 }
 
-export function createMilestone1Scenario(
+export function createSulfurCubeScenario(
   attacker: AttackerGeometry,
   cubeFeetPosition: Vec3,
   horizontalBaseDirection: HorizontalVector,
   damageArgument: number,
   numerics: NumericBackend = standardNumerics,
   properties: CubeLaunchProperties = createBouncyCubeLaunchProperties(),
-): Milestone1Scenario {
+): SulfurCubeScenario {
   return {
     initialVelocity: createRestingGroundVelocity(properties, numerics),
     call: {
@@ -73,7 +72,7 @@ export function createMilestone1Scenario(
       horizontalBaseDirection: { ...horizontalBaseDirection },
       scaling: { kind: 'ordinaryDamage' },
     },
-    context: createMilestone1Context(attacker, cubeFeetPosition, numerics, properties),
+    context: createSulfurCubeContext(attacker, cubeFeetPosition, numerics, properties),
   }
 }
 
@@ -127,28 +126,6 @@ export function createBouncyTrajectoryAssumptions(numerics: NumericBackend): Tra
     bouncyArchetype.effectiveProperties.airDragModifier.value,
     numerics,
   )
-}
-
-export function createFlatFloorTrajectoryAssumptions(
-  floorY: number,
-  properties: Pick<CubeLaunchProperties, 'airDragModifier' | 'frictionModifier'>,
-  numerics: NumericBackend,
-): FlatFloorTrajectoryAssumptions {
-  const trajectory = createTrajectoryAssumptions(properties.airDragModifier, numerics)
-  const floorBlockFriction = je26_2Constants.ordinaryFullBlockFriction.value
-  const modifiedFloorFriction = computeModifiedFriction(
-    floorBlockFriction,
-    properties.frictionModifier,
-    numerics,
-  )
-
-  return {
-    ...trajectory,
-    floorY,
-    floorBlockFriction,
-    entityFrictionModifier: properties.frictionModifier,
-    initialGroundHorizontalFactor: numerics.sourceFloat(modifiedFloorFriction * trajectory.drag),
-  }
 }
 
 export function createUniformFloorTrajectoryAssumptions(

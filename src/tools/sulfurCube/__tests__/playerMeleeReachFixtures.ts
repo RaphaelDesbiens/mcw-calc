@@ -19,8 +19,7 @@ export const adultCubeReachFixtureAabb: Aabb = {
   max: { x: halfWidth, y: height, z: halfWidth },
 }
 
-// Accepted Albookice source-audit fixtures transcribed from the ignored
-// player-melee-reach-fixtures.json artifact (JE 26.2).
+/** Boundary cases derived from the JE 26.2 client entity-picking path. */
 export const playerMeleeClearRayFixtures: readonly PlayerMeleeClearRayFixture[] = [
   {
     id: 'survival_face_hit_2_99',

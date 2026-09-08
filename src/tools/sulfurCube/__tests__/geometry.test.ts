@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { je26_2Constants } from '../data/je26_2'
 import { deriveCubeGeometry, deriveKnockbackGeometry } from '../model/geometry'
 import { standardNumerics } from '../numerics/standard'
-import { createAdultSulfurCubeGeometry } from '../presets/milestone1'
+import { createAdultSulfurCubeGeometry } from '../presets/defaults'
 import { createStandingPlayerGeometry } from '../presets/standingPlayer'
 
 const threshold = je26_2Constants.vectorNormalizationThreshold.value

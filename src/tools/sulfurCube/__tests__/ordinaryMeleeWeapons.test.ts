@@ -9,7 +9,7 @@ import {
   resolveJe26_2PlayerMeleeWeaponPreset,
 } from '../data/je26_2'
 import { standardNumerics } from '../numerics/standard'
-import { createMilestone1DefaultInputs } from '../presets/diagnostic'
+import { createDefaultDiagnosticInputs } from '../presets/diagnostic'
 import {
   createDefaultPlayerMeleeInputs,
   deriveMinecraftYawDegreesFromAim,
@@ -163,7 +163,7 @@ describe('audited JE 26.2 ordinary melee enchantments', () => {
   })
 
   it('matches accepted damage and call-count diagnostics for combined settings', () => {
-    const diagnostic = createMilestone1DefaultInputs()
+    const diagnostic = createDefaultDiagnosticInputs()
     const evaluation = evaluatePlayerMeleeInputs(
       diagnostic,
       inputs({

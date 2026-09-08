@@ -13,8 +13,7 @@ export interface FlatFloorFixture {
   }
 }
 
-// Accepted Albookice source-audit fixtures from ignored handoff artifact
-// flat-floor-contact-fixtures.json (JE 26.2, absolute tolerance 1e-9).
+/** JE 26.2 flat-floor contact cases, evaluated with an absolute tolerance of 1e-9. */
 export const flatFloorFixtures: readonly FlatFloorFixture[] = [
   {
     id: 'immediate_zero_vertical_velocity',

@@ -16,11 +16,11 @@ import {
   pointOnProjectedAimAxis,
   rotateAimInRadialProjection,
 } from '../presentation/aimInteraction'
+import { createTopDownScenePresentation } from '../presentation/topDown'
 import {
   createRadialScenePresentation,
   maximumRenderedTrajectoryTicks,
-} from '../presentation/scene'
-import { createTopDownScenePresentation } from '../presentation/topDown'
+} from '../presentation/verticalScene'
 import {
   clampPointToBoundsFromOrigin,
   createViewportWorldBounds,

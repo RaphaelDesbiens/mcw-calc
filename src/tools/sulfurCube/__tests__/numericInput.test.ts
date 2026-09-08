@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { parseNumericInput, sanitizeNumericInput } from '../presentation/numericInput'
+import { parseNumericInput, sanitizeNumericInput } from '../input/numericInput'
 
-describe('numeric input presentation boundary', () => {
+describe('numeric form-input boundary', () => {
   it('keeps one signed decimal value and removes unsupported characters', () => {
     expect(sanitizeNumericInput('12a.3.4')).toBe('12.34')
     expect(sanitizeNumericInput('-1,25')).toBe('-1.25')

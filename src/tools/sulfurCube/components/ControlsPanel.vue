@@ -10,7 +10,7 @@ import {
   je26_2UniformFloorProfileDefinitions,
   je26_2UniformFloorProfileOrder,
 } from '../data/je26_2'
-import { sanitizeNumericInput } from '../presentation/numericInput'
+import { sanitizeNumericInput } from '../input/numericInput'
 import CubePropertyControls from './CubePropertyControls.vue'
 import InfoTooltip from './InfoTooltip.vue'
 import PlayerMeleeControls from './PlayerMeleeControls.vue'

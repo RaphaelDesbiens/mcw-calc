@@ -12,7 +12,7 @@ import {
   je26_2ToolMaterialOrder,
   resolveJe26_2PlayerMeleeWeaponPreset,
 } from '../data/je26_2'
-import { parseNumericInput, sanitizeNumericInput } from '../presentation/numericInput'
+import { parseNumericInput, sanitizeNumericInput } from '../input/numericInput'
 import { resolvePlayerMeleeVanillaSurvivalAvailability } from '../presets/playerMelee'
 import InfoTooltip from './InfoTooltip.vue'
 

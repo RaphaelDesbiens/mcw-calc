@@ -11,7 +11,6 @@ export const sulfurCubeSectionIds = [
 export const sulfurCubeSectionColumns = ['left', 'right'] as const
 
 export type SulfurCubeSectionId = (typeof sulfurCubeSectionIds)[number]
-export type SulfurCubeSceneSize = 'regular' | 'compact'
 export type SulfurCubeSectionColumn = (typeof sulfurCubeSectionColumns)[number]
 export type SulfurCubeSectionDropPosition = 'before' | 'after'
 

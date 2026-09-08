@@ -298,7 +298,7 @@ describe('sulfur cube archetype definitions for Java Edition 26.2', () => {
     }
   })
 
-  it('keeps the Stage 4 Bouncy standard-mode projection unchanged', () => {
+  it('exposes a Bouncy projection matching the source definition', () => {
     expect(bouncyArchetypeDefinition.knockbackModifiers.horizontalPower).toMatchObject({
       sourceDecimal: 0.4125,
       decodedValue: 0.4124999940395355,
