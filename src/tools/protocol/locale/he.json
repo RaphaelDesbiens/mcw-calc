@@ -1,0 +1,7 @@
+{
+  "protocol.action.expand": "הרחב",
+  "protocol.loading": "טוען...",
+  "protocol.type.either.true": "נכון",
+  "protocol.type.either.false": "לא נכון",
+  "protocol.type.uuid": "UUID"
+}
