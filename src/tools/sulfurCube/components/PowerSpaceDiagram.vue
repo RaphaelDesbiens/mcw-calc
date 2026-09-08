@@ -648,7 +648,7 @@ figcaption {
   color: var(--power-cap);
 }
 
-:global(.dark) .power-space {
+:global(.dark .power-space) {
   --power-background: #2a2d30;
   --power-base: #ffd84d;
   --power-aim: #62d6ff;

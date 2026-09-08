@@ -1179,6 +1179,7 @@ onBeforeUnmount(() => {
   );
   --topdown-cube: #f2a900;
   --topdown-aim: #00a3d7;
+  --topdown-aim-dark: #007aa3;
   --topdown-launch: #00a000;
   --topdown-adjustment: #d33682;
   --topdown-grab-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23202122' stroke-width='1.8' stroke-linejoin='round' d='M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10 4.5a1.5 1.5 0 0 1 3 0V10 6a1.5 1.5 0 0 1 3 0v5-2a1.5 1.5 0 0 1 3 0v4.5c0 4-2.5 7-6.5 7h-1c-2.6 0-4.2-1.3-5.5-3.4L4.7 13a1.55 1.55 0 0 1 2.5-1.8z'/%3E%3C/svg%3E")
@@ -1327,7 +1328,7 @@ figcaption {
   stroke-width: 1px;
 }
 .topdown-metric-value--aim {
-  fill: #007aa3;
+  fill: var(--topdown-aim-dark);
 }
 .topdown-metric-value--launch {
   fill: var(--topdown-launch);
@@ -1557,6 +1558,14 @@ figcaption {
 .topdown-figure--compact-embed .topdown-metric-value,
 .topdown-figure--compact-embed .topdown-metric-unit {
   font-weight: 700;
+}
+
+:global(.dark .topdown-figure) {
+  --topdown-cube: #ffd84d;
+  --topdown-aim: #62d6ff;
+  --topdown-aim-dark: #9be6ff;
+  --topdown-launch: #33d13f;
+  --topdown-adjustment: #ff6bb3;
 }
 
 @media (max-width: 40rem) {

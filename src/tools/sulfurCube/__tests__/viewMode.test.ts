@@ -14,7 +14,8 @@ describe('sulfur-cube presentation mode', () => {
     expect(
       createFullSulfurCubeToolUrl(
         'https://tools.minecraft.wiki/tools/sulfurCube/?view=compact&preview=1#/en?id=42',
+        'dark',
       ),
-    ).toBe('https://tools.minecraft.wiki/tools/sulfurCube/?preview=1')
+    ).toBe('https://tools.minecraft.wiki/tools/sulfurCube/?preview=1&theme=dark')
   })
 })

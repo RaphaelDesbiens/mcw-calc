@@ -1097,14 +1097,15 @@ function formatCoordinate(value: number): string {
               :y="view.sceneMetrics.horizontalDeviationY"
             >
               <tspan>
-                ({{ t('sulfurCube.scene.horizontalDeviationLabel') }}&#160;=&#160;
+                (&#160;{{ t('sulfurCube.scene.horizontalDeviationLabel') }}&#160;=&#160;
               </tspan>
               <tspan
                 class="scene-metric-value scene-metric-value--velocity"
               >
                 {{ view.sceneMetrics.horizontalDeviation }}
               </tspan>
-              <tspan class="scene-metric-unit">&#160;°)</tspan>
+              <tspan class="scene-metric-unit">&#160;°</tspan>
+              <tspan>&#160;)</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
               <tspan>{{ t('sulfurCube.scene.distanceLabel') }}&#160;=&#160;</tspan>
@@ -2054,7 +2055,7 @@ figcaption {
 }
 
 .cube-shape circle {
-  fill: #202122;
+  fill: var(--scene-cube-dark);
 }
 
 .cube-block-sprite {
@@ -2251,9 +2252,9 @@ figcaption {
   font-size: 13px;
 }
 
-:global(.dark) .scene-figure {
+:global(.dark .scene-figure) {
   --scene-cube: #ffd84d;
-  --scene-cube-dark: #000;
+  --scene-cube-dark: #fff;
   --scene-attacker: var(--color-base, #eaecf0);
   --scene-aim: #62d6ff;
   --scene-aim-dark: #9be6ff;
@@ -2264,7 +2265,7 @@ figcaption {
   --scene-launch: #33d13f;
 }
 
-:global(.dark) .open-point-symbol {
+:global(.dark .open-point-symbol) {
   border-color: #fff;
   background: #202122;
 }

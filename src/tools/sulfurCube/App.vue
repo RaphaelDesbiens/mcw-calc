@@ -15,15 +15,24 @@ import type {
   SulfurCubeSectionId,
   SulfurCubeSectionLayouts,
 } from './presentation/sectionLayout'
+import type { SulfurCubeThemePreference } from './presentation/themePreference'
 import type { SulfurCubeViewMode } from './presentation/viewMode'
 import type { DiagnosticEvaluation } from './presets/diagnostic'
 import type { PlayerMeleeEvaluation } from './presets/playerMelee'
 import type { CubePropertySelectionState } from './resolution'
-import { CdxAccordion, CdxButton, CdxField, CdxMessage, CdxSelect } from '@wikimedia/codex'
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import {
+  CdxAccordion,
+  CdxButton,
+  CdxField,
+  CdxMessage,
+  CdxSelect,
+  CdxToggleButtonGroup,
+} from '@wikimedia/codex'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalcField from '@/components/CalcField.vue'
 import { getImageLink } from '@/utils/image'
+import { applyTheme, theme } from '@/utils/theme'
 import AttackOperationTrace from './components/AttackOperationTrace.vue'
 import ControlsPanel from './components/ControlsPanel.vue'
 import {
@@ -57,6 +66,12 @@ import {
   sulfurCubeSectionColumns,
   sulfurCubeSectionIds,
 } from './presentation/sectionLayout'
+import {
+  parseSulfurCubeThemePreference,
+  resolveSulfurCubeThemePreference,
+  setSulfurCubeThemePreferenceInUrl,
+  sulfurCubeThemePreferenceStorageKey,
+} from './presentation/themePreference'
 import { createFullSulfurCubeToolUrl } from './presentation/viewMode'
 import {
   createMilestone1DefaultInputs,
@@ -78,6 +93,7 @@ import {
 
 const props = defineProps<{
   viewMode: SulfurCubeViewMode
+  initialThemePreference: SulfurCubeThemePreference
 }>()
 
 const toolNumerics = javaPrecisionNumerics
@@ -90,6 +106,20 @@ const initialPropertySelection = isCompactView
   : defaultPropertySelection
 
 const { t } = useI18n()
+const themePreference = ref<SulfurCubeThemePreference>(props.initialThemePreference)
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+const themePreferenceButtons = computed(() => [
+  { value: 'auto', label: t('sulfurCube.theme.auto') },
+  { value: 'light', label: t('sulfurCube.theme.light') },
+  { value: 'dark', label: t('sulfurCube.theme.dark') },
+])
+watch(
+  theme,
+  (resolvedTheme) => {
+    document.documentElement.classList.toggle('sulfur-cube-dark', resolvedTheme === 'dark')
+  },
+  { immediate: true },
+)
 const sceneSize = ref<'regular' | 'compact'>('compact')
 const radialSceneSizeControlEnabled = false
 const compactSceneKind = ref<'radial' | 'topDown'>('radial')
@@ -155,7 +185,7 @@ const selectedCubeVisual = computed(() => {
     spriteUrl: getImageLink(`en:${blockSpriteFileName(blockId)}`),
   }
 })
-const fullToolUrl = createFullSulfurCubeToolUrl(window.location.href)
+const fullToolUrl = computed(() => createFullSulfurCubeToolUrl(window.location.href, theme.value))
 const compactArchetypeItems: MenuItemData[] = je26_2ArchetypeRegistryOrder.map((archetypeId) => ({
   value: archetypeId,
   label: humanizeIdentifier(archetypeId),
@@ -177,6 +207,42 @@ const selectedFloorSpriteUrl = computed(() => {
   }
 
   return getImageLink(`en:${blockSpriteFileName(blockIds[formState.value.floorProfileId])}`)
+})
+
+function applyCurrentThemePreference(): void {
+  applyTheme(resolveSulfurCubeThemePreference(themePreference.value, systemThemeQuery.matches))
+}
+
+function updateThemePreference(value: unknown): void {
+  const nextPreference = parseSulfurCubeThemePreference(value)
+
+  if (nextPreference === null) return
+
+  themePreference.value = nextPreference
+  applyCurrentThemePreference()
+
+  try {
+    window.localStorage.setItem(sulfurCubeThemePreferenceStorageKey, nextPreference)
+  } catch {
+    // Theme selection still applies for this page load if storage is unavailable.
+  }
+
+  window.history.replaceState(
+    window.history.state,
+    '',
+    setSulfurCubeThemePreferenceInUrl(window.location.href, nextPreference),
+  )
+}
+
+function updateAutomaticTheme(): void {
+  if (themePreference.value === 'auto') applyCurrentThemePreference()
+}
+
+if (!isCompactView) systemThemeQuery.addEventListener('change', updateAutomaticTheme)
+
+onBeforeUnmount(() => {
+  if (!isCompactView) systemThemeQuery.removeEventListener('change', updateAutomaticTheme)
+  document.documentElement.classList.remove('sulfur-cube-dark')
 })
 const sulfurCubeImageUrl = getImageLink('en:Sulfur Cube JE2 BE2.png')
 const visualTrajectoryTicks = computed(() => {
@@ -892,6 +958,18 @@ watch(
           <p>{{ t('sulfurCube.titleThemes') }}</p>
         </div>
         <span class="tool-title-band__edition">{{ t('sulfurCube.scope') }}</span>
+        <div
+          class="tool-title-band__theme-control"
+          role="group"
+          :aria-label="t('sulfurCube.theme.label')"
+        >
+          <span>{{ t('sulfurCube.theme.label') }}</span>
+          <CdxToggleButtonGroup
+            :model-value="themePreference"
+            :buttons="themePreferenceButtons"
+            @update:model-value="updateThemePreference"
+          />
+        </div>
       </header>
 
       <LaunchSummaryPanel
@@ -1131,6 +1209,14 @@ watch(
 </template>
 
 <style scoped>
+:global(html.sulfur-cube-dark) {
+  background: #101418;
+}
+
+:global(html.sulfur-cube-dark body) {
+  background: var(--background-color-base, #202122);
+}
+
 .sulfur-cube-compact {
   display: grid;
   gap: 0.75rem;
@@ -1313,6 +1399,24 @@ watch(
   color: #54595d;
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.tool-title-band__theme-control {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #202122;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.tool-title-band__theme-control :deep(.cdx-toggle-button) {
+  min-height: 1.75rem;
+  padding-inline: 0.45rem;
+  font-size: 0.72rem;
 }
 
 :global(html.sulfur-cube-embedded),
@@ -1498,13 +1602,13 @@ watch(
   overflow: visible;
 }
 
-:global(.dark) .section-layout-handle-bar {
+:global(.dark .section-layout-handle-bar) {
   background: linear-gradient(135deg, #594914, #80671a);
   color: #eaecf0;
 }
 
-:global(.dark) .section-layout-title,
-:global(.dark) .section-layout-collapse {
+:global(.dark .section-layout-title),
+:global(.dark .section-layout-collapse) {
   color: #eaecf0;
 }
 
