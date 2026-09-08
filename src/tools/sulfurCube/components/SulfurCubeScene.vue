@@ -1820,9 +1820,9 @@ figcaption {
 }
 
 .scene-frame__overlay :deep(.cdx-button) {
-  min-width: 1.75rem;
-  padding: 0 0.35rem;
-  font-size: 0.875rem;
+  min-width: var(--compact-scene-control-min-width, 1.75rem);
+  padding: 0 var(--compact-scene-control-padding-inline, 0.35rem);
+  font-size: var(--compact-scene-control-font-size, 0.875rem);
 }
 
 .scene-frame__overlay--right :deep(.cdx-button:not(:first-child)) {
@@ -1986,10 +1986,10 @@ figcaption {
   z-index: 2;
   top: 0.5rem;
   left: 0.5rem;
-  min-width: 11rem;
-  padding-inline: 0.75rem;
+  min-width: var(--compact-scene-summary-min-width, 11rem);
+  padding-inline: var(--compact-scene-summary-padding-inline, 0.75rem);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--compact-scene-control-font-size, 0.875rem);
   white-space: nowrap;
 }
 .scene-attack-metrics > line {
@@ -2453,6 +2453,12 @@ figcaption {
   .scene-figure--compact-embed .scene-frame__overlay--right {
     top: 0.25rem;
     bottom: auto;
+  }
+}
+
+@container sulfur-cube-compact (max-width: 20rem) {
+  .scene-metrics-summary-control {
+    top: 2.5rem;
   }
 }
 </style>

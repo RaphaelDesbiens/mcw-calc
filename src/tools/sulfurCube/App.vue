@@ -1223,6 +1223,11 @@ watch(
 }
 
 .sulfur-cube-compact {
+  --compact-scene-control-font-size: clamp(0.68rem, calc(0.5rem + 1cqi), 0.875rem);
+  --compact-scene-control-min-width: clamp(1.35rem, calc(1rem + 1.5cqi), 1.75rem);
+  --compact-scene-control-padding-inline: clamp(0.15rem, calc(0.05rem + 0.45cqi), 0.35rem);
+  --compact-scene-summary-min-width: clamp(8.25rem, 30cqi, 11rem);
+  --compact-scene-summary-padding-inline: clamp(0.35rem, calc(0.15rem + 0.7cqi), 0.75rem);
   display: grid;
   gap: 0.75rem;
   box-sizing: border-box;
@@ -1634,7 +1639,7 @@ watch(
   }
 }
 
-@container sulfur-cube-compact (max-width: calc(10cm + 0.75rem)) {
+@container sulfur-cube-compact (max-width: calc(10.95cm + 0.75rem)) {
   .compact-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }

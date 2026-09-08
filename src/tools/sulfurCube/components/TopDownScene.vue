@@ -1322,9 +1322,9 @@ figcaption {
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 .topdown-overlay :deep(.cdx-button) {
-  min-width: 1.75rem;
-  padding: 0 0.35rem;
-  font-size: 0.875rem;
+  min-width: var(--compact-scene-control-min-width, 1.75rem);
+  padding: 0 var(--compact-scene-control-padding-inline, 0.35rem);
+  font-size: var(--compact-scene-control-font-size, 0.875rem);
 }
 .topdown-overlay :deep(.cdx-button:not(:first-child)) {
   border-left-color: color-mix(in srgb, var(--topdown-border) 70%, transparent);
@@ -1441,10 +1441,10 @@ figcaption {
   z-index: 2;
   top: 0.5rem;
   left: 0.5rem;
-  min-width: 11rem;
-  padding-inline: 0.75rem;
+  min-width: var(--compact-scene-summary-min-width, 11rem);
+  padding-inline: var(--compact-scene-summary-padding-inline, 0.75rem);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--compact-scene-control-font-size, 0.875rem);
   white-space: nowrap;
 }
 .topdown-attack-metrics > line {
@@ -1698,6 +1698,12 @@ figcaption {
   .topdown-legend,
   .topdown-figure figcaption {
     width: 100%;
+  }
+}
+
+@container sulfur-cube-compact (max-width: 20rem) {
+  .topdown-metrics-summary-control {
+    top: 2.5rem;
   }
 }
 </style>
