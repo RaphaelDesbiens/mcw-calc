@@ -124,6 +124,7 @@ const sceneSize = ref<'regular' | 'compact'>('compact')
 const radialSceneSizeControlEnabled = false
 const compactSceneKind = ref<'radial' | 'topDown'>('radial')
 const sceneResetVersion = ref(0)
+const compactRootElement = ref<HTMLElement | null>(null)
 const formState = ref<DiagnosticFormState>(createDiagnosticFormState(defaultInputs))
 const playerMeleeState = ref<PlayerMeleeFormState>(
   createPlayerMeleeFormState(defaultPlayerMeleeInputs),
@@ -691,8 +692,15 @@ function resetEverything(): void {
   propertySelection.value = createInitialPropertySelection()
 }
 
-function switchCompactScene(): void {
+async function switchCompactScene(): Promise<void> {
   compactSceneKind.value = compactSceneKind.value === 'radial' ? 'topDown' : 'radial'
+  await nextTick()
+
+  const visibleSwitch = Array.from(
+    compactRootElement.value?.querySelectorAll<HTMLElement>('.compact-scene-switch') ?? [],
+  ).find((element) => element.getClientRects().length > 0)
+
+  visibleSwitch?.focus()
 }
 
 function resetPositionsAim(): void {
@@ -851,7 +859,7 @@ watch(
 
 <template>
   <CalcField v-if="isCompactView" class="sulfur-cube-compact-field">
-    <div class="sulfur-cube-compact" lang="en">
+    <div ref="compactRootElement" class="sulfur-cube-compact" lang="en">
       <header class="tool-title-band tool-title-band--compact">
         <img class="tool-title-band__image" :src="sulfurCubeImageUrl" alt="" />
         <div class="tool-title-band__text">
@@ -1290,7 +1298,7 @@ watch(
   border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  padding: 0.12rem 0.55rem;
+  padding: 0.22rem 0.75rem;
   font-size: 0.58rem;
   line-height: 1.1;
 }
@@ -1626,7 +1634,7 @@ watch(
   }
 }
 
-@container sulfur-cube-compact (max-width: calc(6cm + 0.75rem)) {
+@container sulfur-cube-compact (max-width: calc(9.4cm + 0.75rem)) {
   .compact-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }

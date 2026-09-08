@@ -281,6 +281,8 @@
   "sulfurCube.topDown.launchOffsetSingleCallBeforeMultiply": "Launch offset (1.6",
   "sulfurCube.topDown.launchOffsetSingleCallAfterMultiply": "Δ)",
   "sulfurCube.scene.resizeInformation": "Resize scene information",
+  "sulfurCube.scene.hideInformation": "Hide scene information",
+  "sulfurCube.scene.showInformation": "Show scene information",
   "sulfurCube.topDown.launchDirection": "Launch direction",
   "sulfurCube.topDown.directionAdjustmentLabel": "Direction adjustment (1.6 × Δ)",
   "sulfurCube.topDown.cubeHandleAria": "Move the sulfur cube in the X/Z plane. Arrow keys move by 0.25 blocks; hold Shift for 0.05-block steps.",
