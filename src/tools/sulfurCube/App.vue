@@ -629,7 +629,6 @@ function resetEverything(): void {
 
 function switchCompactScene(): void {
   compactSceneKind.value = compactSceneKind.value === 'radial' ? 'topDown' : 'radial'
-  resetSceneInputs()
 }
 
 function resetPositionsAim(): void {
@@ -814,59 +813,69 @@ watch(
             @update:selected="updateCompactFloor"
           />
         </CdxField>
-        <CdxButton class="sulfur-cube-reset" @click="resetEverything">
+        <CdxButton
+          class="compact-toolbar__action sulfur-cube-reset"
+          @click="resetEverything"
+        >
           {{ t('sulfurCube.compact.reset') }}
         </CdxButton>
-        <a class="compact-toolbar__full-link" :href="fullToolUrl" target="_blank" rel="noopener">
+        <a
+          class="compact-toolbar__action compact-toolbar__full-link"
+          :href="fullToolUrl"
+          target="_blank"
+          rel="noopener"
+        >
           {{ t('sulfurCube.compact.openFullTool') }}
           <span aria-hidden="true">↗</span>
         </a>
       </div>
 
-      <SulfurCubeScene
-        v-if="sceneEvaluation && compactSceneKind === 'radial'"
-        :key="sceneResetVersion"
-        v-model:scene-size="sceneSize"
-        :evaluation="sceneEvaluation"
-        compact-embed
-        :inputs-invalid="sceneInputsInvalid"
-        :initial-zoom-steps="2"
-        :show-aim-q-label="false"
-        :show-comparison-help="false"
-        :show-size-control="false"
-        :selected-block-label="selectedCubeVisual.blockLabel"
-        :selected-archetype-label="selectedCubeVisual.archetypeLabel"
-        :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
-        :attack-summary="sceneAttackSummary"
-        :floor-surface-label="selectedFloorLabel"
-        :floor-surface-sprite-url="selectedFloorSpriteUrl"
-        :display-options="radialSceneDisplayOptions"
-        :trajectory-tick-limit="visualTrajectoryTicks"
-        :other-scene-label="t('sulfurCube.compact.showTopDown')"
-        @show-other-scene="switchCompactScene"
-        @update-aim-point="updateAimPoint"
-        @translate-attacker="translateAttacker"
-        @translate-cube="translateCube"
-      />
+      <template v-if="sceneEvaluation">
+        <SulfurCubeScene
+          v-show="compactSceneKind === 'radial'"
+          :key="sceneResetVersion"
+          v-model:scene-size="sceneSize"
+          :evaluation="sceneEvaluation"
+          compact-embed
+          :inputs-invalid="sceneInputsInvalid"
+          :initial-zoom-steps="2"
+          :show-aim-q-label="false"
+          :show-comparison-help="false"
+          :show-size-control="false"
+          :selected-block-label="selectedCubeVisual.blockLabel"
+          :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+          :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+          :attack-summary="sceneAttackSummary"
+          :floor-surface-label="selectedFloorLabel"
+          :floor-surface-sprite-url="selectedFloorSpriteUrl"
+          :display-options="radialSceneDisplayOptions"
+          :trajectory-tick-limit="visualTrajectoryTicks"
+          :other-scene-label="t('sulfurCube.compact.showTopDown')"
+          @show-other-scene="switchCompactScene"
+          @update-aim-point="updateAimPoint"
+          @translate-attacker="translateAttacker"
+          @translate-cube="translateCube"
+        />
 
-      <TopDownScene
-        v-else-if="sceneEvaluation"
-        :key="`compact-top-down-${sceneResetVersion}`"
-        :evaluation="sceneEvaluation"
-        compact-embed
-        :inputs-invalid="sceneInputsInvalid"
-        scene-size="compact"
-        :selected-block-label="selectedCubeVisual.blockLabel"
-        :selected-archetype-label="selectedCubeVisual.archetypeLabel"
-        :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
-        :attack-summary="sceneAttackSummary"
-        :floor-surface-label="selectedFloorLabel"
-        :other-scene-label="t('sulfurCube.compact.showRadial')"
-        @show-other-scene="switchCompactScene"
-        @update-aim-point="updateAimPoint"
-        @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
-        @translate-cube="translateCube"
-      />
+        <TopDownScene
+          v-show="compactSceneKind === 'topDown'"
+          :key="`compact-top-down-${sceneResetVersion}`"
+          :evaluation="sceneEvaluation"
+          compact-embed
+          :inputs-invalid="sceneInputsInvalid"
+          scene-size="compact"
+          :selected-block-label="selectedCubeVisual.blockLabel"
+          :selected-archetype-label="selectedCubeVisual.archetypeLabel"
+          :selected-block-sprite-url="selectedCubeVisual.spriteUrl"
+          :attack-summary="sceneAttackSummary"
+          :floor-surface-label="selectedFloorLabel"
+          :other-scene-label="t('sulfurCube.compact.showRadial')"
+          @show-other-scene="switchCompactScene"
+          @update-aim-point="updateAimPoint"
+          @translate-attacker-preserving-cube-bearing="translateAttackerPreservingCubeBearing"
+          @translate-cube="translateCube"
+        />
+      </template>
 
       <CdxMessage v-else type="warning">
         {{ t('sulfurCube.invalidInputs') }}
@@ -1131,20 +1140,32 @@ watch(
 
 .compact-toolbar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(11rem, 1fr)) auto auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 0.75rem;
 }
 
 .compact-toolbar__archetype,
 .compact-toolbar__floor {
-  width: calc(100% - 1.8cm);
+  width: 100%;
 }
 
 .compact-toolbar__archetype :deep(.cdx-select),
 .compact-toolbar__floor :deep(.cdx-select) {
   width: 100%;
-  max-width: calc(24rem - 1.8cm);
+  max-width: none;
+}
+
+.compact-toolbar__action {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+}
+
+:global(.compact-toolbar__action.cdx-button) {
+  max-width: none;
+  width: 100%;
 }
 
 .tool-title-band.tool-title-band--compact {
@@ -1155,6 +1176,14 @@ watch(
 .tool-title-band--compact .tool-title-band__image {
   width: 56px;
   height: 56px;
+}
+
+.tool-title-band--compact .tool-title-band__edition {
+  top: auto;
+  right: 0.6rem;
+  bottom: 0.45rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
 }
 
 .compact-toolbar__full-link {
@@ -1471,15 +1500,15 @@ watch(
   }
 }
 
-@media (max-width: 40rem) {
+@media (max-width: 36rem) {
   .compact-toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .compact-toolbar__archetype,
   .compact-toolbar__floor {
-    grid-column: 1 / -1;
-    width: calc(100% - 1.8cm);
+    grid-column: auto;
+    width: 100%;
   }
 }
 

@@ -921,7 +921,7 @@ onBeforeUnmount(() => {
             <tspan class="reach-warning-main" :x="view.reachWarning.x">
               {{ t('sulfurCube.scene.reachMissWarningMain') }}
             </tspan>
-            <tspan v-if="!compactEmbed" class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
+            <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
               {{
                 t('sulfurCube.scene.reachMissWarningDetail', {
                   scene: t('sulfurCube.scene.otherRadial'),
@@ -1526,6 +1526,7 @@ figcaption {
   width: 0.5em;
   height: 0.5em;
   border-width: 0.12em;
+  vertical-align: 0;
 }
 
 .topdown-figure--compact-embed .topdown-metrics {

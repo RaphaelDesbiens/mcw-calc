@@ -20,6 +20,7 @@ import {
   createRadialScenePresentation,
   maximumRenderedTrajectoryTicks,
 } from '../presentation/scene'
+import { createTopDownScenePresentation } from '../presentation/topDown'
 import {
   clampPointToBoundsFromOrigin,
   createViewportWorldBounds,
@@ -146,11 +147,25 @@ const sceneSizeButtonLabel = computed(() =>
     ? t('sulfurCube.scene.switchToCompact')
     : t('sulfurCube.scene.switchToRegular'),
 )
+const compactHorizontalDeviationRadians = computed(() =>
+  props.compactEmbed ? createTopDownScenePresentation(props.evaluation).launchOffsetRadians : 0,
+)
+const compactHorizontalDeviationDegrees = computed(
+  () => (compactHorizontalDeviationRadians.value * 180) / Math.PI,
+)
+const showCompactHorizontalDeviation = computed(
+  () => Math.abs(compactHorizontalDeviationDegrees.value) >= 0.05,
+)
+const sceneTitle = computed(() =>
+  props.compactEmbed ? t('sulfurCube.scene.compactTitle') : t('sulfurCube.scene.title'),
+)
 const metricsPanelHeight = computed(() => {
+  const horizontalDeviationOffset = showCompactHorizontalDeviation.value ? 21 : 0
+
   if (props.attackSummary !== null && props.attackSummary !== undefined) {
-    return props.compactEmbed ? 278 : 375
+    return props.compactEmbed ? 278 + horizontalDeviationOffset : 375
   }
-  return 235
+  return props.compactEmbed ? 235 + horizontalDeviationOffset : 235
 })
 const maximumMetricsScale = computed(() =>
   Math.min(
@@ -266,24 +281,27 @@ const view = computed(() => {
           y: launchLabel.y + 13 * zoomFactor,
           value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
         }
+  const horizontalDeviationOffset = showCompactHorizontalDeviation.value ? 21 : 0
   const sceneMetrics = {
     x: 18,
     valueX: 168,
+    horizontalDeviationValueX: 222,
     speedY: 26,
     launchElevationY: 47,
-    distanceY: 68,
-    firstBounceY: 89,
-    qY: 110,
-    thetaY: 131,
-    blockY: 166,
-    archetypeY: 187,
-    floorY: 222,
-    weaponY: 257,
-    attackStrengthY: 278,
-    sharpnessY: 299,
-    knockbackY: 320,
-    sprintingY: 341,
-    criticalHitY: 362,
+    horizontalDeviationY: 68,
+    distanceY: 68 + horizontalDeviationOffset,
+    firstBounceY: 89 + horizontalDeviationOffset,
+    qY: 110 + horizontalDeviationOffset,
+    thetaY: 131 + horizontalDeviationOffset,
+    blockY: 166 + horizontalDeviationOffset,
+    archetypeY: 187 + horizontalDeviationOffset,
+    floorY: 222 + horizontalDeviationOffset,
+    weaponY: 257 + horizontalDeviationOffset,
+    attackStrengthY: 278 + horizontalDeviationOffset,
+    sharpnessY: 299 + horizontalDeviationOffset,
+    knockbackY: 320 + horizontalDeviationOffset,
+    sprintingY: 341 + horizontalDeviationOffset,
+    criticalHitY: 362 + horizontalDeviationOffset,
     speed: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
     distance: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
     firstBounce:
@@ -294,7 +312,9 @@ const view = computed(() => {
     q: props.evaluation.callResult.diagnostics.q.toFixed(2),
     theta: ((props.evaluation.callResult.diagnostics.theta * 180) / Math.PI).toFixed(1),
     launchElevation: ((scene.launchElevationRadians * 180) / Math.PI).toFixed(1),
-    attackGroupEndY: 362,
+    horizontalDeviation: compactHorizontalDeviationDegrees.value.toFixed(1),
+    horizontalDeviationVisible: showCompactHorizontalDeviation.value,
+    attackGroupEndY: 362 + horizontalDeviationOffset,
     attackDetailX: 32,
     attackDetailValueX: 190,
   }
@@ -865,11 +885,11 @@ function formatCoordinate(value: number): string {
       { 'scene-figure--compact-embed': compactEmbed },
     ]"
     :aria-labelledby="showHeadingTitle ? 'sulfur-cube-scene-heading' : undefined"
-    :aria-label="showHeadingTitle ? undefined : t('sulfurCube.scene.title')"
+    :aria-label="showHeadingTitle ? undefined : sceneTitle"
   >
     <div class="scene-heading">
       <div v-if="showHeadingTitle" class="scene-heading__title">
-        <h3 id="sulfur-cube-scene-heading">{{ t('sulfurCube.scene.title') }}</h3>
+        <h3 id="sulfur-cube-scene-heading">{{ sceneTitle }}</h3>
         <InfoTooltip
           :text="t('sulfurCube.scene.projectionHelp')"
           :label="t('sulfurCube.scene.projectionHelpLabel')"
@@ -1049,6 +1069,22 @@ function formatCoordinate(value: number): string {
                 {{ view.sceneMetrics.launchElevation }}
               </tspan>
               <tspan class="scene-metric-unit">&#160;°</tspan>
+            </text>
+            <text
+              v-if="compactEmbed && view.sceneMetrics.horizontalDeviationVisible"
+              :x="view.sceneMetrics.x"
+              :y="view.sceneMetrics.horizontalDeviationY"
+            >
+              <tspan>
+                ({{ t('sulfurCube.scene.horizontalDeviationLabel') }}&#160;=&#160;
+              </tspan>
+              <tspan
+                :x="view.sceneMetrics.horizontalDeviationValueX"
+                class="scene-metric-value scene-metric-value--velocity"
+              >
+                {{ view.sceneMetrics.horizontalDeviation }}
+              </tspan>
+              <tspan class="scene-metric-unit">&#160;°)</tspan>
             </text>
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.distanceY">
               <tspan>{{ t('sulfurCube.scene.distanceLabel') }}&#160;=&#160;</tspan>
@@ -1246,7 +1282,7 @@ function formatCoordinate(value: number): string {
             <tspan class="reach-warning-main" :x="view.reachWarning.x">
               {{ t('sulfurCube.scene.reachMissWarningMain') }}
             </tspan>
-            <tspan v-if="!compactEmbed" class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
+            <tspan class="reach-warning-detail" :x="view.reachWarning.x" dy="1.25em">
               {{
                 t('sulfurCube.scene.reachMissWarningDetail', {
                   scene: t('sulfurCube.scene.otherTopDown'),
@@ -2172,6 +2208,7 @@ figcaption {
   width: 0.5em;
   height: 0.5em;
   border-width: 0.12em;
+  vertical-align: 0;
 }
 
 .scene-figure--compact-embed .scene-metrics {
