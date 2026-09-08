@@ -181,6 +181,17 @@ const maximumMetricsScale = computed(() =>
 const effectiveMetricsScale = computed(() =>
   Math.min(metricsScale.value, maximumMetricsScale.value),
 )
+const metricsResizeTransform = computed(() => {
+  const handleSize = 16
+
+  if (!props.compactEmbed) {
+    return `translate(${metricsPanel.x + metricsPanel.width - handleSize} ${metricsPanel.y + metricsPanelHeight.value - handleSize})`
+  }
+
+  const inverseScale = 1 / effectiveMetricsScale.value
+
+  return `translate(${metricsPanel.x + metricsPanel.width - handleSize * inverseScale} ${metricsPanel.y + metricsPanelHeight.value - handleSize * inverseScale}) scale(${inverseScale})`
+})
 
 const view = computed(() => {
   const scene = createRadialScenePresentation(props.evaluation, undefined, {
@@ -1052,6 +1063,9 @@ function formatCoordinate(value: number): string {
             :width="metricsPanel.width"
             :height="metricsPanelHeight"
             rx="3"
+            @pointerdown.stop
+            @pointermove.stop
+            @wheel.stop
           />
           <g class="scene-metrics" aria-hidden="true">
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.speedY">
@@ -1079,7 +1093,7 @@ function formatCoordinate(value: number): string {
             <text
               v-if="compactEmbed && view.sceneMetrics.horizontalDeviationVisible"
               class="scene-metrics__horizontal-offset"
-              :x="view.sceneMetrics.x + 12"
+              :x="view.sceneMetrics.x"
               :y="view.sceneMetrics.horizontalDeviationY"
             >
               <tspan>
@@ -1231,7 +1245,7 @@ function formatCoordinate(value: number): string {
             :aria-valuemin="minimumMetricsScale"
             :aria-valuemax="maximumMetricsScale"
             :aria-valuenow="effectiveMetricsScale"
-            :transform="`translate(${metricsPanel.x + metricsPanel.width - 16} ${metricsPanel.y + metricsPanelHeight - 16})`"
+            :transform="metricsResizeTransform"
             @pointerdown="startMetricsResize"
             @keydown="resizeMetricsWithKeyboard"
           >
@@ -2221,6 +2235,16 @@ figcaption {
   fill: var(--scene-ink);
   font-weight: 500;
   text-rendering: optimizeLegibility;
+}
+
+.scene-figure--compact-embed .scene-metrics-panel__background {
+  cursor: default;
+  pointer-events: all;
+}
+
+.scene-figure--compact-embed .scene-metric-value,
+.scene-figure--compact-embed .scene-metric-unit {
+  font-weight: 700;
 }
 
 .scene-figure--compact-embed .scene-metrics__horizontal-offset {

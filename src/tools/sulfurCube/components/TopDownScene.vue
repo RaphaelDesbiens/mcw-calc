@@ -120,6 +120,17 @@ const maximumMetricsScale = computed(() =>
 const effectiveMetricsScale = computed(() =>
   Math.min(metricsScale.value, maximumMetricsScale.value),
 )
+const metricsResizeTransform = computed(() => {
+  const handleSize = 16
+
+  if (!props.compactEmbed) {
+    return `translate(${metricsPanel.x + metricsPanel.width - handleSize} ${metricsPanel.y + metricsPanelHeight.value - handleSize})`
+  }
+
+  const inverseScale = 1 / effectiveMetricsScale.value
+
+  return `translate(${metricsPanel.x + metricsPanel.width - handleSize * inverseScale} ${metricsPanel.y + metricsPanelHeight.value - handleSize * inverseScale}) scale(${inverseScale})`
+})
 
 const view = computed(() => {
   const scene = createTopDownScenePresentation(props.evaluation)
@@ -770,6 +781,9 @@ onBeforeUnmount(() => {
             :width="metricsPanel.width"
             :height="metricsPanelHeight"
             rx="3"
+            @pointerdown.stop
+            @pointermove.stop
+            @wheel.stop
           />
           <g class="topdown-metrics" aria-hidden="true">
             <text :x="view.metrics.x" :y="view.metrics.aimErrorY">
@@ -897,7 +911,7 @@ onBeforeUnmount(() => {
             :aria-valuemin="minimumMetricsScale"
             :aria-valuemax="maximumMetricsScale"
             :aria-valuenow="effectiveMetricsScale"
-            :transform="`translate(${metricsPanel.x + metricsPanel.width - 16} ${metricsPanel.y + metricsPanelHeight - 16})`"
+            :transform="metricsResizeTransform"
             @pointerdown="startMetricsResize"
             @keydown="resizeMetricsWithKeyboard"
           >
@@ -1533,6 +1547,16 @@ figcaption {
   fill: var(--topdown-ink);
   font-weight: 500;
   text-rendering: optimizeLegibility;
+}
+
+.topdown-figure--compact-embed .topdown-metrics-panel__background {
+  cursor: default;
+  pointer-events: all;
+}
+
+.topdown-figure--compact-embed .topdown-metric-value,
+.topdown-figure--compact-embed .topdown-metric-unit {
+  font-weight: 700;
 }
 
 @media (max-width: 40rem) {

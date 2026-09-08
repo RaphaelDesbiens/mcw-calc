@@ -1144,7 +1144,7 @@ watch(
 
 .sulfur-cube-compact-field {
   box-sizing: border-box;
-  width: 100%;
+  width: calc(100% - 1px);
   min-width: 0;
   max-width: 100%;
 }
@@ -1162,8 +1162,12 @@ watch(
   width: 100%;
 }
 
-.compact-toolbar__archetype :deep(.cdx-select),
-.compact-toolbar__floor :deep(.cdx-select) {
+.compact-toolbar__archetype :deep(.cdx-select-vue),
+.compact-toolbar__floor :deep(.cdx-select-vue),
+.compact-toolbar__archetype :deep(.cdx-select-vue__handle),
+.compact-toolbar__floor :deep(.cdx-select-vue__handle) {
+  display: block;
+  min-width: 0;
   width: 100%;
   max-width: none;
 }
@@ -1172,7 +1176,7 @@ watch(
   box-sizing: border-box;
   align-self: stretch;
   min-width: 0;
-  min-height: 3.25rem;
+  min-height: 2.75rem;
   max-width: none;
   width: 100%;
   height: 100%;
@@ -1203,9 +1207,9 @@ watch(
   border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  padding: 0.05rem 0.4rem;
+  padding: 0.12rem 0.55rem;
   font-size: 0.58rem;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .compact-toolbar__full-link {
