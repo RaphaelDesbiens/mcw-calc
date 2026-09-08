@@ -178,15 +178,6 @@ const maximumMetricsScale = computed(() =>
 const effectiveMetricsScale = computed(() =>
   Math.min(metricsScale.value, maximumMetricsScale.value),
 )
-const collapsedMetricsPanel = { width: 190, height: 38 } as const
-const displayedMetricsWidth = computed(() =>
-  props.compactEmbed && metricsCollapsed.value ? collapsedMetricsPanel.width : metricsPanel.width,
-)
-const displayedMetricsHeight = computed(() =>
-  props.compactEmbed && metricsCollapsed.value
-    ? collapsedMetricsPanel.height
-    : metricsPanelHeight.value,
-)
 const metricsResizeTransform = computed(() => {
   const handleSize = 16
 
@@ -202,7 +193,7 @@ const metricsCollapseTransform = computed(() => {
   const handleSize = 16
   const inverseScale = 1 / effectiveMetricsScale.value
 
-  return `translate(${metricsPanel.x + displayedMetricsWidth.value - handleSize * inverseScale} ${metricsPanel.y}) scale(${inverseScale})`
+  return `translate(${metricsPanel.x + metricsPanel.width - handleSize * inverseScale} ${metricsPanel.y}) scale(${inverseScale})`
 })
 
 function toggleMetricsCollapsed(event: Event): void {
@@ -979,6 +970,15 @@ function formatCoordinate(value: number): string {
           +
         </CdxButton>
       </div>
+      <CdxButton
+        v-if="compactEmbed && metricsCollapsed"
+        class="scene-metrics-summary-control"
+        size="small"
+        weight="quiet"
+        @click="toggleMetricsCollapsed"
+      >
+        {{ t('sulfurCube.scene.showInformation') }}
+      </CdxButton>
       <svg
         ref="svgElement"
         class="scene-svg"
@@ -1449,30 +1449,22 @@ function formatCoordinate(value: number): string {
         </g>
 
         <g
-          v-if="displayOptions.information"
+          v-if="displayOptions.information && !metricsCollapsed"
           class="scene-metrics-panel"
-          :class="{ 'scene-metrics-panel--collapsed': metricsCollapsed }"
-          :tabindex="compactEmbed && metricsCollapsed ? 0 : undefined"
-          :role="compactEmbed && metricsCollapsed ? 'button' : undefined"
-          :aria-label="
-            compactEmbed && metricsCollapsed ? t('sulfurCube.scene.showInformation') : undefined
-          "
           :transform="`translate(${metricsPanel.x} ${metricsPanel.y}) scale(${effectiveMetricsScale}) translate(${-metricsPanel.x} ${-metricsPanel.y})`"
-          @click="metricsCollapsed && toggleMetricsCollapsed($event)"
-          @keydown="toggleMetricsCollapsedWithKeyboard"
         >
           <rect
             class="scene-metrics-panel__background"
             :x="metricsPanel.x"
             :y="metricsPanel.y"
-            :width="displayedMetricsWidth"
-            :height="displayedMetricsHeight"
+            :width="metricsPanel.width"
+            :height="metricsPanelHeight"
             rx="3"
             @pointerdown.stop
             @pointermove.stop
             @wheel.stop
           />
-          <g v-if="!metricsCollapsed" class="scene-metrics" aria-hidden="true">
+          <g class="scene-metrics" aria-hidden="true">
             <text :x="view.sceneMetrics.x" :y="view.sceneMetrics.speedY">
               <tspan>{{ t('sulfurCube.scene.speedLabel') }}&#160;=&#160;</tspan>
               <tspan
@@ -1665,17 +1657,8 @@ function formatCoordinate(value: number): string {
               </text>
             </g>
           </g>
-          <text
-            v-if="compactEmbed && metricsCollapsed"
-            class="scene-metrics-summary"
-            :x="metricsPanel.x + 12"
-            :y="metricsPanel.y + 25"
-            aria-hidden="true"
-          >
-            {{ t('sulfurCube.scene.showInformation') }}
-          </text>
           <g
-            v-if="compactEmbed && !metricsCollapsed"
+            v-if="compactEmbed"
             class="scene-metrics-collapse"
             tabindex="0"
             role="button"
@@ -1688,7 +1671,6 @@ function formatCoordinate(value: number): string {
             <path d="M 4 8 H 12" />
           </g>
           <g
-            v-if="!metricsCollapsed"
             class="scene-metrics-resize"
             tabindex="0"
             role="slider"
@@ -1994,22 +1976,21 @@ figcaption {
   pointer-events: none;
 }
 
-.scene-metrics-collapse:focus rect,
-.scene-metrics-panel--collapsed:focus .scene-metrics-panel__background {
+.scene-metrics-collapse:focus rect {
   stroke: var(--color-progressive, #36c);
   stroke-width: 2px;
 }
 
-.scene-metrics-panel--collapsed {
+.scene-metrics-summary-control {
+  position: absolute;
+  z-index: 2;
+  top: 0.5rem;
+  left: 0.5rem;
+  min-width: 11rem;
+  padding-inline: 0.75rem;
   cursor: pointer;
-  outline: none;
-}
-
-.scene-metrics-summary {
-  fill: var(--scene-ink);
-  font-size: 16px;
-  font-weight: 700;
-  pointer-events: none;
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 .scene-attack-metrics > line {
   stroke: color-mix(in srgb, var(--scene-muted) 36%, transparent);

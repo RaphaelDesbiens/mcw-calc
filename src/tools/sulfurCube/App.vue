@@ -1634,7 +1634,7 @@ watch(
   }
 }
 
-@container sulfur-cube-compact (max-width: calc(9.4cm + 0.75rem)) {
+@container sulfur-cube-compact (max-width: calc(10cm + 0.75rem)) {
   .compact-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
