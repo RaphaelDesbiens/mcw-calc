@@ -1526,10 +1526,12 @@ figcaption {
   width: 0.5em;
   height: 0.5em;
   border-width: 0.12em;
-  vertical-align: 0;
+  vertical-align: 0.04em;
 }
 
 .topdown-figure--compact-embed .topdown-metrics {
+  fill: var(--topdown-ink);
+  font-weight: 500;
   text-rendering: optimizeLegibility;
 }
 

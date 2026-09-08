@@ -161,11 +161,16 @@ const sceneTitle = computed(() =>
 )
 const metricsPanelHeight = computed(() => {
   const horizontalDeviationOffset = showCompactHorizontalDeviation.value ? 21 : 0
+  const compactDistanceGap = props.compactEmbed ? 21 : 0
 
   if (props.attackSummary !== null && props.attackSummary !== undefined) {
-    return props.compactEmbed ? 278 + horizontalDeviationOffset : 375
+    return props.compactEmbed
+      ? 278 + horizontalDeviationOffset + compactDistanceGap
+      : 375
   }
-  return props.compactEmbed ? 235 + horizontalDeviationOffset : 235
+  return props.compactEmbed
+    ? 235 + horizontalDeviationOffset + compactDistanceGap
+    : 235
 })
 const maximumMetricsScale = computed(() =>
   Math.min(
@@ -282,26 +287,27 @@ const view = computed(() => {
           value: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
         }
   const horizontalDeviationOffset = showCompactHorizontalDeviation.value ? 21 : 0
+  const compactDistanceGap = props.compactEmbed ? 21 : 0
+  const compactFollowingMetricsOffset = horizontalDeviationOffset + compactDistanceGap
   const sceneMetrics = {
     x: 18,
     valueX: 168,
-    horizontalDeviationValueX: 222,
     speedY: 26,
     launchElevationY: 47,
     horizontalDeviationY: 68,
-    distanceY: 68 + horizontalDeviationOffset,
-    firstBounceY: 89 + horizontalDeviationOffset,
-    qY: 110 + horizontalDeviationOffset,
-    thetaY: 131 + horizontalDeviationOffset,
-    blockY: 166 + horizontalDeviationOffset,
-    archetypeY: 187 + horizontalDeviationOffset,
-    floorY: 222 + horizontalDeviationOffset,
-    weaponY: 257 + horizontalDeviationOffset,
-    attackStrengthY: 278 + horizontalDeviationOffset,
-    sharpnessY: 299 + horizontalDeviationOffset,
-    knockbackY: 320 + horizontalDeviationOffset,
-    sprintingY: 341 + horizontalDeviationOffset,
-    criticalHitY: 362 + horizontalDeviationOffset,
+    distanceY: 68 + compactFollowingMetricsOffset,
+    firstBounceY: 89 + compactFollowingMetricsOffset,
+    qY: 110 + compactFollowingMetricsOffset,
+    thetaY: 131 + compactFollowingMetricsOffset,
+    blockY: 166 + compactFollowingMetricsOffset,
+    archetypeY: 187 + compactFollowingMetricsOffset,
+    floorY: 222 + compactFollowingMetricsOffset,
+    weaponY: 257 + compactFollowingMetricsOffset,
+    attackStrengthY: 278 + compactFollowingMetricsOffset,
+    sharpnessY: 299 + compactFollowingMetricsOffset,
+    knockbackY: 320 + compactFollowingMetricsOffset,
+    sprintingY: 341 + compactFollowingMetricsOffset,
+    criticalHitY: 362 + compactFollowingMetricsOffset,
     speed: (props.evaluation.launchSummary.totalSpeed * 20).toFixed(2),
     distance: props.evaluation.trajectory.horizontalDisplacement.toFixed(2),
     firstBounce:
@@ -314,7 +320,7 @@ const view = computed(() => {
     launchElevation: ((scene.launchElevationRadians * 180) / Math.PI).toFixed(1),
     horizontalDeviation: compactHorizontalDeviationDegrees.value.toFixed(1),
     horizontalDeviationVisible: showCompactHorizontalDeviation.value,
-    attackGroupEndY: 362 + horizontalDeviationOffset,
+    attackGroupEndY: 362 + compactFollowingMetricsOffset,
     attackDetailX: 32,
     attackDetailValueX: 190,
   }
@@ -1072,14 +1078,14 @@ function formatCoordinate(value: number): string {
             </text>
             <text
               v-if="compactEmbed && view.sceneMetrics.horizontalDeviationVisible"
-              :x="view.sceneMetrics.x"
+              class="scene-metrics__horizontal-offset"
+              :x="view.sceneMetrics.x + 12"
               :y="view.sceneMetrics.horizontalDeviationY"
             >
               <tspan>
                 ({{ t('sulfurCube.scene.horizontalDeviationLabel') }}&#160;=&#160;
               </tspan>
               <tspan
-                :x="view.sceneMetrics.horizontalDeviationValueX"
                 class="scene-metric-value scene-metric-value--velocity"
               >
                 {{ view.sceneMetrics.horizontalDeviation }}
@@ -2208,11 +2214,17 @@ figcaption {
   width: 0.5em;
   height: 0.5em;
   border-width: 0.12em;
-  vertical-align: 0;
+  vertical-align: 0.04em;
 }
 
 .scene-figure--compact-embed .scene-metrics {
+  fill: var(--scene-ink);
+  font-weight: 500;
   text-rendering: optimizeLegibility;
+}
+
+.scene-figure--compact-embed .scene-metrics__horizontal-offset {
+  font-size: 13px;
 }
 
 :global(.dark) .scene-figure {

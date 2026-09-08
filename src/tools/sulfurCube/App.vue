@@ -786,7 +786,7 @@ watch(
 </script>
 
 <template>
-  <CalcField v-if="isCompactView">
+  <CalcField v-if="isCompactView" class="sulfur-cube-compact-field">
     <div class="sulfur-cube-compact" lang="en">
       <header class="tool-title-band tool-title-band--compact">
         <img class="tool-title-band__image" :src="sulfurCubeImageUrl" alt="" />
@@ -1134,8 +1134,19 @@ watch(
 .sulfur-cube-compact {
   display: grid;
   gap: 0.75rem;
-  width: min(100%, 64rem);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 64rem;
   margin: 0.75rem auto 0;
+  container: sulfur-cube-compact / inline-size;
+}
+
+.sulfur-cube-compact-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .compact-toolbar {
@@ -1147,6 +1158,7 @@ watch(
 
 .compact-toolbar__archetype,
 .compact-toolbar__floor {
+  min-width: 0;
   width: 100%;
 }
 
@@ -1158,9 +1170,12 @@ watch(
 
 .compact-toolbar__action {
   box-sizing: border-box;
+  align-self: stretch;
   min-width: 0;
+  min-height: 3.25rem;
   max-width: none;
   width: 100%;
+  height: 100%;
 }
 
 :global(.compact-toolbar__action.cdx-button) {
@@ -1171,6 +1186,7 @@ watch(
 .tool-title-band.tool-title-band--compact {
   min-height: 5rem;
   padding-block: 0.75rem;
+  overflow: visible;
 }
 
 .tool-title-band--compact .tool-title-band__image {
@@ -1180,10 +1196,16 @@ watch(
 
 .tool-title-band--compact .tool-title-band__edition {
   top: auto;
-  right: 0.6rem;
-  bottom: 0.45rem;
-  padding: 0.1rem 0.45rem;
-  font-size: 0.65rem;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  transform: translateY(100%);
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.58rem;
+  line-height: 1;
 }
 
 .compact-toolbar__full-link {
@@ -1192,7 +1214,6 @@ watch(
   justify-content: center;
   gap: 0.35rem;
   box-sizing: border-box;
-  min-height: 2rem;
   border: 1px solid var(--border-color-progressive, #36c);
   border-radius: 2px;
   padding: 0.25rem 0.75rem;
@@ -1500,7 +1521,7 @@ watch(
   }
 }
 
-@media (max-width: 36rem) {
+@container sulfur-cube-compact (max-width: calc(6cm + 0.75rem)) {
   .compact-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1509,17 +1530,6 @@ watch(
   .compact-toolbar__floor {
     grid-column: auto;
     width: 100%;
-  }
-}
-
-@media (max-width: 26rem) {
-  .compact-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .compact-toolbar__archetype,
-  .compact-toolbar__floor {
-    grid-column: auto;
   }
 
   .compact-toolbar > * {
